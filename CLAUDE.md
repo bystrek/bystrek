@@ -24,6 +24,8 @@ Never commit secrets, `.env` files, API keys, or tokens to this repo. The establ
 
 Don't invent or guess URLs (docs links, dashboard links, package pages) in commits, docs, or chat. Only use URLs the user has provided or that come from local files/tool output.
 
-## Current architecture (as of day two)
+## Current architecture (as of day three)
 
-Chat: Open WebUI → Caddy (TLS + reverse proxy) → droplet, reachable only over Tailscale. No application code lives in this repo yet — infra is managed by hand on the droplet (`~/bystrek/docker-compose.yml`, `Caddyfile`), not deployed from this repo. If that changes (e.g. the day-three push service gets scaffolded here with CI/CD), update this section and the README's repo-layout section together.
+Chat: Open WebUI → Caddy (TLS + reverse proxy) → droplet, reachable only over Tailscale. Infra is still managed by hand on the droplet (`~/bystrek/docker-compose.yml`, `Caddyfile`), not deployed from this repo — `infra/` is a synced reference copy only, not a deploy source.
+
+`push-service/` (Bun) is this repo's first application code: a Web Push microservice meant to run at `bystrek.dev/push/*`, same origin as Open WebUI. It's scaffolded and runnable locally (`bun install && bun run dev`) but not yet deployed — no Dockerfile, no droplet compose/Caddy wiring, no client subscribe flow. When any of that lands, update this section, the README's repo-layout section, and `docs/whats-next.md` together.

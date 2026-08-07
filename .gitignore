@@ -1,2 +1,6 @@
 .claude/settings.local.json
 .DS_Store
+
+push-service/node_modules
+push-service/.env
+push-service/data/

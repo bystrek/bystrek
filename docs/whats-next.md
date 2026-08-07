@@ -2,15 +2,23 @@
 
 Infra is done, and as of day two, Open WebUI is deployed and connected to Claude — `https://bystrek.dev` is a working chat UI, reachable only over Tailscale. See `day-two.md` for how that was done. Pick up here:
 
-## 1. Set up ntfy — target: chat on Mac → push on phone
+## 1. Push notifications — target: chat on Mac → push on phone
 **Goal**: open `https://bystrek.dev` on macOS, tell the chat to send a notification, and see it land as a push notification on the iPhone (and optionally the Mac too).
 
-- Self-host **ntfy** on the droplet: add it as a new service in `~/bystrek/docker-compose.yml`, alongside `open-webui` and `caddy`, with its own persistent volume for topic/auth config.
-- Give it a reachable HTTPS endpoint through the existing Caddy + Cloudflare DNS-01 setup (new site block, likely a subdomain like `ntfy.bystrek.dev` — needs its own DNS record and cert, same pattern as the main domain).
-- Install the ntfy app on the iPhone, subscribe to a private topic on the self-hosted server. Optionally add the ntfy desktop client (or browser web push) on the Mac too.
-- Build a small Open WebUI **Workspace Tool**: a `send_notification(message)` function that does an HTTP `POST` to the self-hosted ntfy topic. This is a good first tool — much simpler than the calendar tool (no external auth), and proves the tool-calling pipe end to end.
-- Flip **Function Calling** to **Native** on the `claude-sonnet-5` model's advanced params (flagged during day two, still not done).
-- Test the actual goal: from a chat at `https://bystrek.dev`, ask Claude to send a notification, confirm it shows up on the iPhone (and Mac, if set up).
+Superseded the original ntfy plan — see `devlog/2026-08-07-day-03.md` for why (ntfy can't be reverse-proxied under a subpath and a native app is strictly worse than iOS Web Push). Landed on a self-hosted Web Push service, same origin as Open WebUI. Status:
+
+- ✅ `push-service/` (Bun + Hono): `/push/subscribe`, `/push/send`, `/push/vapid-public-key`, `/push/sw.js`. Runs locally, smoke-tested.
+- ✅ Dockerfile, builds and runs correctly (verified locally).
+- ✅ CI: `.github/workflows/push-service.yml` builds and pushes the image to GHCR on every push to `push-service/**`. Deploy is manual pull, not auto — see `devlog` for why (decided against auto-deploy for now; it'd mean either a production SSH key sitting in GitHub Actions secrets, or a poller service, both more than this project needs yet).
+- ⬜ Decide GHCR package visibility (public — image has no baked-in secrets — vs. private + pull token on the droplet).
+- ⬜ Generate a **real** production VAPID keypair (`bun run generate-vapid`) — the one in local `.env` is a throwaway dev key, don't reuse it.
+- ⬜ Add a `push-service` block to the droplet's `docker-compose.yml`, referencing the GHCR image (`image:`, not `build:`), with a volume for the SQLite data and an `env_file` section for the VAPID keys in the droplet's `.env`.
+- ⬜ Extend the Caddyfile: route `/push/*` to `push-service`, everything else stays on `open-webui:8080`.
+- ⬜ Client-side subscribe flow: a small page/script under `bystrek.dev` that requests notification permission and calls `pushManager.subscribe()`.
+- ⬜ Add `bystrek.dev` to the iPhone home screen (if not already), grant notification permission, confirm a subscription lands in the service's SQLite DB.
+- ⬜ Open WebUI **Workspace Tool**: `send_notification(message)` — POSTs to `/push/send`.
+- ⬜ Flip **Function Calling** to **Native** on the `claude-sonnet-5` model's advanced params (flagged since day two, still not done).
+- ⬜ End-to-end test: ask Claude in chat to send a notification, confirm it lands on the iPhone lock screen.
 
 ## 2. Build the iCloud Calendar tool
 - Generate an app-specific password at appleid.apple.com (Security → App-Specific Passwords) — the real Apple password won't work here.

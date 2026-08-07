@@ -13,8 +13,10 @@ Infra and chat are live. Everything past that is in progress — see [`docs/what
 - `bystrek.dev` resolves to the droplet's Tailscale IP (Cloudflare DNS, not proxied) with a real Let's Encrypt cert issued via DNS-01 — no ports 80/443 exposed publicly, ever.
 - [Open WebUI](https://github.com/open-webui/open-webui) as the chat frontend, connected to Claude via Anthropic's OpenAI-compatible `/v1/chat/completions` endpoint.
 
+**In progress:**
+- Push notifications: [`push-service/`](push-service/) (Bun + Hono) is scaffolded, runnable locally, and built by CI into a GHCR image on every push. Not yet wired into the droplet (no Caddy route, no client subscribe flow, no Open WebUI tool, deploy is manual pull for now). See day three's devlog for why we rejected ntfy and a native app in favor of this.
+
 **Not built yet:**
-- Push notifications (self-hosted Web Push service, same origin as the chat — see day three's devlog for why we rejected ntfy and a native app).
 - The iCloud Calendar tool (CalDAV).
 - Notes/reminders integration (no decision made yet — iCloud Notes has no API).
 - Proactive nudging (the assistant messaging first, not just replying).
@@ -35,13 +37,13 @@ Full raw facts (IPs, versions, file layout on the droplet) are in [`docs/technic
 ## Repo layout
 
 ```
-brand/    Logo, icon, and favicon assets (SVG sources + rendered exports)
-devlog/   Session-by-session build log — what was decided, what was built, what broke
-docs/     technical-trace.md (infra snapshot) and whats-next.md (live punch list)
-infra/    Manually-synced copies of what's actually running on the droplet
+.github/       CI workflows (builds push-service's image to GHCR)
+brand/         Logo, icon, and favicon assets (SVG sources + rendered exports)
+devlog/        Session-by-session build log — what was decided, what was built, what broke
+docs/          technical-trace.md (infra snapshot) and whats-next.md (live punch list)
+infra/         Manually-synced copies of what's actually running on the droplet
+push-service/  Bun Web Push microservice (subscribe/send endpoints) — see its own README
 ```
-
-There's no application code in this repo yet. The push-notification microservice (Bun) planned in day three's devlog will be the first.
 
 ## Infra snapshot
 
