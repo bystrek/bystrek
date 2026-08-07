@@ -5,15 +5,24 @@ import { upsertSubscription, listSubscriptions, deleteSubscription, type StoredS
 
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
+const indexFile = Bun.file(new URL("../public/index.html", import.meta.url));
 const swFile = Bun.file(new URL("../public/sw.js", import.meta.url));
+const touchIconFile = Bun.file(new URL("../public/apple-touch-icon.png", import.meta.url));
 
 export const app = new Hono();
 
 app.notFound((c) => c.json({ error: "not found" }, 404));
 
-app.get("/push/vapid-public-key", (c) => c.json({ publicKey: VAPID_PUBLIC_KEY }));
+// Temporary: this is bystrek.dev's entry point while Open WebUI is disabled
+// pending a proper single-icon integration (see docs/whats-next.md).
+app.get("/", () => new Response(indexFile, { headers: { "Content-Type": "text/html" } }));
 
-app.get("/push/sw.js", () => new Response(swFile, { headers: { "Content-Type": "application/javascript" } }));
+app.get("/apple-touch-icon.png", () => new Response(touchIconFile, { headers: { "Content-Type": "image/png" } }));
+
+// Served at root (not /push/sw.js) so its default scope covers the whole origin.
+app.get("/sw.js", () => new Response(swFile, { headers: { "Content-Type": "application/javascript" } }));
+
+app.get("/push/vapid-public-key", (c) => c.json({ publicKey: VAPID_PUBLIC_KEY }));
 
 app.post("/push/subscribe", async (c) => {
   const body = await c.req.json().catch(() => null);
