@@ -1,0 +1,6 @@
+bystrek.dev {
+    tls {
+        dns cloudflare {env.CF_API_TOKEN}
+    }
+    reverse_proxy open-webui:8080
+}
