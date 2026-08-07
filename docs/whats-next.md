@@ -1,6 +1,6 @@
 # What's Next — bystrek.dev
 
-Infra is done, and as of day two, Open WebUI is deployed and connected to Claude — `https://bystrek.dev` is a working chat UI, reachable only over Tailscale. See `day-two.md` for how that was done. Pick up here:
+Infra is done, and as of day two, Open WebUI is deployed and connected to Claude. As of day three, `https://bystrek.dev` root is **temporarily a push-notification subscribe page, not the chat** — see item 1 below and `devlog/2026-08-07-day-03.md` for why. Open WebUI's container is still running on the droplet, just unrouted. Pick up here:
 
 ## 1. Push notifications — target: chat on Mac → push on phone
 **Goal**: open `https://bystrek.dev` on macOS, tell the chat to send a notification, and see it land as a push notification on the iPhone (and optionally the Mac too).
@@ -13,12 +13,13 @@ Superseded the original ntfy plan — see `devlog/2026-08-07-day-03.md` for why 
 - ✅ GHCR package visibility: kept **private**. Fine-grained PATs turned out not to support package permissions at all (confirmed by trying), so pull auth on the droplet uses a classic PAT (`GHCR_PULL_TOKEN`, `read:packages` scope) — `docker login` and a test pull both verified working.
 - ✅ Real production VAPID keypair generated and added to the droplet's `.env` (distinct from the throwaway dev key in local `.env` — never reused).
 - ✅ `push-service` added to the droplet's `docker-compose.yml`, pulling `ghcr.io/bystrek/push-service:latest` with a `push_service_data` volume for the SQLite DB and the shared `.env` for VAPID/config.
-- ✅ Caddyfile extended: `handle /push/*` routes to `push-service:8787`, everything else still `handle` → `open-webui:8080`. Live and verified over Tailscale (`https://bystrek.dev/push/vapid-public-key` returns the real key, `https://bystrek.dev/` still serves Open WebUI).
-- ⬜ Client-side subscribe flow: a small page/script under `bystrek.dev` that requests notification permission and calls `pushManager.subscribe()`.
-- ⬜ Add `bystrek.dev` to the iPhone home screen (if not already), grant notification permission, confirm a subscription lands in the service's SQLite DB.
-- ⬜ Open WebUI **Workspace Tool**: `send_notification(message)` — POSTs to `/push/send`.
+- ✅ Client-side subscribe flow: `push-service` now serves `bystrek.dev` root directly — a minimal page with an "Enable notifications" button (`pushManager.subscribe()`, posts to `/push/subscribe`). **Open WebUI is temporarily disabled** (its container keeps running, just unrouted) because iOS ties Web Push permission to whichever home-screen-installed app requested it, and Open WebUI's subpath deployment support is historically broken — too risky to try moving it under `/openwebui` to make room. Caddyfile simplified to route everything to `push-service:8787`.
+- ✅ Added `bystrek.dev` to the iPhone home screen, opened it from the icon, granted notification permission, subscription stored.
+- ✅ **End-to-end test passed**: `curl -X POST https://bystrek.dev/push/send -d '{"message":"..."}'` delivered a real push notification to the iPhone lock screen. The backend and client flow both work.
+- ⬜ Day four: re-enable Open WebUI at `/`, with the subscribe flow integrated into the same installed app (not a separate page/icon) — likely via Caddy response injection, not a subpath move (see devlog for why a subpath is risky).
+- ⬜ Open WebUI **Workspace Tool**: `send_notification(message)` — POSTs to `/push/send`. Blocked on the item above (Open WebUI isn't routed yet).
 - ⬜ Flip **Function Calling** to **Native** on the `claude-sonnet-5` model's advanced params (flagged since day two, still not done).
-- ⬜ End-to-end test: ask Claude in chat to send a notification, confirm it lands on the iPhone lock screen.
+- ⬜ Once Open WebUI is back: the *real* test — ask Claude in chat to send a notification, confirm it lands on the iPhone lock screen (today's test used `curl` directly, not Claude).
 
 ## 2. Build the iCloud Calendar tool
 - Generate an app-specific password at appleid.apple.com (Security → App-Specific Passwords) — the real Apple password won't work here.
