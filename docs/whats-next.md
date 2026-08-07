@@ -10,10 +10,10 @@ Superseded the original ntfy plan — see `devlog/2026-08-07-day-03.md` for why 
 - ✅ `push-service/` (Bun + Hono): `/push/subscribe`, `/push/send`, `/push/vapid-public-key`, `/push/sw.js`. Runs locally, smoke-tested.
 - ✅ Dockerfile, builds and runs correctly (verified locally).
 - ✅ CI: `.github/workflows/push-service.yml` builds and pushes the image to GHCR on every push to `push-service/**`. Deploy is manual pull, not auto — see `devlog` for why (decided against auto-deploy for now; it'd mean either a production SSH key sitting in GitHub Actions secrets, or a poller service, both more than this project needs yet).
-- ⬜ Decide GHCR package visibility (public — image has no baked-in secrets — vs. private + pull token on the droplet).
-- ⬜ Generate a **real** production VAPID keypair (`bun run generate-vapid`) — the one in local `.env` is a throwaway dev key, don't reuse it.
-- ⬜ Add a `push-service` block to the droplet's `docker-compose.yml`, referencing the GHCR image (`image:`, not `build:`), with a volume for the SQLite data and an `env_file` section for the VAPID keys in the droplet's `.env`.
-- ⬜ Extend the Caddyfile: route `/push/*` to `push-service`, everything else stays on `open-webui:8080`.
+- ✅ GHCR package visibility: kept **private**. Fine-grained PATs turned out not to support package permissions at all (confirmed by trying), so pull auth on the droplet uses a classic PAT (`GHCR_PULL_TOKEN`, `read:packages` scope) — `docker login` and a test pull both verified working.
+- ✅ Real production VAPID keypair generated and added to the droplet's `.env` (distinct from the throwaway dev key in local `.env` — never reused).
+- ✅ `push-service` added to the droplet's `docker-compose.yml`, pulling `ghcr.io/bystrek/push-service:latest` with a `push_service_data` volume for the SQLite DB and the shared `.env` for VAPID/config.
+- ✅ Caddyfile extended: `handle /push/*` routes to `push-service:8787`, everything else still `handle` → `open-webui:8080`. Live and verified over Tailscale (`https://bystrek.dev/push/vapid-public-key` returns the real key, `https://bystrek.dev/` still serves Open WebUI).
 - ⬜ Client-side subscribe flow: a small page/script under `bystrek.dev` that requests notification permission and calls `pushManager.subscribe()`.
 - ⬜ Add `bystrek.dev` to the iPhone home screen (if not already), grant notification permission, confirm a subscription lands in the service's SQLite DB.
 - ⬜ Open WebUI **Workspace Tool**: `send_notification(message)` — POSTs to `/push/send`.

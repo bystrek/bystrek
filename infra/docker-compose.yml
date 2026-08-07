@@ -5,6 +5,13 @@ services:
       - open_webui_data:/app/backend/data
     restart: unless-stopped
 
+  push-service:
+    image: ghcr.io/bystrek/push-service:latest
+    env_file: .env
+    volumes:
+      - push_service_data:/app/data
+    restart: unless-stopped
+
   caddy:
     build: .
     ports:
@@ -24,3 +31,4 @@ volumes:
   caddy_data:
   caddy_config:
   open_webui_data:
+  push_service_data:

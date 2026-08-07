@@ -12,9 +12,10 @@ Infra and chat are live. Everything past that is in progress — see [`docs/what
 - A DigitalOcean droplet, locked down to SSH-only on its public IP, reachable everywhere else only over a private Tailscale mesh.
 - `bystrek.dev` resolves to the droplet's Tailscale IP (Cloudflare DNS, not proxied) with a real Let's Encrypt cert issued via DNS-01 — no ports 80/443 exposed publicly, ever.
 - [Open WebUI](https://github.com/open-webui/open-webui) as the chat frontend, connected to Claude via Anthropic's OpenAI-compatible `/v1/chat/completions` endpoint.
+- Push notification backend: [`push-service/`](push-service/) (Bun + Hono) is live at `bystrek.dev/push/*`, built by CI into a private GHCR image and manually pulled onto the droplet. See day three's devlog for why we rejected ntfy and a native app in favor of this.
 
 **In progress:**
-- Push notifications: [`push-service/`](push-service/) (Bun + Hono) is scaffolded, runnable locally, and built by CI into a GHCR image on every push. Not yet wired into the droplet (no Caddy route, no client subscribe flow, no Open WebUI tool, deploy is manual pull for now). See day three's devlog for why we rejected ntfy and a native app in favor of this.
+- Push notifications, client side: no subscribe flow on the page yet, and no Open WebUI tool wired up to call `/push/send`. The backend works (verified with curl) but nothing triggers a real push yet.
 
 **Not built yet:**
 - The iCloud Calendar tool (CalDAV).
@@ -51,4 +52,4 @@ push-service/  Bun Web Push microservice (subscribe/send endpoints) — see its 
 
 ## Secrets
 
-Nothing here. `CF_API_TOKEN` and any future API keys/VAPID keys live in `~/bystrek/.env` on the droplet (chmod 600), never in git.
+Nothing here. `CF_API_TOKEN`, `GHCR_PULL_TOKEN`/`GHCR_USERNAME` (private GHCR package pull auth), and `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` all live in `~/bystrek/.env` on the droplet (chmod 600), never in git.

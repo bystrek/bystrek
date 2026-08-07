@@ -2,11 +2,15 @@
 
 Minimal self-hosted Web Push service, meant to sit at `bystrek.dev/push/*` (same origin as Open WebUI) so notification permission and PWA install stay unified — see `devlog/2026-08-07-day-03.md` for why (ntfy and a native app were both rejected).
 
-**Status**: scaffolded, runnable locally, and built by CI. Not yet wired into the droplet — no `docker-compose.yml`/Caddyfile entry, no client-side subscribe flow, no Open WebUI tool. See `docs/whats-next.md` for the remaining steps.
+**Status**: live at `https://bystrek.dev/push/*`, reachable over Tailscale. No client-side subscribe flow or Open WebUI tool yet — see `docs/whats-next.md` for the remaining steps.
 
 ## Deploy
 
-`.github/workflows/push-service.yml` builds this service's `Dockerfile` and pushes `ghcr.io/<org>/push-service:latest` (and `:<sha>`) to GHCR on every push to `push-service/**`. Deploy is a manual pull on the droplet (`docker compose pull push-service && docker compose up -d`), not automatic — considered wiring the workflow to SSH into the droplet directly, but that means a production-capable key sitting in GitHub Actions secrets, which is more than this project needs right now.
+`.github/workflows/push-service.yml` builds this service's `Dockerfile` and pushes `ghcr.io/bystrek/push-service:latest` (and `:<sha>`) to GHCR on every push to `push-service/**`. Deploy is a manual pull on the droplet (`docker compose pull push-service && docker compose up -d`), not automatic — considered wiring the workflow to SSH into the droplet directly, but that means a production-capable key sitting in GitHub Actions secrets, which is more than this project needs right now.
+
+The GHCR package is **private** (fine-grained PATs don't support package permissions at all — confirmed by trying — so this uses a classic PAT with `read:packages` scope). The droplet authenticates via `GHCR_PULL_TOKEN` + `GHCR_USERNAME` in its `.env`, same pattern as everything else there.
+
+On the droplet, `push-service` is wired into `docker-compose.yml` (`image: ghcr.io/bystrek/push-service:latest`, a `push_service_data` volume for the SQLite DB) and the Caddyfile routes `/push/*` to it while everything else stays on `open-webui`. See `infra/` in the repo root for the live config.
 
 ## Structure
 
