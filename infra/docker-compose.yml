@@ -21,8 +21,8 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
 
-  app:
-    image: ghcr.io/bystrek/app:latest
+  ui:
+    image: ghcr.io/bystrek/ui:latest
     restart: unless-stopped
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
