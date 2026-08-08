@@ -1,34 +1,14 @@
 # What's Next — bystrek.dev
 
-Push notifications work end-to-end (day three). Open WebUI is retired. `bystrek.dev` currently serves only `push-service`'s subscribe page. Day four begins the real build — see [`docs/architecture.md`](architecture.md) for design/reasoning; this file is the punch list.
+Day four's scaffold is live (see below). Open WebUI is retired. `push-service` is fully removed — folded into `api`/`ui`, no trace left. See [`docs/architecture.md`](architecture.md) for design/reasoning; this file is the punch list.
 
-## 1. Day four: scaffold the platform
+## 1. Done: scaffold the platform, deployed
 
-Per `docs/architecture.md`. Build locally first, deploy after — WebAuthn and service workers both treat `localhost` as a secure context, so passkeys and push work without `api.bystrek.dev` existing yet.
+`api` (NestJS + Drizzle + Bun, `api.bystrek.dev`) and `ui` (SvelteKit, `bystrek.dev`) are live on the droplet, verified with a real push notification through the full stack. GitHub Actions builds both to GHCR; Dockge (dashboard, manual pull-and-redeploy, loopback + SSH tunnel only) and Watchtower (label-scoped auto-redeploy) run the deploy. `push-service` is gone entirely: container, Caddy route, source directory, CI workflow, and its now-redundant SQLite data volume (real subscription data confirmed migrated to Postgres first) all removed.
 
-Scope for today: auth (passkeys/magic-link/Resend) and tier-2 field encryption are **deferred** — no schema exists yet for either to protect. Today is scaffold + prove the stack talks to itself, locally and on the droplet. Deferred work, picked up once real domains exist: household/user data model (`owner_id` + `visibility`), auth (`better-auth`, invite-gated passkeys + magic-link via Resend), tier-2 field encryption (AES-256-GCM, wrapped manually around Drizzle calls) — shape of each already decided in `docs/architecture.md`.
+Deferred, not part of this scaffold: household/user data model (`owner_id` + `visibility`), auth (`better-auth`, invite-gated passkeys + magic-link via Resend), tier-2 field encryption (AES-256-GCM, wrapped manually around Drizzle calls), and the chat UI (raw SSE from `@anthropic-ai/sdk`, consumed with RxJS) — shape of each already decided in `docs/architecture.md`. Anthropic API key (Console + billing) still needs confirming before chat work starts.
 
-Prerequisites to confirm first:
-- Anthropic API key (Console + billing) — backend needs this to call Claude.
-- Bun installed locally.
-- Local Postgres (Docker, dev-only — separate from the droplet's compose).
-
-Immediate next steps (local):
-
-- Backend stack decided: **NestJS + Drizzle + Bun** (see `docs/architecture.md`).
-- Scaffold the backend API: health endpoint; `subscriptions` table (Drizzle, replacing `push-service`'s SQLite) plus `/push/vapid-public-key`, `/push/subscribe`, `/push/send` ported over from `push-service`; migrations run automatically at container boot.
-- Scaffold the custom frontend (SvelteKit): absorb `push-service`'s `index.html`/`sw.js`/touch-icon, keep the "Enable notifications" button, add a "Send test notification" button wired to `/push/send`.
-- Local check: subscribe from a phone, hit the test-notification button, confirm a real push lands. Also retires the "shake down Bun+Drizzle+Postgres for real" risk noted in the runtime decision.
-- CORS allowlist (`https://bystrek.dev` always, `http://localhost:5173` in dev via env var).
-
-Then deploy:
-
-- GitHub Actions for the new backend + frontend: build + push images to GHCR, same pattern as `push-service.yml`.
-- Provision Postgres on the droplet. Set up `api.bystrek.dev` — new DNS record, new Caddy site block, same DNS-01 pattern already in use.
-- Install **Dockge** (dashboard, logs, manual pull-and-redeploy) and **Watchtower** (label-scoped auto-redeploy on new image digest) on the droplet.
-- Deploy both new services, re-run the test-notification check against the real droplet deploy.
-- Flip `bystrek.dev`'s Caddy route from `push-service` to the new frontend. Retire the `push-service` container and its now-redundant CI workflow.
-- Chat UI (raw SSE from `@anthropic-ai/sdk`, consumed with RxJS) and the calendar vertical slice (item 2) are **deferred to a later day** — today stops at a proven, deployed scaffold.
+Next up: item 2 (calendar) is the first real vertical slice, and will need the auth + data model pieces above built alongside it.
 
 ## 2. Calendar (first vertical slice)
 
@@ -47,7 +27,7 @@ Then deploy:
 ## 4. Proactive nudging
 
 - The actual want: the assistant should be able to message *first* — checking in on something planned earlier, re-notifying until it's actually done.
-- Delivery is already solved and verified (push, now built into the backend/frontend rather than a separate `push-service`).
+- Delivery is already solved and verified (push, built into `api`/`ui`).
 - Still needed: a lightweight scheduled job, independent of any reactive chat session, that periodically checks state via the backend API and fires a notification if something isn't done. Depends on items 2/3 existing first — "did I do it" means checking real data.
 
 ## 5. Loose ends worth revisiting

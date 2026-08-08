@@ -29,10 +29,12 @@ Never commit secrets, `.env` files, API keys, or tokens to this repo. The establ
 
 Don't invent or guess URLs (docs links, dashboard links, package pages) in commits, docs, or chat. Only use URLs the user has provided or that come from local files/tool output.
 
-## Current architecture (as of day three, end of session)
+## Current architecture (as of day four, end of session)
 
 Open WebUI has been retired — removed from the droplet's `docker-compose.yml`, container and image deleted. Its data volume (`bystrek_open_webui_data`, old chat history) was left intact but unreferenced rather than deleted, in case it's ever wanted; nothing currently points at it. Don't reintroduce Open WebUI without revisiting `docs/architecture.md`'s reasoning for why it was dropped.
 
-`bystrek.dev` currently serves only `push-service` (a minimal subscribe page at root, plus the push backend) — no chat exists right now. This is transitional: day four begins building the real replacement (custom app with its own chat UI, backend API, Postgres) per `docs/architecture.md`. Infra is still managed by hand on the droplet (`~/bystrek/docker-compose.yml`, `Caddyfile`), not deployed from this repo — `infra/` is a synced reference copy only, not a deploy source.
+`push-service` has been retired and fully removed (unlike Open WebUI, no volume was left behind — its data was a redundant copy of what's now in Postgres, confirmed migrated before deletion): source directory deleted, container removed, `bystrek_push_service_data` volume deleted, CI workflow deleted. Its logic (VAPID subscribe/send, `sw.js`) was ported into `api`/`ui` rather than kept as a separate service — don't reintroduce it as a standalone service without revisiting that reasoning (`devlog/2026-08-08-day-04.md`).
 
-When the day-four build lands (new services, `api.bystrek.dev`, etc.), update this section, the README's status/architecture sections, and `docs/whats-next.md` together.
+`bystrek.dev` now serves `ui` (SvelteKit: subscribe UI, service worker) and `api.bystrek.dev` serves `api` (NestJS + Drizzle + Bun: Postgres, push subscribe/send) — both real services, verified with a real push notification through the deployed stack. Chat, auth, and the data model beyond push subscriptions are still not built; those are deferred, not next-session-immediate. Infra is still managed by hand on the droplet (`~/bystrek/docker-compose.yml`, `Caddyfile`, plus a separate `~/dockge/docker-compose.yml` for Dockge+Watchtower), not deployed from this repo — `infra/` is a synced reference copy only. Deploy is: GitHub Actions builds `api`/`ui` images to GHCR on push; Dockge (loopback + SSH-tunnel only) gives a manual pull-and-redeploy button; Watchtower auto-redeploys those two services (label-scoped) on new image digests.
+
+When the next major architectural shift lands, update this section, the README's status/architecture sections, and `docs/whats-next.md` together.

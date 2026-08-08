@@ -1,6 +1,6 @@
 # infra/
 
-A manually-synced snapshot of the files running in `~/bystrek/` on the droplet: `docker-compose.yml`, `Caddyfile`, `Dockerfile` (builds Caddy with the Cloudflare DNS plugin via `xcaddy`, for DNS-01 cert issuance — see `devlog/2026-08-04-day-01.md`).
+A manually-synced snapshot of the files running on the droplet: `docker-compose.yml`, `Caddyfile`, `Dockerfile` (builds Caddy with the Cloudflare DNS plugin via `xcaddy`, for DNS-01 cert issuance — see `devlog/2026-08-04-day-01.md`) from `~/bystrek/`, and `dockge-docker-compose.yml` from the separate `~/dockge/` stack (Dockge + Watchtower, kept outside `~/bystrek/` so redeploying that stack never risks restarting the tool managing it).
 
 **Not deployed from here.** The droplet is still edited by hand over SSH; these are copies pulled down for reference and history, not a source the droplet pulls from. If that changes, update this note.
 
