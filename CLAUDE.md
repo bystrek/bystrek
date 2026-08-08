@@ -2,6 +2,10 @@
 
 Working conventions for this repo. See `README.md` for what the project is, `docs/architecture.md` for the target design and reasoning, and `docs/whats-next.md` for what's currently in flight.
 
+## Docs style
+
+Every `.md` file: short, concise, simple language, minimal words. State decisions, not the deliberation behind them — put reasoning/alternatives-considered narrative in devlog entries instead (see below).
+
 ## Devlog
 
 Write a devlog entry per work session in `devlog/YYYY-MM-DD-day-NN.md` (sequential day number, not date-based numbering). Structure it like the existing entries: **Date/Goal** header, **What we decided** (with reasoning, not just conclusions), **What we actually built**, **Problems hit along the way (and the actual fixes)**, and a **Current state** or **Status** closer. Capture the *why* behind decisions (alternatives considered and rejected, and why) — that's the part that isn't recoverable from git history later.

@@ -1,15 +1,20 @@
 # What's Next — bystrek.dev
 
-Push notifications are done and verified end-to-end (day three — a real push landed on an iPhone lock screen). Open WebUI has been retired entirely. `bystrek.dev` currently serves only `push-service`'s subscribe page — no chat, no app. Day four begins the real build. See [`docs/architecture.md`](architecture.md) for the target design and the reasoning behind it; this file is the concrete punch list. Pick up here:
+Push notifications work end-to-end (day three). Open WebUI is retired. `bystrek.dev` currently serves only `push-service`'s subscribe page. Day four begins the real build — see [`docs/architecture.md`](architecture.md) for design/reasoning; this file is the punch list.
 
 ## 1. Day four: scaffold the platform
 
-Per `docs/architecture.md`. Immediate next steps:
+Per `docs/architecture.md`. Prerequisites to confirm first:
+- Anthropic API key (Console + billing) — backend needs this to call Claude.
+- Apple Developer Program enrollment ($99/yr) — needed for Sign in with Apple OAuth.
+- Bun installed locally.
 
-- Finalize remaining tech picks (see architecture doc's open questions): frontend framework, ORM/DB access layer, key management for tier-2 field encryption.
+Immediate next steps:
+
+- Backend stack decided: **NestJS + Drizzle + Bun** (see `docs/architecture.md`).
 - Provision Postgres. Set up `api.bystrek.dev` — new DNS record, new Caddy site block, same DNS-01 pattern already in use.
-- Scaffold the backend API (Bun/Hono, continuing the stack `push-service` already established): auth (`better-auth`, Sign in with Apple), household/user data model (`owner_id` + `visibility` per row), CORS allowlist (`https://bystrek.dev` always, `http://localhost:<vite-port>` in dev only — never a wildcard), tier-2 field encryption utility (AES-256-GCM in application code, not `pgcrypto`).
-- Scaffold the custom frontend (Vite): served by Caddy at `bystrek.dev`, absorbing the service worker and push-subscribe UI from `push-service`, chat UI via Vercel AI SDK (+ `assistant-ui` and/or `Streamdown` as needed) talking to `api.bystrek.dev`.
+- Scaffold the backend API: auth (`better-auth`, Sign in with Apple), household/user data model (`owner_id` + `visibility`), CORS allowlist (`https://bystrek.dev` always, dev localhost only via env var), tier-2 field encryption (AES-256-GCM, app-level, wrapped manually around Drizzle calls).
+- Scaffold the custom frontend (SvelteKit) at `bystrek.dev`: absorb `push-service`'s service worker/subscribe UI, chat UI via raw SSE from `@anthropic-ai/sdk` on the backend (no Vercel AI SDK), consumed with RxJS.
 - Reduce `push-service` to notifications only: drop its public Caddy route entirely, called internally (`push-service:8787` on the Docker network) by the backend API.
 - First vertical slice, full stack: **calendar** (item 2 below) — proves the whole pattern (data model → backend API → LLM tool → app view) before it's repeated for other domains.
 
