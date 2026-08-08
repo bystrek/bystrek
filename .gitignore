@@ -4,3 +4,7 @@
 push-service/node_modules
 push-service/.env
 push-service/data/
+
+api/node_modules
+api/.env
+api/dist

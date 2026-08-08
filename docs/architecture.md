@@ -39,13 +39,12 @@ LLM has write access to sensitive domains, medical records included. Soft-delete
 
 ## Domains (decided)
 
-- `bystrek.dev` — Caddy serves the custom UI. Only place `sw.js` can live (same-origin with the installed PWA).
-- `api.bystrek.dev` — backend API: DB access, auth. CORS scoped to `https://bystrek.dev`.
-- `push-service` — notifications only, internal-only (`push-service:8787`), called by `api.bystrek.dev`.
+- `bystrek.dev` — Caddy serves the custom UI, including `sw.js` (same-origin with the installed PWA) and the push subscribe/send flow. `push-service` is retired; its logic moved into the frontend (SW, subscribe UI) and backend (subscriptions table, send endpoint) directly — see Deployment section for why it didn't stay a separate service.
+- `api.bystrek.dev` — backend API: DB access, auth, push send/subscribe. CORS scoped to `https://bystrek.dev`.
 
 ## API gateway (decided)
 
-Caddy routes by domain to the frontend, the backend API, and (internally) push-service. No separate gateway component until enough public services make shared auth/rate-limiting logic worth centralizing.
+Caddy routes by domain to the frontend and the backend API. No separate gateway component until enough public services make shared auth/rate-limiting logic worth centralizing.
 
 ## CORS (decided)
 
@@ -57,6 +56,7 @@ Tailscale gates who can reach the server; CORS gates which sites' JS can use an 
 - **better-auth**, self-hosted. Rejected Auth0/Okta — wrong category (Okta) or against the self-hosted/own-your-data pattern (Auth0). Rejected Sign in with Apple/Google too — routes login through a third party, plus Apple requires a paid Developer Program enrollment.
 - Bearer tokens, not cookies — sidesteps cross-origin-cookie/CSRF complexity.
 - **Passkeys (WebAuthn)**, invite-gated, with magic-link email as fallback. No public signup: an admin creates a pending household-member record + signed invite token; the invite link runs `better-auth`'s passkey-first flow (`registration.requireSession: false` + `resolveUser`) to create the account. Magic link (to the email captured at invite time) covers device loss.
+- Magic-link email delivery: **Resend**.
 - Sharing granularity: `private`/`household` is enough, no per-member sharing.
 
 ## Encryption of sensitive data (decided)
@@ -80,6 +80,16 @@ Key management: same `.env`-on-droplet pattern as other secrets.
 ## Runtime (decided)
 
 **Bun**, for `api.bystrek.dev`. Drizzle has no Bun risk (native support). Nest-on-Bun is the only residual risk — works, ~90%+ compat, not officially blessed — accepted because this specific choice is cheap to reverse (Docker base-image swap, not a rewrite) and both Nest and Drizzle run identically on Node if it doesn't hold up. Shake it down for real use before trusting it fully, not just a smoke test.
+
+## Deployment (decided)
+
+- CI (GitHub Actions) builds each service's Docker image and pushes to GHCR on relevant path changes — same pattern already used for `push-service`.
+- Migrations run automatically at container boot (entrypoint runs `drizzle-kit migrate`, then starts the app). Safe here specifically because it's a single instance, no rolling/concurrent deploys.
+- No SSH-from-CI and no self-hosted GitHub Actions runner on the droplet — both mean a production-capable credential or execution path reachable from CI. Rejected for `push-service` originally; applies even more now that Postgres holds real data.
+- No GitOps (ArgoCD, Portainer Git-Stacks) — reconciling from git is a real capability but requires either a Kubernetes cluster (ArgoCD) or moving the droplet's hand-managed compose file to git-tracked auto-pull (Portainer), both bigger changes than this project needs right now.
+- **Dockge** on the droplet: dashboard for running containers/logs, manual pull-and-redeploy per stack. Reachable only via Tailscale, same trust boundary as everything else.
+- **Watchtower** alongside it, label-scoped to just the app's own services (not Postgres/Caddy/Dockge): polls GHCR and auto-recreates on new image digest. Compose-compatible — recreates containers in place, preserving their config.
+- Both need Docker socket access; accepted since that's inherent to what they do, not an avoidable cost.
 
 ## Open questions
 
