@@ -54,9 +54,9 @@ Tailscale gates who can reach the server; CORS gates which sites' JS can use an 
 ## Auth (decided direction)
 
 - Multi-user via **household**: users belong to a household, every row has `owner_id` + `visibility` (`private`/`household`), sensible per-domain default, overridable per record. No per-item ACLs.
-- **better-auth**, self-hosted. Rejected Auth0/Okta — wrong category (Okta) or against the self-hosted/own-your-data pattern (Auth0).
+- **better-auth**, self-hosted. Rejected Auth0/Okta — wrong category (Okta) or against the self-hosted/own-your-data pattern (Auth0). Rejected Sign in with Apple/Google too — routes login through a third party, plus Apple requires a paid Developer Program enrollment.
 - Bearer tokens, not cookies — sidesteps cross-origin-cookie/CSRF complexity.
-- **Sign in with Apple** only, to start.
+- **Passkeys (WebAuthn)**, invite-gated, with magic-link email as fallback. No public signup: an admin creates a pending household-member record + signed invite token; the invite link runs `better-auth`'s passkey-first flow (`registration.requireSession: false` + `resolveUser`) to create the account. Magic link (to the email captured at invite time) covers device loss.
 - Sharing granularity: `private`/`household` is enough, no per-member sharing.
 
 ## Encryption of sensitive data (decided)
