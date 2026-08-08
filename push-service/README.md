@@ -1,8 +1,8 @@
 # push-service
 
-Minimal self-hosted Web Push service, meant to sit at `bystrek.dev/push/*` (same origin as Open WebUI) so notification permission and PWA install stay unified — see `devlog/2026-08-07-day-03.md` for why (ntfy and a native app were both rejected).
+Self-hosted Web Push service — see `devlog/2026-08-07-day-03.md` for why (ntfy and a native app were both rejected in favor of this).
 
-**Status**: live at `https://bystrek.dev/push/*`, reachable over Tailscale. No client-side subscribe flow or Open WebUI tool yet — see `docs/whats-next.md` for the remaining steps.
+**Status**: live and verified end-to-end (a real push landed on an iPhone lock screen). Currently also serves `bystrek.dev` root directly — a minimal subscribe page — standing in for the custom app that will eventually own that role (Open WebUI, which this was originally meant to share an origin with, has been retired; see `docs/architecture.md`).
 
 ## Deploy
 
@@ -10,7 +10,7 @@ Minimal self-hosted Web Push service, meant to sit at `bystrek.dev/push/*` (same
 
 The GHCR package is **private** (fine-grained PATs don't support package permissions at all — confirmed by trying — so this uses a classic PAT with `read:packages` scope). The droplet authenticates via `GHCR_PULL_TOKEN` + `GHCR_USERNAME` in its `.env`, same pattern as everything else there.
 
-On the droplet, `push-service` is wired into `docker-compose.yml` (`image: ghcr.io/bystrek/push-service:latest`, a `push_service_data` volume for the SQLite DB) and the Caddyfile routes `/push/*` to it while everything else stays on `open-webui`. See `infra/` in the repo root for the live config.
+On the droplet, `push-service` is wired into `docker-compose.yml` (`image: ghcr.io/bystrek/push-service:latest`, a `push_service_data` volume for the SQLite DB) and the Caddyfile routes everything to it — it's currently the only thing running behind `bystrek.dev`. See `infra/` in the repo root for the live config.
 
 ## Structure
 
@@ -23,10 +23,12 @@ Bun + [Hono](https://hono.dev) for routing (small, Bun-native, no other framewor
 
 ## Endpoints
 
+- `GET /` — the subscribe page (temporary — see Status above).
+- `GET /sw.js` — the service worker: handles `push` (shows a notification) and `notificationclick` (focuses/opens the app). Served at root (not `/push/sw.js`) so its default scope covers the whole origin.
+- `GET /apple-touch-icon.png` — for the home-screen icon when the subscribe page is installed.
 - `GET /push/vapid-public-key` — returns `{ publicKey }`, for the client to use with `pushManager.subscribe()`.
-- `GET /push/sw.js` — serves the service worker (`public/sw.js`): handles `push` (shows a notification) and `notificationclick` (focuses/opens the app).
 - `POST /push/subscribe` — body is a browser `PushSubscription.toJSON()` (`{ endpoint, keys: { p256dh, auth } }`). Upserts into SQLite, keyed by `endpoint`.
-- `POST /push/send` — body `{ title?, message }`. Sends to every stored subscription via `web-push`; subscriptions that come back 404/410 (expired/unsubscribed) are pruned automatically. Returns `{ sent, removed, failed }`. This is what a future Open WebUI tool will call.
+- `POST /push/send` — body `{ title?, message }`. Sends to every stored subscription via `web-push`; subscriptions that come back 404/410 (expired/unsubscribed) are pruned automatically. Returns `{ sent, removed, failed }`. Per `docs/architecture.md`, this service will eventually become internal-only, called by a backend API rather than reachable directly.
 
 No auth on `/push/send` yet — the service is only ever reachable at all because `bystrek.dev` itself is Tailscale-only, so the trust boundary today is "on the tailnet." Revisit if that trust model ever changes.
 

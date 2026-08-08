@@ -1,36 +1,32 @@
 # bystrek
 
-A self-hosted personal AI assistant, built around Claude, that can eventually manage a calendar, take notes, send push notifications, and nudge proactively instead of only responding when spoken to.
+A self-hosted personal data platform: calendar, notes, research, medical records, nutrition, gym — centralized storage with an LLM (Claude) that can read and write into it, plus a custom app for browsing, visualization, and summaries. See [`docs/architecture.md`](docs/architecture.md) for the target design and the reasoning behind it.
 
 `https://bystrek.dev` — reachable only over Tailscale, not the public internet.
 
 ## Status
 
-Infra and chat are live. Everything past that is in progress — see [`docs/whats-next.md`](docs/whats-next.md) for the current punch list and [`devlog/`](devlog/) for how we got here, session by session.
+Infra is live; the platform itself hasn't been built yet. Chat is currently **offline** — Open WebUI was used through day three but has been retired (see `docs/architecture.md`'s "why not Open WebUI" section); the custom app that replaces it (chat included) starts day four. See [`docs/whats-next.md`](docs/whats-next.md) for the current punch list and [`devlog/`](devlog/) for how we got here, session by session.
 
 **Working today:**
 - A DigitalOcean droplet, locked down to SSH-only on its public IP, reachable everywhere else only over a private Tailscale mesh.
 - `bystrek.dev` resolves to the droplet's Tailscale IP (Cloudflare DNS, not proxied) with a real Let's Encrypt cert issued via DNS-01 — no ports 80/443 exposed publicly, ever.
-- [Open WebUI](https://github.com/open-webui/open-webui) as the chat frontend, connected to Claude via Anthropic's OpenAI-compatible `/v1/chat/completions` endpoint.
-- Push notification backend: [`push-service/`](push-service/) (Bun + Hono) is live at `bystrek.dev/push/*`, built by CI into a private GHCR image and manually pulled onto the droplet. See day three's devlog for why we rejected ntfy and a native app in favor of this.
-
-**In progress:**
-- Push notifications, client side: no subscribe flow on the page yet, and no Open WebUI tool wired up to call `/push/send`. The backend works (verified with curl) but nothing triggers a real push yet.
+- Push notifications: [`push-service/`](push-service/) (Bun + Hono) — backend and subscribe flow both verified end-to-end (a real push landed on an iPhone lock screen, day three). Currently also serves `bystrek.dev` root as a minimal subscribe page, standing in until the custom app takes over that role.
 
 **Not built yet:**
-- The iCloud Calendar tool (CalDAV).
-- Notes/reminders integration (no decision made yet — iCloud Notes has no API).
+- The custom app itself (chat + browsing/visualization), backend API, Postgres-backed data model, auth — see `docs/architecture.md` for the plan.
+- The iCloud Calendar tool (CalDAV) — planned as the platform's first vertical slice.
+- Notes/research/medical/nutrition/gym domains.
 - Proactive nudging (the assistant messaging first, not just replying).
 
 ## Architecture
 
-```
-Mac / iPhone (Tailscale) ──▶ bystrek.dev ──▶ Caddy (TLS, reverse proxy) ──▶ Open WebUI ──▶ Claude API
-```
+Current (transitional, day three): `bystrek.dev` → Caddy → `push-service` (subscribe page + push backend). No chat.
+
+Target (day four on): `bystrek.dev` → Caddy → custom app (chat + browsing); `api.bystrek.dev` → backend API (Postgres, auth); `push-service` reduced to notifications only, internal-only. Full design in [`docs/architecture.md`](docs/architecture.md).
 
 - **Access**: Tailscale only. The droplet's public IP allows inbound SSH and nothing else — no public HTTP/HTTPS surface at all.
 - **TLS**: Caddy, built with the Cloudflare DNS plugin (`xcaddy`), gets certs via DNS-01 so no inbound port 80/443 is ever needed.
-- **Chat**: Open WebUI, backed by a persistent Docker volume, talks to Claude through an OpenAI-type connection (Chat Completions, not Responses — Anthropic's compat layer doesn't implement Responses).
 - **Domain**: `bystrek.dev` is an invented, non-identifying name (deliberately not the user's surname — Certificate Transparency logs are public, so a personal domain on an assistant with calendar access would be a phishing gift).
 
 Full raw facts (IPs, versions, file layout on the droplet) are in [`docs/technical-trace.md`](docs/technical-trace.md) — note it's a snapshot from day one and hasn't been kept current since.

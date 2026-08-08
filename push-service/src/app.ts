@@ -13,8 +13,8 @@ export const app = new Hono();
 
 app.notFound((c) => c.json({ error: "not found" }, 404));
 
-// Temporary: this is bystrek.dev's entry point while Open WebUI is disabled
-// pending a proper single-icon integration (see docs/whats-next.md).
+// Temporary: standing in as bystrek.dev's entry point until the custom app
+// (see docs/architecture.md) takes over this route.
 app.get("/", () => new Response(indexFile, { headers: { "Content-Type": "text/html" } }));
 
 app.get("/apple-touch-icon.png", () => new Response(touchIconFile, { headers: { "Content-Type": "image/png" } }));
