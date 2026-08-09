@@ -13,7 +13,7 @@ Backend and frontend scaffolds are live on the droplet. Chat is currently **offl
 - `bystrek.dev` and `api.bystrek.dev` both resolve to the droplet's Tailscale IP (Cloudflare DNS, not proxied) with real Let's Encrypt certs issued via DNS-01 — no ports 80/443 exposed publicly, ever.
 - `ui/` (SvelteKit) at `bystrek.dev`: subscribe UI + service worker, "send test notification" button.
 - `api/` (NestJS + Drizzle + Bun) at `api.bystrek.dev`: Postgres-backed subscriptions table, push subscribe/send endpoints. Verified end to end — a real push landed on a device via the deployed stack.
-- Deploy pipeline: GitHub Actions builds `api`/`ui` images to GHCR on push; **Dockge** (dashboard + manual pull-and-redeploy, loopback-only, SSH-tunnel access) and **Watchtower** (label-scoped auto-redeploy on new image digest) run on the droplet.
+- Deploy pipeline: GitHub Actions builds `api`/`ui` images to GHCR, then redeploys over SSH with a key restricted to a single forced command, gated by a GitHub Environment (required reviewer). **Dockge** (dashboard, loopback-only, SSH-tunnel access) stays for visibility and manual overrides; Watchtower has been removed.
 
 **Not built yet:**
 - Auth (invite-gated passkeys + magic-link), tier-2 field encryption — deferred until real domains/schemas exist.
