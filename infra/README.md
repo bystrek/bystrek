@@ -1,6 +1,6 @@
 # infra/
 
-A manually-synced snapshot of the files running on the droplet: `docker-compose.yml`, `Caddyfile`, `Dockerfile` (builds Caddy with the Cloudflare DNS plugin via `xcaddy`, for DNS-01 cert issuance — see `devlog/2026-08-04-day-01.md`), `deploy.sh` from `~/bystrek/`, and `dockge-docker-compose.yml` from the separate `~/dockge/` stack (Dockge, kept outside `~/bystrek/` so redeploying that stack never risks restarting the tool managing it — Watchtower removed day five, see `docs/whats-next.md` item 3).
+A manually-synced snapshot of the files running on the droplet: `docker-compose.yml`, `Caddyfile`, `Dockerfile` (builds Caddy with the Cloudflare DNS plugin via `xcaddy`, for DNS-01 cert issuance), `deploy.sh` from `~/bystrek/`, and `dockge-docker-compose.yml` from the separate `~/dockge/` stack (Dockge, kept outside `~/bystrek/` so redeploying that stack never risks restarting the tool managing it).
 
 `deploy.sh` (`docker compose pull && up -d --remove-orphans`) is what CI actually triggers on every push, over SSH with a key restricted to running only this one script — but CI only *runs* the copy already on the droplet, it never pushes a new one. Changing it here still means `scp`-ing the update over by hand, same as everything else in this directory.
 

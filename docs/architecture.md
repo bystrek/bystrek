@@ -1,6 +1,6 @@
 # Architecture direction — bystrek
 
-Target shape for where this project is heading, as of 2026-08-08. Not a snapshot of what's built — see `docs/whats-next.md` for that. Update when the direction changes, not on every feature shipped.
+Target shape for where this project is heading, as of 2026-08-09. Not a snapshot of what's built — see `docs/whats-next.md` for that. Update when the direction changes, not on every feature shipped.
 
 ## Vision
 
@@ -18,18 +18,12 @@ Sync connectors (calendar, ...) ─────────────┘
 
 - Backend API is the single gateway to Postgres. Nothing else talks to it directly.
 - Chat and the app live in one installed PWA, one icon.
-- Chat UI is custom-built, not Open WebUI.
+- Chat UI is custom-built.
 - Sync connectors are small, scheduled, per-source jobs. Shared interface once there are 2–3 of them.
-
-## Why not Open WebUI
-
-Day three hit a wall bolting push notifications onto Open WebUI: iOS ties Web Push permission to the installed home-screen app, Open WebUI's subpath routing is broken, and it has no way to inject custom UI. Retired it entirely.
-
-Deeper reason: the vision needs a real custom app anyway (browsing, viz). Once it exists, it can own chat too — one app, full control.
 
 ## Frontend & chat (decided)
 
-- **Svelte (SvelteKit)**. Angular has no maintained streaming/tool-call chat library; Svelte's mutation-friendly reactivity fits streaming chat state better, and gives the best PWA story (absorbs `push-service`'s `sw.js`).
+- **Svelte (SvelteKit)** — mutation-friendly reactivity fits streaming chat state well, and gives a solid PWA story (owns `sw.js` directly).
 - **No Vercel AI SDK.** Talk to `@anthropic-ai/sdk` directly, stream raw SSE. This is a Claude-only app — AI SDK's multi-provider abstraction buys nothing. Cost: hand-write the multi-step tool-call loop (~30–80 lines).
 - **RxJS** on the frontend to consume the stream. Not required (a plain async generator would work), but its operators (e.g. `switchMap` to cancel an in-flight stream) and native fit with Svelte's store contract earn their keep.
 
@@ -39,7 +33,7 @@ LLM has write access to sensitive domains, medical records included. Soft-delete
 
 ## Domains (decided)
 
-- `bystrek.dev` — Caddy serves the custom UI, including `sw.js` (same-origin with the installed PWA) and the push subscribe/send flow. `push-service` is retired; its logic moved into the frontend (SW, subscribe UI) and backend (subscriptions table, send endpoint) directly — see Deployment section for why it didn't stay a separate service.
+- `bystrek.dev` — Caddy serves the custom UI, including `sw.js` (same-origin with the installed PWA) and the push subscribe/send flow.
 - `api.bystrek.dev` — backend API: DB access, auth, push send/subscribe. CORS scoped to `https://bystrek.dev`.
 
 ## API gateway (decided)
@@ -53,7 +47,7 @@ Tailscale gates who can reach the server; CORS gates which sites' JS can use an 
 ## Auth (decided direction)
 
 - Multi-user via **household**: users belong to a household, every row has `owner_id` + `visibility` (`private`/`household`), sensible per-domain default, overridable per record. No per-item ACLs.
-- **better-auth**, self-hosted. Rejected Auth0/Okta — wrong category (Okta) or against the self-hosted/own-your-data pattern (Auth0). Rejected Sign in with Apple/Google too — routes login through a third party, plus Apple requires a paid Developer Program enrollment.
+- **better-auth**, self-hosted — keeps auth data owned rather than routed through a third-party identity provider.
 - Bearer tokens, not cookies — sidesteps cross-origin-cookie/CSRF complexity.
 - **Passkeys (WebAuthn)**, invite-gated, with magic-link email as fallback. No public signup: an admin creates a pending household-member record + signed invite token; the invite link runs `better-auth`'s passkey-first flow (`registration.requireSession: false` + `resolveUser`) to create the account. Magic link (to the email captured at invite time) covers device loss.
 - Magic-link email delivery: **Resend**.
@@ -67,15 +61,9 @@ Key management: same `.env`-on-droplet pattern as other secrets.
 
 ## Backend framework + ORM (decided)
 
-**NestJS** — chosen for proper DI (a real IoC container: modules, providers, Guards, Interceptors). Ruled out:
-- Alosaur/Deno — ecosystem too small, DB support unverified.
-- Elysia — DI-like context helpers only, not a real IoC container.
-- Deepkit — best DI technically, but alpha status, a 2025 EU trademark loss, thin production use, no 2026 release — too risky for a platform holding medical records.
+**NestJS** — a real IoC container (modules, providers, Guards, Interceptors) for proper DI.
 
-**Drizzle** (ORM) — chosen over Prisma, TypeORM, MikroORM:
-- TypeORM/MikroORM use Hibernate/Doctrine-style Unit-of-Work + lazy proxies — the exact mechanism behind the classic N+1 problem.
-- Prisma avoids that risk too, but abstracts SQL away — the opposite of the hands-on-SQL practice this project also serves.
-- Drizzle avoids the N+1 risk, mirrors real SQL, has native Bun support. Costs: no built-in field-encryption hook (wrap manually), NestJS integration is unofficial (hand-write a thin provider).
+**Drizzle** (ORM) — mirrors real SQL directly rather than abstracting it away, avoids N+1-prone lazy-loading patterns, has native Bun support. Costs: no built-in field-encryption hook (wrap manually), NestJS integration is unofficial (hand-write a thin provider).
 
 ## Runtime (decided)
 
@@ -83,21 +71,19 @@ Key management: same `.env`-on-droplet pattern as other secrets.
 
 ## Deployment (decided)
 
-- CI (GitHub Actions) builds each service's Docker image and pushes to GHCR on relevant path changes — same pattern already used for `push-service`.
+- CI (GitHub Actions) builds each service's Docker image, pushes to GHCR, then redeploys over SSH — gated by a GitHub Environment requiring manual approval.
+- The deploy credential is restricted via a forced command in the droplet's `authorized_keys`: it can only run one fixed script (`docker compose pull && up -d --remove-orphans`), nothing else.
 - Migrations run automatically at container boot (entrypoint runs `drizzle-kit migrate`, then starts the app). Safe here specifically because it's a single instance, no rolling/concurrent deploys.
-- No SSH-from-CI and no self-hosted GitHub Actions runner on the droplet — both mean a production-capable credential or execution path reachable from CI. Rejected for `push-service` originally; applies even more now that Postgres holds real data.
-- No GitOps (ArgoCD, Portainer Git-Stacks) — reconciling from git is a real capability but requires either a Kubernetes cluster (ArgoCD) or moving the droplet's hand-managed compose file to git-tracked auto-pull (Portainer), both bigger changes than this project needs right now.
-- **Dockge** on the droplet: dashboard for running containers/logs, manual pull-and-redeploy per stack. Reachable only via Tailscale, same trust boundary as everything else.
-- **Watchtower** alongside it, label-scoped to just the app's own services (not Postgres/Caddy/Dockge): polls GHCR and auto-recreates on new image digest. Compose-compatible — recreates containers in place, preserving their config.
-- Both need Docker socket access; accepted since that's inherent to what they do, not an avoidable cost.
+- No rollback tooling.
+- **Dockge** on the droplet: dashboard for running containers/logs, manual pull-and-redeploy per stack. Reachable only via Tailscale, same trust boundary as everything else. Needs Docker socket access, accepted as inherent to what it does.
 
 ## Testing (decided)
 
-- `api`: unit tests for pure logic (encryption helpers, tool-call-loop parsing) plus integration tests against a real local Postgres, each wrapped in a rolled-back transaction — no mocked DB as the primary safety net. Runner: Bun's native `bun:test`, accepted as a reversible risk (Jest is the documented fallback) the same way the Bun runtime itself was.
+- `api`: unit tests for pure logic (encryption helpers, tool-call-loop parsing) plus integration tests against a real local Postgres, each wrapped in a rolled-back transaction — no mocked DB as the primary safety net. Runner: Bun's native `bun:test`.
 - `ui`: Vitest for unit/component logic, Playwright (WebKit only) for e2e — service worker, push, and passkey flows need a real browser, and WebKit specifically since iOS Safari fidelity is the actual target.
 - E2E stays small: a handful of real user journeys, not edge-case coverage.
 - No real third-party calls (Resend, CalDAV, FCM/APNs) in any test — stub at the boundary.
-- CI gate: tests run before image build/push in both workflows; `timeout-minutes: 10` enforces the budget.
+- CI gate: tests run before image build/push; `timeout-minutes: 10` enforces the budget.
 
 ## Open questions
 
