@@ -29,7 +29,7 @@ Backend and frontend scaffolds are live on the droplet. Chat is currently **offl
 - **TLS**: Caddy, built with the Cloudflare DNS plugin (`xcaddy`), gets certs via DNS-01 so no inbound port 80/443 is ever needed.
 - **Domain**: `bystrek.dev` is an invented, non-identifying name (deliberately not the user's surname — Certificate Transparency logs are public, so a personal domain on an assistant with calendar access would be a phishing gift).
 
-Full raw facts (IPs, versions, file layout on the droplet) are in [`docs/technical-trace.md`](docs/technical-trace.md) — note it's a snapshot from day one and hasn't been kept current since.
+Raw infra facts from early setup (IPs, firewall rules, initial droplet spec) are in [`devlog/2026-08-04-day-01.md`](devlog/2026-08-04-day-01.md); for current infra config see `infra/` below.
 
 ## Repo layout
 
@@ -39,13 +39,13 @@ api/           NestJS + Drizzle + Bun backend — Postgres, push subscribe/send
 ui/            SvelteKit frontend — subscribe UI, service worker
 brand/         Logo, icon, and favicon assets (SVG sources + rendered exports)
 devlog/        Session-by-session build log — what was decided, what was built, what broke
-docs/          technical-trace.md (infra snapshot) and whats-next.md (live punch list)
+docs/          architecture.md (direction) and whats-next.md (live punch list)
 infra/         Manually-synced copies of what's actually running on the droplet
 ```
 
 ## Infra snapshot
 
-[`infra/`](infra/) holds the actual `docker-compose.yml`, `Caddyfile`, and `Dockerfile` running on the droplet — pulled down periodically for reference, not deployed from here. See [`infra/README.md`](infra/README.md) for the sync model. It's a better source of truth than `docs/technical-trace.md`, which is prose and has already drifted.
+[`infra/`](infra/) holds the actual `docker-compose.yml`, `Caddyfile`, and `Dockerfile` running on the droplet — pulled down periodically for reference. See [`infra/README.md`](infra/README.md) for the sync model.
 
 ## Secrets
 
