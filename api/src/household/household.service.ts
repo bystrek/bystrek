@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { DRIZZLE } from '../db/drizzle.provider';
 import * as schema from '../db/schema';
@@ -12,11 +12,15 @@ export class HouseholdService {
   ) {}
 
   async getHousehold() {
-    const [household] = await this.db.select().from(households).limit(1);
+    const [household] = await this.db
+      .select()
+      .from(households)
+      .orderBy(asc(households.createdAt))
+      .limit(1);
     if (!household) return null;
 
     const members = await this.db
-      .select({ name: users.name, email: users.email, status: users.status })
+      .select({ name: users.name, status: users.status })
       .from(users)
       .where(eq(users.householdId, household.id));
 

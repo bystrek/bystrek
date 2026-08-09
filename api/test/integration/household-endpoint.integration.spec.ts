@@ -36,14 +36,37 @@ describe('GET /household (integration)', () => {
       expect(res.status).toBe(200);
       expect(res.body).toEqual({
         name: 'Test Household',
-        members: [
-          {
-            name: 'Test Member',
-            email: 'member@example.com',
-            status: 'active',
-          },
-        ],
+        members: [{ name: 'Test Member', status: 'active' }],
       });
+
+      await app.close();
+    });
+  });
+
+  it('returns the oldest household when more than one exists', async () => {
+    await withRollback(testDb, async (tx) => {
+      await tx.insert(households).values({ name: 'Newer Household' });
+      const [older] = await tx
+        .insert(households)
+        .values({
+          name: 'Older Household',
+          createdAt: new Date(Date.now() - 60_000),
+        })
+        .returning();
+      await tx.insert(households).values({ name: 'Newest Household' });
+
+      const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+        .overrideProvider(DRIZZLE)
+        .useValue(tx)
+        .compile();
+
+      const app: INestApplication = moduleRef.createNestApplication();
+      await app.init();
+
+      const res = await request(app.getHttpServer()).get('/household');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ name: older.name });
 
       await app.close();
     });

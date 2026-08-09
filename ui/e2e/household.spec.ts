@@ -5,7 +5,7 @@ test('shows household members returned by the API', async ({ page }) => {
 		route.fulfill({
 			json: {
 				name: 'bystrek',
-				members: [{ name: 'Michał', email: 'michal@example.com', status: 'active' }]
+				members: [{ name: 'Michał', status: 'active' }]
 			}
 		})
 	);

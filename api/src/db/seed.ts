@@ -5,8 +5,19 @@ import { DATABASE_URL } from '../env';
 import * as schema from './schema';
 import { households, users } from './schema';
 
+function required(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required env var: ${name}`);
+  }
+  return value;
+}
+
 const HOUSEHOLD_NAME = 'bystrek';
-const OWNER = { name: 'Michał', email: 'bobrowicz.michal@gmail.com' };
+const OWNER = {
+  name: required('SEED_OWNER_NAME'),
+  email: required('SEED_OWNER_EMAIL'),
+};
 
 async function seed() {
   const db = drizzle(postgres(DATABASE_URL), { schema });
@@ -39,8 +50,11 @@ async function seed() {
     });
     console.log(`created user "${OWNER.name}"`);
   }
-
-  process.exit(0);
 }
 
-seed();
+seed()
+  .then(() => process.exit(0))
+  .catch((err: unknown) => {
+    console.error(err);
+    process.exit(1);
+  });

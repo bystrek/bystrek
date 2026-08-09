@@ -7,7 +7,7 @@
 
 	type Household = {
 		name: string;
-		members: { name: string | null; email: string; status: string }[];
+		members: { name: string | null; status: string }[];
 	};
 	let household = $state<Household | null>(null);
 
@@ -110,9 +110,9 @@
 		<div id="household">
 			<h2>{household.name}</h2>
 			<ul>
-				{#each household.members as member (member.email)}
+				{#each household.members as member, i (i)}
 					<li>
-						{member.name ?? member.email}
+						{member.name ?? 'Unnamed member'}
 						<span class="badge">{member.status}</span>
 					</li>
 				{/each}
