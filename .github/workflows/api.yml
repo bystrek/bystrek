@@ -74,3 +74,16 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/api:latest
             ghcr.io/${{ github.repository_owner }}/api:${{ github.sha }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: production
+    steps:
+      - name: Trigger deploy over SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/deploy_key root@${{ secrets.DEPLOY_HOST }} deploy
