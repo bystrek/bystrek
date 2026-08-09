@@ -6,9 +6,11 @@ See [`docs/architecture.md`](architecture.md) for design/reasoning; this file is
 
 `api` (NestJS + Drizzle + Bun, `api.bystrek.dev`) and `ui` (SvelteKit, `bystrek.dev`) are live on the droplet, verified with a real push notification through the full stack. GitHub Actions builds both to GHCR and deploys via a forced-command-restricted SSH key, gated by a GitHub Environment (see item 3). Dockge (dashboard, loopback + SSH tunnel only) stays for visibility and manual overrides.
 
-Deferred, not part of this scaffold: household/user data model (`owner_id` + `visibility`), auth (`better-auth`, invite-gated passkeys + magic-link via Resend), tier-2 field encryption (AES-256-GCM, wrapped manually around Drizzle calls), and the chat UI (raw SSE from `@anthropic-ai/sdk`, consumed with RxJS) — shape of each already decided in `docs/architecture.md`. Anthropic API key (Console + billing) still needs confirming before chat work starts.
+`households` and `users` tables (`api/src/db/schema.ts`) are also live: a user belongs to one household, `status` (`invited`/`active`) tracks the invite-gated signup flow, `email` is unique (indexed), `household_id` is indexed and cascades on household delete. Shaped to double as `better-auth`'s user table later (`email`, `emailVerified`, `name`, `createdAt`/`updatedAt`) rather than needing a separate one.
 
-Next up: item 4 (calendar) — the first real vertical slice, which will need the auth + data model pieces above built alongside it.
+Deferred, not part of this scaffold: auth itself (`better-auth` wiring — sessions/accounts/passkeys, invite-gated passkeys + magic-link via Resend), `owner_id`/`visibility` on domain tables, tier-2 field encryption (AES-256-GCM, wrapped manually around Drizzle calls), and the chat UI (raw SSE from `@anthropic-ai/sdk`, consumed with RxJS) — shape of each already decided in `docs/architecture.md`. Anthropic API key (Console + billing) still needs confirming before chat work starts.
+
+Next up: item 4 (calendar) — the first real vertical slice, which will need the auth piece above built alongside it.
 
 ## 2. Done: testing infra
 
