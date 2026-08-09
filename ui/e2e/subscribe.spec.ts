@@ -21,6 +21,8 @@ test('enabling notifications subscribes and shows confirmation', async ({ page }
 		await route.fulfill({ status: 201, json: { ok: true } });
 	});
 
+	await page.route('**/household', (route) => route.fulfill({ status: 404, json: {} }));
+
 	await page.addInitScript(() => {
 		const fakeSubscription = {
 			endpoint: 'https://fake-push-service.example.com/fake-endpoint',

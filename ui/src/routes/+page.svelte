@@ -5,6 +5,12 @@
 	let subscribed = $state(false);
 	let busy = $state(false);
 
+	type Household = {
+		name: string;
+		members: { name: string | null; email: string; status: string }[];
+	};
+	let household = $state<Household | null>(null);
+
 	function urlBase64ToUint8Array(base64String: string) {
 		const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
 		const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -82,6 +88,13 @@
 			}
 		});
 	});
+
+	$effect(() => {
+		fetch(`${PUBLIC_API_URL}/household`)
+			.then((r) => (r.ok ? r.json() : null))
+			.then((data) => (household = data))
+			.catch((err) => console.error('failed to load household', err));
+	});
 </script>
 
 <main>
@@ -92,6 +105,20 @@
 	</button>
 	<button onclick={sendTest} disabled={busy || !subscribed}>Send test notification</button>
 	<div id="status">{status}</div>
+
+	{#if household}
+		<div id="household">
+			<h2>{household.name}</h2>
+			<ul>
+				{#each household.members as member (member.email)}
+					<li>
+						{member.name ?? member.email}
+						<span class="badge">{member.status}</span>
+					</li>
+				{/each}
+			</ul>
+		</div>
+	{/if}
 </main>
 
 <style>
@@ -145,5 +172,41 @@
 		font-size: 14px;
 		opacity: 0.75;
 		min-height: 1.2em;
+	}
+	#household {
+		margin-top: 28px;
+		padding-top: 20px;
+		border-top: 1px solid rgba(89, 22, 34, 0.15);
+	}
+	#household h2 {
+		font-size: 15px;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		opacity: 0.6;
+		margin: 0 0 10px;
+	}
+	#household ul {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+	#household li {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		font-size: 14px;
+	}
+	.badge {
+		font-size: 11px;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		padding: 2px 8px;
+		border-radius: 999px;
+		background: rgba(89, 22, 34, 0.1);
+		opacity: 0.75;
 	}
 </style>
