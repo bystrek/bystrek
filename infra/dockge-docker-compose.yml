@@ -10,10 +10,3 @@ services:
       - /root/bystrek:/opt/stacks/bystrek
     environment:
       - DOCKGE_STACKS_DIR=/opt/stacks
-
-  watchtower:
-    image: nickfedor/watchtower:latest
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: --label-enable --interval 300
