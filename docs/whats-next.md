@@ -37,3 +37,7 @@ Next up: item 2 (calendar) is the first real vertical slice, and will need the a
 - Cloudflare API token is currently sitting in `~/bystrek/.env` on the droplet — fine for now, but worth knowing it's there if the box is ever backed up/cloned.
 - No backup strategy yet for the droplet or its Docker volumes — matters a lot more once Postgres holds real data (medical records included), not just cert data.
 - `bystrek_open_webui_data` volume still exists on the droplet (old chat history from days two/three), unreferenced now that Open WebUI is removed — decide whether to keep or purge it.
+
+## Unrelated: media server
+
+Personal project, not part of this product — see [`docs/media-server.md`](media-server.md). Far-future, no urgency; parked there for whenever it actually happens.
