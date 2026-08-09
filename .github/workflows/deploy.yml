@@ -7,6 +7,12 @@ on:
       - "api/**"
       - "ui/**"
       - ".github/workflows/deploy.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "api/**"
+      - "ui/**"
+      - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
 jobs:
@@ -71,7 +77,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: ./api
-          push: true
+          push: ${{ github.event_name == 'push' }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/api:latest
             ghcr.io/${{ github.repository_owner }}/api:${{ github.sha }}
@@ -123,13 +129,14 @@ jobs:
           context: ./ui
           build-args: |
             PUBLIC_API_URL=https://api.bystrek.dev
-          push: true
+          push: ${{ github.event_name == 'push' }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/ui:latest
             ghcr.io/${{ github.repository_owner }}/ui:${{ github.sha }}
 
   deploy:
     needs: [build-api, build-ui]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     environment: production
