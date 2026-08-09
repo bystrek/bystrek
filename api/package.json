@@ -18,7 +18,8 @@
     "test:cov": "bun test src --coverage",
     "test:integration": "bun test test/integration",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "bun run src/db/seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

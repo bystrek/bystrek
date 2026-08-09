@@ -21,6 +21,8 @@ test('enabling notifications subscribes and shows confirmation', async ({ page }
 		await route.fulfill({ status: 201, json: { ok: true } });
 	});
 
+	await page.route('**/household', (route) => route.fulfill({ status: 404, json: {} }));
+
 	await page.addInitScript(() => {
 		const fakeSubscription = {
 			endpoint: 'https://fake-push-service.example.com/fake-endpoint',
@@ -58,6 +60,11 @@ test('enabling notifications subscribes and shows confirmation', async ({ page }
 	});
 
 	await page.goto('/');
+	// Dev-mode Vite serves the client bundle as unbundled ES modules; goto()
+	// resolves on `load`, which can fire before hydration finishes attaching
+	// event listeners. Without this wait, the click below occasionally lands
+	// on a not-yet-interactive button and silently does nothing.
+	await page.waitForLoadState('networkidle');
 
 	await page.getByRole('button', { name: 'Enable notifications' }).click();
 
