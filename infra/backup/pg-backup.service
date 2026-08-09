@@ -1,0 +1,8 @@
+[Unit]
+Description=bystrek Postgres backup (pg_dump)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/root/bystrek/backup/pg-backup.sh

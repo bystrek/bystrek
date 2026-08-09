@@ -40,3 +40,10 @@ npm run build
 You can preview the production build with `npm run preview`.
 
 > To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+
+## Testing
+
+```sh
+# e2e (Playwright, WebKit only — see docs/architecture.md)
+bun run test:e2e
+```

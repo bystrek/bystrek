@@ -50,8 +50,8 @@ $ bun run start:prod
 # unit tests
 $ bun run test
 
-# e2e tests
-$ bun run test:e2e
+# integration tests (needs local Postgres, e.g. docker-compose.dev.yml)
+$ bun run test:integration
 
 # test coverage
 $ bun run test:cov

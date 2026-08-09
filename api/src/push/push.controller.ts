@@ -1,4 +1,11 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+} from '@nestjs/common';
 import { PushService, SubscriptionInput } from './push.service';
 
 @Controller('push')

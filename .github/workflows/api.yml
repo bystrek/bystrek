@@ -9,7 +9,49 @@ on:
   workflow_dispatch:
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: api
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: bystrek
+          POSTGRES_PASSWORD: bystrek
+          POSTGRES_DB: bystrek
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://bystrek:bystrek@localhost:5432/bystrek
+      CORS_ORIGINS: http://localhost:5173
+      # Throwaway keypair, valid VAPID format so web-push's own validation
+      # passes at module load — never used for real push delivery.
+      VAPID_PUBLIC_KEY: BCDkc1IJbAji8zAPWCCflEwIWVf1g_HIvS8mhYwimSs-uKYqD69w0D-afL6BBO-T7u5FPkAB4suDInJoIh73S3k
+      VAPID_PRIVATE_KEY: sj8y9H6j5ouxhvMvuuQ9ZEPwV09O3Q4FHn_uLn7rX5g
+      VAPID_SUBJECT: mailto:ci@bystrek.dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun run db:migrate
+
+      - run: bun run test
+
+      - run: bun run test:integration
+
   build-and-push:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read

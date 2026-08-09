@@ -14,7 +14,7 @@ Raw facts as of 2026-08-04. No secret values included — only where they're sto
 - **Plan**: Basic Droplet, $12/mo tier
 - **Image**: Marketplace "Docker on Ubuntu" (Docker + Docker Compose preinstalled)
 - **Hostname**: `bystrek`
-- **Region**: Frankfurt or Amsterdam (not explicitly confirmed in session — check DO dashboard)
+- **Region**: Frankfurt (`fra1`, confirmed via droplet metadata API 2026-08-09)
 - **Public IPv4**: `167.99.245.221` (SSH access only; blocked for everything else by the Cloud Firewall)
 - **Private IP** (DigitalOcean VPC): `10.114.0.2`
 - **Tailscale IP**: `100.112.190.126`

@@ -91,8 +91,14 @@ Key management: same `.env`-on-droplet pattern as other secrets.
 - **Watchtower** alongside it, label-scoped to just the app's own services (not Postgres/Caddy/Dockge): polls GHCR and auto-recreates on new image digest. Compose-compatible — recreates containers in place, preserving their config.
 - Both need Docker socket access; accepted since that's inherent to what they do, not an avoidable cost.
 
+## Testing (decided)
+
+- `api`: unit tests for pure logic (encryption helpers, tool-call-loop parsing) plus integration tests against a real local Postgres, each wrapped in a rolled-back transaction — no mocked DB as the primary safety net. Runner: Bun's native `bun:test`, accepted as a reversible risk (Jest is the documented fallback) the same way the Bun runtime itself was.
+- `ui`: Vitest for unit/component logic, Playwright (WebKit only) for e2e — service worker, push, and passkey flows need a real browser, and WebKit specifically since iOS Safari fidelity is the actual target.
+- E2E stays small: a handful of real user journeys, not edge-case coverage.
+- No real third-party calls (Resend, CalDAV, FCM/APNs) in any test — stub at the boundary.
+- CI gate: tests run before image build/push in both workflows; `timeout-minutes: 10` enforces the budget.
+
 ## Open questions
 
 - Which columns need encryption vs. plain — pass needed per domain once schemas are drafted.
-- Testing approach per layer.
-- Open WebUI container on the droplet: retire, or keep as fallback.
