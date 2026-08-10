@@ -16,7 +16,7 @@ Backend and frontend scaffolds are live on the droplet. Chat is currently **offl
 - Deploy pipeline: GitHub Actions builds `api`/`ui` images to GHCR, then redeploys over SSH with a key restricted to a single forced command, gated by a GitHub Environment (required reviewer). **Dockge** (dashboard, loopback-only, SSH-tunnel access) stays for visibility and manual overrides.
 
 **Not built yet:**
-- Auth (invite-gated passkeys + magic-link), tier-2 field encryption — deferred until real domains/schemas exist.
+- Auth (invite-gated, magic-link only for v1; passkey deferred), tier-2 field encryption — deferred until real domains/schemas exist.
 - Chat UI, the iCloud Calendar tool (CalDAV) — planned as the platform's first vertical slice.
 - Notes/research/medical/nutrition/gym domains.
 - Proactive nudging (the assistant messaging first, not just replying).

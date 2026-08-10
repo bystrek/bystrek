@@ -47,10 +47,11 @@ Tailscale gates who can reach the server; CORS gates which sites' JS can use an 
 ## Auth (decided direction)
 
 - Multi-user via **household**: users belong to a household, every row has `owner_id` + `visibility` (`private`/`household`), sensible per-domain default, overridable per record. No per-item ACLs.
-- **better-auth**, self-hosted — keeps auth data owned rather than routed through a third-party identity provider.
-- Bearer tokens, not cookies — sidesteps cross-origin-cookie/CSRF complexity.
-- **Passkeys (WebAuthn)**, invite-gated, with magic-link email as fallback. No public signup: an admin creates a pending household-member record + signed invite token; the invite link runs `better-auth`'s passkey-first flow (`registration.requireSession: false` + `resolveUser`) to create the account. Magic link (to the email captured at invite time) covers device loss.
-- Magic-link email delivery: **Resend**.
+- **better-auth**, self-hosted, embedded in the API — keeps auth data owned rather than routed through a third-party identity provider.
+- Bearer tokens, not cookies — sidesteps cross-origin-cookie/CSRF complexity. Sessions use a rolling TTL (refreshed on activity, capped after a period of inactivity) rather than a fixed expiry.
+- **Magic-link only for v1** (Resend for delivery) — no password, no passkey. No public signup: an admin creates the user row directly (`status: invited`) via `better-auth`'s admin plugin; the plugin's `disableSignUp` option means a magic-link only succeeds for an email with an existing row, so the same flow covers both accepting an invite and every regular login.
+- **User management**: `better-auth`'s admin plugin (create/list/ban/unban users) backs a small in-app page — no separate admin console or hosted dashboard.
+- **Passkey (WebAuthn)**: deferred past v1. Adds independently later (own credential table, doesn't touch the schema already built) as a per-device credential added from an authenticated session, not as the account-bootstrap method.
 - Sharing granularity: `private`/`household` is enough, no per-member sharing.
 
 ## Encryption of sensitive data (decided)

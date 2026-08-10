@@ -12,6 +12,8 @@ Docs (everything except `devlog/`) describe the current stack only — no archeo
 
 Write a devlog entry per work session in `devlog/YYYY-MM-DD-day-NN.md` (sequential day number, not date-based numbering). Structure it like the existing entries: **Date/Goal** header, **What we decided** (with reasoning, not just conclusions), **What we actually built**, **Problems hit along the way (and the actual fixes)**, and a **Current state** or **Status** closer. Capture the *why* behind decisions (alternatives considered and rejected, and why) — that's the part that isn't recoverable from git history later.
 
+Dates are unique across `devlog/`: one calendar date, one file, one day number — the day number only increments when the date changes. A second (third, ...) session on the same date appends a `## Continuation: <topic> (Nth session, same day)` section to that date's existing file, each with its own `### What we decided`/`### What we actually built`/`### Problems hit...`/`### Current state`, rather than creating a new `day-NN` file.
+
 ## Docs upkeep
 
 - `docs/whats-next.md` is a live punch list, not an archive — update it as items complete or plans change, don't just append.
