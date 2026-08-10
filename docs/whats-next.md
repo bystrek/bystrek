@@ -10,7 +10,7 @@ See [`docs/architecture.md`](architecture.md) for design/reasoning; this file is
 
 Deferred, not part of this scaffold: auth itself (`better-auth` wiring — admin + magic-link plugins, invite-gated via admin-created user rows, sessions; passkey explicitly deferred past v1), `owner_id`/`visibility` on domain tables, tier-2 field encryption (AES-256-GCM, wrapped manually around Drizzle calls), and the chat UI (raw SSE from `@anthropic-ai/sdk`, consumed with RxJS) — shape of each already decided in `docs/architecture.md`. Anthropic API key (Console + billing) still needs confirming before chat work starts.
 
-Next up: item 4 (calendar) — the first real vertical slice, which will need the auth piece above built alongside it.
+Next up: item 4 (auth wiring) — blocks everything after it, since `owner_id`/`visibility` on any domain table needs a real user model to point at.
 
 ## 2. Done: testing infra
 
@@ -22,7 +22,19 @@ One workflow (`.github/workflows/deploy.yml`) tests and builds `api`/`ui` on any
 
 Dev/prod split (auto-deploy on every `main` push; prod only via tagged release + manual gate) is deliberately deferred until real features exist to protect. Shared droplet, not a second one, when it happens; `bystrek.dev` stays prod's address, a new subdomain gets picked for dev at that point.
 
-## 4. Calendar (first vertical slice)
+## 4. Auth wiring (blocks all other items)
+
+Shape decided in `docs/architecture.md`; nothing built yet. Everything after this depends on a real user model (`owner_id`/`visibility` needs a real user to point at), so this comes before calendar.
+
+- Install `better-auth` in `api`, Drizzle adapter pointed at the existing `users` table (already shaped for it).
+- **Admin plugin**: `createUser` (invite = create the row directly, `status: invited`), `listUsers`, `banUser`/`unbanUser`.
+- **Magic-link plugin**: `disableSignUp: true` (only an email with an existing row can get a session — this is the invite gate), Resend for delivery.
+- Bearer-token session handling in the SvelteKit app: a verify route that exchanges the magic-link token for a session token and stores it client-side, rolling TTL (refresh on activity, inactivity cap).
+- Auth guard on existing/new API routes — `GET /household` currently has none.
+- Household management page: extend the existing household card with a member list + disable/enable button, calling the admin plugin's client methods. No separate admin console.
+- Real-device check: confirm the installed PWA and Safari actually share storage for the same origin on iOS before trusting the magic-link-click-in-Safari → session-in-PWA path (flagged as open in the day-six devlog).
+
+## 5. Calendar (first vertical slice)
 
 - Generate an app-specific password at appleid.apple.com (Security → App-Specific Passwords) — the real Apple password won't work here.
 - Use the `caldav` library against `caldav.icloud.com` (HTTPS, Basic Auth with Apple ID email + app-specific password) as a sync connector — pulls into the Postgres-backed calendar table on a schedule, rather than calling iCloud live on every request.
@@ -30,17 +42,17 @@ Dev/prod split (auto-deploy on every `main` push; prod only via tagged release +
 - One custom-app view: browse calendar events.
 - System prompt context: timezone (Warsaw), working hours, default calendar name.
 
-## 5. Notes/research/medical/nutrition/gym domains
+## 6. Notes/research/medical/nutrition/gym domains
 
 - Follow the same vertical-slice pattern proven out with calendar.
 - Notes/reminders source is still an open question — iCloud Notes has no API. Options: a separate notes/reminders app with an actual API, plain Markdown files in an iCloud Drive folder, or make note-taking native to the new app.
 - Medical records: tier-2 encryption applies (see architecture doc).
 
-## 6. Proactive nudging
+## 7. Proactive nudging
 
 - The actual want: the assistant should be able to message *first* — checking in on something planned earlier, re-notifying until it's actually done.
 - Delivery is already solved and verified (push, built into `api`/`ui`).
-- Still needed: a lightweight scheduled job, independent of any reactive chat session, that periodically checks state via the backend API and fires a notification if something isn't done. Depends on items 4/5 existing first.
+- Still needed: a lightweight scheduled job, independent of any reactive chat session, that periodically checks state via the backend API and fires a notification if something isn't done. Depends on items 5/6 existing first.
 
 ## Unrelated: media server
 
