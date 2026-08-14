@@ -54,6 +54,10 @@ Shape decided in `docs/architecture.md`; nothing built yet. Everything after thi
 - Delivery is already solved and verified (push, built into `api`/`ui`).
 - Still needed: a lightweight scheduled job, independent of any reactive chat session, that periodically checks state via the backend API and fires a notification if something isn't done. Depends on items 5/6 existing first.
 
+## Frontend migration: SvelteKit → Angular
+
+Decided, not started — see [`docs/frontend-migration.md`](frontend-migration.md). Doesn't block auth wiring or anything else in this list.
+
 ## Unrelated: media server
 
 Personal project, not part of this product — see [`docs/media-server.md`](media-server.md). Far-future, no urgency.
