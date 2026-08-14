@@ -43,6 +43,12 @@ docs/          architecture.md (direction) and whats-next.md (live punch list)
 infra/         Manually-synced copies of what's actually running on the droplet
 ```
 
+## Local development
+
+`./scripts/dev.sh` checks prerequisites (`bun`, `docker`), generates `api/.env`/`ui/.env` on first run (prompts for a seed owner name/email, defaulting to your `git config`), starts a dev Postgres, and runs `api`/`ui` together. `Ctrl+C` stops `api`/`ui`; Postgres keeps running.
+
+Windows: run it under WSL2, not Git Bash — Docker Desktop already requires WSL2 as its backend.
+
 ## Infra snapshot
 
 [`infra/`](infra/) holds the actual `docker-compose.yml`, `Caddyfile`, and `Dockerfile` running on the droplet — pulled down periodically for reference. See [`infra/README.md`](infra/README.md) for the sync model.
