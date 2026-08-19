@@ -1,7 +1,8 @@
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { DATABASE_URL } from '../env';
+import { createAuth } from '../auth/auth.config';
+import { DATABASE_URL, UI_URL } from '../env';
 import * as schema from './schema';
 import { households, users } from './schema';
 
@@ -47,8 +48,18 @@ async function seed() {
       name: OWNER.name,
       emailVerified: true,
       status: 'active',
+      role: 'admin',
     });
     console.log(`created user "${OWNER.name}"`);
+
+    const auth = createAuth(db);
+    await auth.api.requestPasswordReset({
+      body: {
+        email: OWNER.email,
+        redirectTo: `${UI_URL}/auth/reset-password`,
+      },
+    });
+    console.log(`sent password-setup email to ${OWNER.email}`);
   }
 }
 

@@ -11,19 +11,20 @@ Backend and frontend scaffolds are live on the droplet. Chat is currently **offl
 **Working today:**
 - A DigitalOcean droplet, locked down to SSH-only on its public IP, reachable everywhere else only over a private Tailscale mesh.
 - `bystrek.dev` and `api.bystrek.dev` both resolve to the droplet's Tailscale IP (Cloudflare DNS, not proxied) with real Let's Encrypt certs issued via DNS-01 — no ports 80/443 exposed publicly, ever.
-- `ui/` (SvelteKit) at `bystrek.dev`: subscribe UI + service worker, "send test notification" button.
-- `api/` (NestJS + Drizzle + Bun) at `api.bystrek.dev`: Postgres-backed subscriptions table, push subscribe/send endpoints. Verified end to end — a real push landed on a device via the deployed stack.
+- `ui/` (SvelteKit) at `bystrek.dev`: subscribe UI + service worker, login/household page.
+- `api/` (NestJS + Drizzle + Bun) at `api.bystrek.dev`: Postgres-backed subscriptions table, push subscribe/send endpoints, `better-auth`-backed login/invite/ban. Verified end to end — a real push landed on a device via the deployed stack.
+- Auth: email/password via `better-auth`, invite-gated (admin creates the row, no public signup), bearer tokens, admin plugin for invite/list/ban. Passkey deferred past v1.
 - Deploy pipeline: GitHub Actions builds `api`/`ui` images to GHCR, then redeploys over SSH with a key restricted to a single forced command, gated by a GitHub Environment (required reviewer). **Dockge** (dashboard, loopback-only, SSH-tunnel access) stays for visibility and manual overrides.
 
 **Not built yet:**
-- Auth (invite-gated, magic-link only for v1; passkey deferred), tier-2 field encryption — deferred until real domains/schemas exist.
+- `owner_id`/`visibility` on domain tables, tier-2 field encryption — deferred until real domains/schemas exist.
 - Chat UI, the iCloud Calendar tool (CalDAV) — planned as the platform's first vertical slice.
 - Notes/research/medical/nutrition/gym domains.
 - Proactive nudging (the assistant messaging first, not just replying).
 
 ## Architecture
 
-`bystrek.dev` → Caddy → `ui` (SvelteKit: subscribe UI + service worker); `api.bystrek.dev` → Caddy → `api` (NestJS: Postgres, push send/subscribe). No chat yet. Full design in [`docs/architecture.md`](docs/architecture.md).
+`bystrek.dev` → Caddy → `ui` (SvelteKit: subscribe UI + service worker, login/household page); `api.bystrek.dev` → Caddy → `api` (NestJS: Postgres, push send/subscribe, `better-auth`). No chat yet. Full design in [`docs/architecture.md`](docs/architecture.md).
 
 - **Access**: Tailscale only. The droplet's public IP allows inbound SSH and nothing else — no public HTTP/HTTPS surface at all.
 - **TLS**: Caddy, built with the Cloudflare DNS plugin (`xcaddy`), gets certs via DNS-01 so no inbound port 80/443 is ever needed.
@@ -55,4 +56,4 @@ Windows: run it under WSL2, not Git Bash — Docker Desktop already requires WSL
 
 ## Secrets
 
-Nothing here. `CF_API_TOKEN`, `GHCR_PULL_TOKEN`/`GHCR_USERNAME` (private GHCR package pull auth), `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT`, and `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB`/`DATABASE_URL` all live in `~/bystrek/.env` on the droplet (chmod 600), never in git.
+Nothing here. `CF_API_TOKEN`, `GHCR_PULL_TOKEN`/`GHCR_USERNAME` (private GHCR package pull auth), `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT`, `AUTH_SECRET`, `RESEND_API_KEY`, and `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB`/`DATABASE_URL` all live in `~/bystrek/.env` on the droplet (chmod 600), never in git.

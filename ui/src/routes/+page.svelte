@@ -1,15 +1,111 @@
 <script lang="ts">
 	import { PUBLIC_API_URL } from '$env/static/public';
+	import {
+		authFetch,
+		getSession,
+		requestPasswordReset,
+		signIn,
+		signOut,
+		type Session
+	} from '$lib/auth';
 
 	let status = $state('');
 	let subscribed = $state(false);
 	let busy = $state(false);
 
-	type Household = {
-		name: string;
-		members: { name: string | null; status: string }[];
-	};
+	type Member = { id: string; name: string | null; status: string; banned: boolean };
+	type Household = { name: string; members: Member[] };
 	let household = $state<Household | null>(null);
+
+	let session = $state<Session | null>(null);
+	let email = $state('');
+	let password = $state('');
+	let authStatus = $state('');
+	let authBusy = $state(false);
+
+	let inviteEmail = $state('');
+	let inviteName = $state('');
+
+	async function loadHousehold() {
+		const res = await authFetch('/household');
+		household = res.ok ? await res.json() : null;
+	}
+
+	async function login(e: SubmitEvent) {
+		e.preventDefault();
+		authBusy = true;
+		authStatus = '';
+		try {
+			await signIn(email, password);
+			password = '';
+			session = await getSession();
+			await loadHousehold();
+		} catch (err) {
+			authStatus = (err as Error).message;
+		} finally {
+			authBusy = false;
+		}
+	}
+
+	async function logout() {
+		await signOut();
+		session = null;
+		household = null;
+	}
+
+	async function forgotPassword() {
+		if (!email) {
+			authStatus = 'Enter your email above first, then click this again.';
+			return;
+		}
+		authBusy = true;
+		authStatus = '';
+		try {
+			await requestPasswordReset(email);
+			authStatus = 'If that email exists, a reset link is on its way.';
+		} catch (err) {
+			authStatus = (err as Error).message;
+		} finally {
+			authBusy = false;
+		}
+	}
+
+	async function invite(e: SubmitEvent) {
+		e.preventDefault();
+		busy = true;
+		status = '';
+		try {
+			const res = await authFetch('/household/invite', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ email: inviteEmail, name: inviteName })
+			});
+			if (!res.ok) {
+				const body = await res.json().catch(() => ({}));
+				throw new Error(body.message ?? 'Invite failed.');
+			}
+			inviteEmail = '';
+			inviteName = '';
+			status = 'Invited — they’ll get an email to set a password.';
+			await loadHousehold();
+		} catch (err) {
+			status = (err as Error).message;
+		} finally {
+			busy = false;
+		}
+	}
+
+	async function toggleBan(member: Member) {
+		busy = true;
+		try {
+			await authFetch(`/household/members/${member.id}/${member.banned ? 'unban' : 'ban'}`, {
+				method: 'POST'
+			});
+			await loadHousehold();
+		} finally {
+			busy = false;
+		}
+	}
 
 	function urlBase64ToUint8Array(base64String: string) {
 		const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -90,10 +186,10 @@
 	});
 
 	$effect(() => {
-		fetch(`${PUBLIC_API_URL}/household`)
-			.then((r) => (r.ok ? r.json() : null))
-			.then((data) => (household = data))
-			.catch((err) => console.error('failed to load household', err));
+		getSession().then((s) => {
+			session = s;
+			if (s) loadHousehold();
+		});
 	});
 </script>
 
@@ -106,17 +202,50 @@
 	<button onclick={sendTest} disabled={busy || !subscribed}>Send test notification</button>
 	<div id="status">{status}</div>
 
+	{#if !session}
+		<form id="login" onsubmit={login}>
+			<input type="email" bind:value={email} placeholder="Email" autocomplete="email" required />
+			<input
+				type="password"
+				bind:value={password}
+				placeholder="Password"
+				autocomplete="current-password"
+				required
+			/>
+			<button type="submit" disabled={authBusy}>Sign in</button>
+			<button type="button" class="link" onclick={forgotPassword} disabled={authBusy}
+				>Forgot password?</button
+			>
+		</form>
+		{#if authStatus}<div class="status">{authStatus}</div>{/if}
+	{/if}
+
 	{#if household}
 		<div id="household">
 			<h2>{household.name}</h2>
 			<ul>
-				{#each household.members as member, i (i)}
+				{#each household.members as member (member.id)}
 					<li>
 						{member.name ?? 'Unnamed member'}
 						<span class="badge">{member.status}</span>
+						{#if session?.user.role === 'admin'}
+							<button class="link" onclick={() => toggleBan(member)} disabled={busy}>
+								{member.banned ? 'Unban' : 'Ban'}
+							</button>
+						{/if}
 					</li>
 				{/each}
 			</ul>
+
+			{#if session?.user.role === 'admin'}
+				<form id="invite" onsubmit={invite}>
+					<input type="text" bind:value={inviteName} placeholder="Name" required />
+					<input type="email" bind:value={inviteEmail} placeholder="Email" required />
+					<button type="submit" disabled={busy}>Invite</button>
+				</form>
+			{/if}
+
+			<button type="button" class="link" onclick={logout}>Sign out</button>
 		</div>
 	{/if}
 </main>
@@ -167,11 +296,43 @@
 		opacity: 0.5;
 		cursor: default;
 	}
-	#status {
+	#status,
+	.status {
 		margin-top: 20px;
 		font-size: 14px;
 		opacity: 0.75;
 		min-height: 1.2em;
+	}
+	#login,
+	#invite {
+		margin-top: 24px;
+		padding-top: 20px;
+		border-top: 1px solid rgba(89, 22, 34, 0.15);
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		align-items: stretch;
+	}
+	#invite {
+		margin-top: 16px;
+		padding-top: 16px;
+	}
+	input {
+		font: inherit;
+		font-size: 15px;
+		padding: 10px 14px;
+		border-radius: 8px;
+		border: 1px solid rgba(89, 22, 34, 0.25);
+		background: #fff;
+	}
+	button.link {
+		background: none;
+		color: #591622;
+		text-decoration: underline;
+		padding: 4px;
+		margin: 0;
+		font-size: 13px;
+		font-weight: 400;
 	}
 	#household {
 		margin-top: 28px;
