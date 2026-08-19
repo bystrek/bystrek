@@ -28,9 +28,7 @@ Dev/prod split (auto-deploy on every `main` push; prod only via tagged release +
 
 `ui`'s front page has a login form, a household member list with ban/unban and an invite form for admins, and `/auth/reset-password` handles both the invite and forgot-password links.
 
-Two loose ends before this is fully live in prod:
-- The `bystrek.dev` sending domain needs verifying in Resend's dashboard (SPF/DKIM) — password-reset/invite emails 403 until then.
-- Real-device check still open: confirm the installed PWA and Safari actually share `localStorage` for the same origin on iOS, since the forgot-password link opens in Safari. Only the reset flow depends on this now, not everyday login.
+Confirmed on a real device: the installed PWA and Safari do *not* share `localStorage` on iOS. Doesn't matter here — `/auth/reset-password` only ever sets a new password, never a session, so there's nothing to hand off between the two. After a reset (or an invite), sign in fresh from wherever you actually want a session: the PWA itself for daily use.
 
 ## 5. Calendar (first vertical slice)
 
