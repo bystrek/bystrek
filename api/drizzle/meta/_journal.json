@@ -15,6 +15,13 @@
       "when": 1786310712570,
       "tag": "0001_bitter_young_avengers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787173843462,
+      "tag": "0002_early_iron_lad",
+      "breakpoints": true
     }
   ]
 }
