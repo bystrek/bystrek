@@ -44,6 +44,10 @@ jobs:
       VAPID_PUBLIC_KEY: BCDkc1IJbAji8zAPWCCflEwIWVf1g_HIvS8mhYwimSs-uKYqD69w0D-afL6BBO-T7u5FPkAB4suDInJoIh73S3k
       VAPID_PRIVATE_KEY: sj8y9H6j5ouxhvMvuuQ9ZEPwV09O3Q4FHn_uLn7rX5g
       VAPID_SUBJECT: mailto:ci@bystrek.dev
+      # Throwaway values — tests stub sendResetPassword rather than hitting
+      # Resend, this only needs to satisfy env.ts's required() check.
+      AUTH_SECRET: ci-only-throwaway-secret-not-used-for-anything-real
+      RESEND_API_KEY: ci-only-throwaway-not-a-real-key
     steps:
       - uses: actions/checkout@v4
 
