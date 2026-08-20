@@ -24,11 +24,11 @@ function mockSignIn(page: import('@playwright/test').Page) {
 	);
 }
 
-test('shows a login form when signed out', async ({ page }) => {
+test('redirects to the login page when signed out', async ({ page }) => {
 	await page.goto('/');
 
+	await expect(page).toHaveURL('/login');
 	await expect(page.locator('#login')).toBeVisible();
-	await expect(page.locator('#household')).toHaveCount(0);
 });
 
 test('signs in and shows household members, without admin controls for a regular member', async ({
@@ -42,13 +42,14 @@ test('signs in and shows household members, without admin controls for a regular
 		})
 	);
 
-	await page.goto('/');
+	await page.goto('/login');
 	await page.waitForLoadState('networkidle');
 
 	await page.getByPlaceholder('Email').fill('me@example.com');
 	await page.getByPlaceholder('Password').fill('correct horse battery staple');
 	await page.getByRole('button', { name: 'Sign in' }).click();
 
+	await expect(page).toHaveURL('/');
 	await expect(page.locator('#household h2')).toHaveText('bystrek');
 	await expect(page.locator('#household li')).toContainText('Michał');
 	await expect(page.locator('#invite')).toHaveCount(0);
@@ -63,13 +64,14 @@ test('shows invite form and ban controls for an admin', async ({ page }) => {
 		})
 	);
 
-	await page.goto('/');
+	await page.goto('/login');
 	await page.waitForLoadState('networkidle');
 
 	await page.getByPlaceholder('Email').fill('admin@example.com');
 	await page.getByPlaceholder('Password').fill('correct horse battery staple');
 	await page.getByRole('button', { name: 'Sign in' }).click();
 
+	await expect(page).toHaveURL('/');
 	await expect(page.locator('#invite')).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Ban' })).toBeVisible();
 });

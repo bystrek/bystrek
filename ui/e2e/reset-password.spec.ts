@@ -14,7 +14,9 @@ test('sets a new password and redirects to sign-in', async ({ page }) => {
 	await expect(page.getByText('Password updated.', { exact: false })).toBeVisible();
 	expect(requestBody).toEqual({ newPassword: 'correct horse battery staple', token: 'fake-token' });
 
-	await expect(page).toHaveURL('/', { timeout: 3000 });
+	// A password reset never establishes a session — landing on / while
+	// signed out now correctly guard-redirects to /login, not a bug.
+	await expect(page).toHaveURL('/login', { timeout: 3000 });
 });
 
 test('shows an error message for an invalid or missing token', async ({ page }) => {

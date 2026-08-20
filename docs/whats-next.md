@@ -35,7 +35,7 @@ Confirmed on a real device: the installed PWA and Safari do *not* share `localSt
 - Backend: `POST /chat` — sends a message, streams Claude's reply over SSE via the `@anthropic-ai/sdk` tool-call loop. Text only for v1, no per-tool widget rendering (deferred until a tool's results are genuinely hard to read as prose, not designed preemptively).
 - `messages` table: single continuous thread per user, not per-conversation — no "new chat" concept, so item 8's proactive nudging can inject into an existing thread rather than starting a new one. Stores the full raw Claude message sequence, including `tool_use`/`tool_result` blocks, not a simplified transcript. First table to carry `owner_id`/`visibility` (`private`, no household-shared conversations) and tier-2 field encryption — calendar (item 6) and later domains reuse the same pattern.
 - Context sent to Claude per request is a bounded recency window (last N messages/tokens), never the full stored history. Retrieval over older messages via `pgvector` is a later addition, only if the window proves insufficient in practice — no rolling summarization.
-- Frontend: rewrite in Angular (see [`docs/frontend-migration.md`](frontend-migration.md)), re-porting the existing login/household UI rather than dropping it. Routed login page, routed chat page, a chat component consuming the SSE stream, wired to the backend above.
+- Frontend: `ui` is now Angular (zoneless, standalone, esbuild/Vite builder) — see [`docs/frontend-migration.md`](frontend-migration.md). Routed `/login` and `/` (push notify + household admin) are live; still needed: a routed chat page + chat component consuming the SSE stream, wired to the backend above.
 - Needs the Anthropic API key (Console + billing) confirmed first — noted as an open item back in item 1.
 
 ## 6. Calendar (first vertical slice)
@@ -60,7 +60,7 @@ Confirmed on a real device: the installed PWA and Safari do *not* share `localSt
 
 ## Frontend migration: SvelteKit → Angular
 
-In progress, driven by item 5 (chat foundation) — see [`docs/frontend-migration.md`](frontend-migration.md). Re-ports the existing login/household UI rather than building it standalone.
+Done for everything except chat (item 5's last piece). `ui` re-ports login, push notify, and household admin on Angular (zoneless, standalone, esbuild/Vite builder, CSR-only) — see [`docs/frontend-migration.md`](frontend-migration.md). `docs/architecture.md`'s "Frontend & chat" section and the README's status section still describe the old SvelteKit setup; update both once the chat page lands and the migration is fully done, per `frontend-migration.md`'s own note.
 
 ## Unrelated: media server
 

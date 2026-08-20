@@ -38,7 +38,7 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgres://bystrek:bystrek@localhost:5432/bystrek
-      CORS_ORIGINS: http://localhost:5173
+      CORS_ORIGINS: http://localhost:4200
       # Throwaway keypair, valid VAPID format so web-push's own validation
       # passes at module load — never used for real push delivery.
       VAPID_PUBLIC_KEY: BCDkc1IJbAji8zAPWCCflEwIWVf1g_HIvS8mhYwimSs-uKYqD69w0D-afL6BBO-T7u5FPkAB4suDInJoIh73S3k
@@ -97,7 +97,6 @@ jobs:
       run:
         working-directory: ui
     env:
-      PUBLIC_API_URL: http://localhost:3000
       CI: true
     steps:
       - uses: actions/checkout@v4
@@ -105,6 +104,8 @@ jobs:
       - uses: oven-sh/setup-bun@v2
 
       - run: bun install --frozen-lockfile
+
+      - run: bun run test
 
       - uses: actions/cache@v4
         with:
@@ -135,8 +136,6 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: ./ui
-          build-args: |
-            PUBLIC_API_URL=https://api.bystrek.dev
           push: ${{ github.event_name == 'push' }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/ui:latest

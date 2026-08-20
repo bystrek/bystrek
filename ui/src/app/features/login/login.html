@@ -1,0 +1,33 @@
+<main>
+  <h1>bystrek</h1>
+  <p>Sign in to reach the assistant.</p>
+
+  <form id="login" (ngSubmit)="submit()">
+    <input
+      type="email"
+      name="email"
+      [ngModel]="email()"
+      (ngModelChange)="email.set($event)"
+      placeholder="Email"
+      autocomplete="email"
+      required
+    />
+    <input
+      type="password"
+      name="password"
+      [ngModel]="password()"
+      (ngModelChange)="password.set($event)"
+      placeholder="Password"
+      autocomplete="current-password"
+      required
+    />
+    <button type="submit" [disabled]="busy()">Sign in</button>
+    <button type="button" class="link" (click)="forgotPassword()" [disabled]="busy()">
+      Forgot password?
+    </button>
+  </form>
+
+  @if (status()) {
+    <div class="status">{{ status() }}</div>
+  }
+</main>
