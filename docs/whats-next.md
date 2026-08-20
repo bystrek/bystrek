@@ -10,7 +10,7 @@ See [`docs/architecture.md`](architecture.md) for design/reasoning; this file is
 
 Deferred, not part of this scaffold: `owner_id`/`visibility` on domain tables, tier-2 field encryption (AES-256-GCM, wrapped manually around Drizzle calls), and the chat UI (raw SSE from `@anthropic-ai/sdk`, consumed with RxJS) — shape of each already decided in `docs/architecture.md`. Anthropic API key (Console + billing) still needs confirming before chat work starts.
 
-Next up: item 5 (calendar) — auth (item 4) is done, so `owner_id`/`visibility` on domain tables now has a real user model to point at.
+Next up: item 5 (chat foundation) — auth (item 4) is done, so the assistant now has a real user model to wire persistence and tool access to.
 
 ## 2. Done: testing infra
 
@@ -30,29 +30,37 @@ Dev/prod split (auto-deploy on every `main` push; prod only via tagged release +
 
 Confirmed on a real device: the installed PWA and Safari do *not* share `localStorage` on iOS. Doesn't matter here — `/auth/reset-password` only ever sets a new password, never a session, so there's nothing to hand off between the two. After a reset (or an invite), sign in fresh from wherever you actually want a session: the PWA itself for daily use.
 
-## 5. Calendar (first vertical slice)
+## 5. Chat foundation
+
+- Backend: `POST /chat` — sends a message, streams Claude's reply over SSE via the `@anthropic-ai/sdk` tool-call loop. Text only for v1, no per-tool widget rendering (deferred until a tool's results are genuinely hard to read as prose, not designed preemptively).
+- `messages` table: single continuous thread per user, not per-conversation — no "new chat" concept, so item 8's proactive nudging can inject into an existing thread rather than starting a new one. Stores the full raw Claude message sequence, including `tool_use`/`tool_result` blocks, not a simplified transcript. First table to carry `owner_id`/`visibility` (`private`, no household-shared conversations) and tier-2 field encryption — calendar (item 6) and later domains reuse the same pattern.
+- Context sent to Claude per request is a bounded recency window (last N messages/tokens), never the full stored history. Retrieval over older messages via `pgvector` is a later addition, only if the window proves insufficient in practice — no rolling summarization.
+- Frontend: rewrite in Angular (see [`docs/frontend-migration.md`](frontend-migration.md)), re-porting the existing login/household UI rather than dropping it. Routed login page, routed chat page, a chat component consuming the SSE stream, wired to the backend above.
+- Needs the Anthropic API key (Console + billing) confirmed first — noted as an open item back in item 1.
+
+## 6. Calendar (first vertical slice)
 
 - Generate an app-specific password at appleid.apple.com (Security → App-Specific Passwords) — the real Apple password won't work here.
 - Use the `caldav` library against `caldav.icloud.com` (HTTPS, Basic Auth with Apple ID email + app-specific password) as a sync connector — pulls into the Postgres-backed calendar table on a schedule, rather than calling iCloud live on every request.
-- Expose it to the LLM as a tool in the backend API's own `@anthropic-ai/sdk` tool-call loop, calling the backend's own calendar routes directly.
+- Expose it to the LLM as a tool in the backend API's own `@anthropic-ai/sdk` tool-call loop (item 5), calling the backend's own calendar routes directly.
 - One custom-app view: browse calendar events.
 - System prompt context: timezone (Warsaw), working hours, default calendar name.
 
-## 6. Notes/research/medical/nutrition/gym domains
+## 7. Notes/research/medical/nutrition/gym domains
 
 - Follow the same vertical-slice pattern proven out with calendar.
 - Notes/reminders source is still an open question — iCloud Notes has no API. Options: a separate notes/reminders app with an actual API, plain Markdown files in an iCloud Drive folder, or make note-taking native to the new app.
 - Medical records: tier-2 encryption applies (see architecture doc).
 
-## 7. Proactive nudging
+## 8. Proactive nudging
 
 - The actual want: the assistant should be able to message *first* — checking in on something planned earlier, re-notifying until it's actually done.
 - Delivery is already solved and verified (push, built into `api`/`ui`).
-- Still needed: a lightweight scheduled job, independent of any reactive chat session, that periodically checks state via the backend API and fires a notification if something isn't done. Depends on items 5/6 existing first.
+- Still needed: a lightweight scheduled job, independent of any reactive chat session, that periodically checks state via the backend API and fires a notification if something isn't done. Depends on items 6/7 existing first.
 
 ## Frontend migration: SvelteKit → Angular
 
-Decided, not started — see [`docs/frontend-migration.md`](frontend-migration.md). Doesn't block auth wiring or anything else in this list.
+In progress, driven by item 5 (chat foundation) — see [`docs/frontend-migration.md`](frontend-migration.md). Re-ports the existing login/household UI rather than building it standalone.
 
 ## Unrelated: media server
 
