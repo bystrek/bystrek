@@ -4,13 +4,13 @@ See [`docs/architecture.md`](architecture.md) for design/reasoning; this file is
 
 ## 1. Done: scaffold the platform, deployed
 
-`api` (NestJS + Drizzle + Bun, `api.bystrek.dev`) and `ui` (SvelteKit, `bystrek.dev`) are live on the droplet, verified with a real push notification through the full stack. GitHub Actions builds both to GHCR and deploys via a forced-command-restricted SSH key, gated by a GitHub Environment (see item 3). Dockge (dashboard, loopback + SSH tunnel only) stays for visibility and manual overrides.
+`api` (NestJS + Drizzle + Bun, `api.bystrek.dev`) and `ui` (Angular, `bystrek.dev`) are live on the droplet, verified with a real push notification through the full stack. GitHub Actions builds both to GHCR and deploys via a forced-command-restricted SSH key, gated by a GitHub Environment (see item 3). Dockge (dashboard, loopback + SSH tunnel only) stays for visibility and manual overrides.
 
 `households` and `users` tables (`api/src/db/schema.ts`) are also live: a user belongs to one household, `status` (`invited`/`active`) tracks the invite-gated signup flow, `email` is unique (indexed), `household_id` is indexed and cascades on household delete. Now doubles as `better-auth`'s user table (see item 4) rather than a separate one. `bun run db:seed` inserts the household/first member.
 
-Deferred, not part of this scaffold: `owner_id`/`visibility` on domain tables, tier-2 field encryption (AES-256-GCM, wrapped manually around Drizzle calls), and the chat UI (raw SSE from `@anthropic-ai/sdk`, consumed with RxJS) — shape of each already decided in `docs/architecture.md`. Anthropic API key (Console + billing) still needs confirming before chat work starts.
+Deferred, not part of this scaffold: `owner_id`/`visibility` on domain tables, tier-2 field encryption (AES-256-GCM, wrapped manually around Drizzle calls), and the chat UI (raw SSE from `@anthropic-ai/sdk`, consumed with RxJS) — shape of each already decided in `docs/architecture.md`.
 
-Next up: item 5 (chat foundation) — auth (item 4) is done, so the assistant now has a real user model to wire persistence and tool access to.
+Next up: item 5's last piece — a routed chat page in `ui`, wired to the `POST /chat` backend that's already live.
 
 ## 2. Done: testing infra
 
@@ -26,7 +26,7 @@ Dev/prod split (auto-deploy on every `main` push; prod only via tagged release +
 
 `better-auth` is embedded in `api` (Drizzle adapter over the existing `users` table plus new `sessions`/`accounts`/`verifications` tables), email/password only, bearer tokens (`Authorization` header, not cookies), 90-day rolling session TTL. `disableSignUp: true` is the invite gate — a household member row must already exist before anyone can sign in. The admin plugin backs invite/list/ban/unban; `HouseholdController` (`api/src/household/`) exposes `POST /household/invite`, `POST /household/members/:id/ban`/`unban`, all admin-only, plus a now-guarded `GET /household`. Inviting a member reuses the regular forgot-password flow (Resend-delivered "set your password" email) rather than a separate invite-token mechanism — same pattern the seed script uses to get the owner their first password.
 
-`ui`'s front page has a login form, a household member list with ban/unban and an invite form for admins, and `/auth/reset-password` handles both the invite and forgot-password links.
+`ui` has a login page, a household member list with ban/unban and an invite form for admins, and `/auth/reset-password` handles both the invite and forgot-password links.
 
 Confirmed on a real device: the installed PWA and Safari do *not* share `localStorage` on iOS. Doesn't matter here — `/auth/reset-password` only ever sets a new password, never a session, so there's nothing to hand off between the two. After a reset (or an invite), sign in fresh from wherever you actually want a session: the PWA itself for daily use.
 
@@ -36,7 +36,6 @@ Confirmed on a real device: the installed PWA and Safari do *not* share `localSt
 - `messages` table: single continuous thread per user, not per-conversation — no "new chat" concept, so item 8's proactive nudging can inject into an existing thread rather than starting a new one. Stores the full raw Claude message sequence, including `tool_use`/`tool_result` blocks, not a simplified transcript. First table to carry `owner_id`/`visibility` (`private`, no household-shared conversations) and tier-2 field encryption — calendar (item 6) and later domains reuse the same pattern.
 - Context sent to Claude per request is a bounded recency window (last N messages/tokens), never the full stored history. Retrieval over older messages via `pgvector` is a later addition, only if the window proves insufficient in practice — no rolling summarization.
 - Frontend: `ui` is now Angular (zoneless, standalone, esbuild/Vite builder) — see [`docs/frontend-migration.md`](frontend-migration.md). Routed `/login` and `/` (push notify + household admin) are live; still needed: a routed chat page + chat component consuming the SSE stream, wired to the backend above.
-- Needs the Anthropic API key (Console + billing) confirmed first — noted as an open item back in item 1.
 
 ## 6. Calendar (first vertical slice)
 
