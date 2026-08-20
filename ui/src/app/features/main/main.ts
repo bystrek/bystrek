@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
@@ -9,6 +9,7 @@ import { PushService } from '../../core/push/push.service';
   selector: 'app-main',
   imports: [FormsModule],
   templateUrl: './main.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './main.css',
 })
 export class Main implements OnInit {
