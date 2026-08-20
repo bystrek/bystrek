@@ -1,4 +1,6 @@
 node_modules
-build
-.svelte-kit
-.env
+dist
+.angular
+e2e
+test-results
+playwright-report

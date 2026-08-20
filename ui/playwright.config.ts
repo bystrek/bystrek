@@ -11,7 +11,7 @@ export default defineConfig({
 		trace: 'on-first-retry'
 	},
 	webServer: {
-		command: 'bun run dev -- --port 4173',
+		command: 'bun run start -- --port 4173',
 		url: 'http://localhost:4173',
 		reuseExistingServer: !process.env.CI,
 		timeout: 60_000

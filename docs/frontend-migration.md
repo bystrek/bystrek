@@ -8,7 +8,7 @@ Dependency injection, hierarchical service scoping, and enforced separation of c
 
 ## Status
 
-Decision made. Not started. Current `ui` (SvelteKit) stays live until migration begins.
+Landed for everything except chat: login, push notify, and household admin are live on Angular. Chat (routed page + component) is the one piece still pending, blocked on the chat backend (`whats-next.md` item 5) having something to render against.
 
 ## Scope (when work starts)
 

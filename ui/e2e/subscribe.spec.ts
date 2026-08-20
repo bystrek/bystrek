@@ -21,9 +21,16 @@ test('enabling notifications subscribes and shows confirmation', async ({ page }
 		await route.fulfill({ status: 201, json: { ok: true } });
 	});
 
+	// / is now behind authGuard — push controls only render once initSession()
+	// resolves a session, which only happens when a token is already stored.
+	await page.route('**/api/auth/get-session', (route) =>
+		route.fulfill({ json: { user: { id: '1', name: 'Michał', role: 'user' } } })
+	);
 	await page.route('**/household', (route) => route.fulfill({ status: 404, json: {} }));
 
 	await page.addInitScript(() => {
+		window.localStorage.setItem('bystrek_token', 'fake-token');
+
 		const fakeSubscription = {
 			endpoint: 'https://fake-push-service.example.com/fake-endpoint',
 			toJSON() {

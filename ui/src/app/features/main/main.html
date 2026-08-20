@@ -1,0 +1,62 @@
+<main>
+  <h1>bystrek</h1>
+  <p>Enable notifications to let the assistant reach you. (Chat is offline for now — back soon.)</p>
+
+  @if (auth.session(); as session) {
+    <p class="signed-in">Signed in as {{ session.user.name ?? session.user.id }} ({{ session.user.role }})</p>
+  }
+
+  <button (click)="push.subscribe()" [disabled]="push.busy() || push.subscribed()">
+    {{ push.subscribed() ? 'Subscribed' : 'Enable notifications' }}
+  </button>
+  <button (click)="push.sendTest()" [disabled]="push.busy() || !push.subscribed()">
+    Send test notification
+  </button>
+  <div id="status">{{ push.status() }}</div>
+
+  @if (household.household(); as h) {
+    <div id="household">
+      <h2>{{ h.name }}</h2>
+      <ul>
+        @for (member of h.members; track member.id) {
+          <li>
+            {{ member.name ?? 'Unnamed member' }}
+            <span class="badge">{{ member.status }}</span>
+            @if (auth.session()?.user?.role === 'admin') {
+              <button class="link" (click)="toggleBan(member)" [disabled]="household.busy()">
+                {{ member.banned ? 'Unban' : 'Ban' }}
+              </button>
+            }
+          </li>
+        }
+      </ul>
+
+      @if (auth.session()?.user?.role === 'admin') {
+        <form id="invite" (ngSubmit)="invite()">
+          <input
+            type="text"
+            name="inviteName"
+            [ngModel]="inviteName()"
+            (ngModelChange)="inviteName.set($event)"
+            placeholder="Name"
+            required
+          />
+          <input
+            type="email"
+            name="inviteEmail"
+            [ngModel]="inviteEmail()"
+            (ngModelChange)="inviteEmail.set($event)"
+            placeholder="Email"
+            required
+          />
+          <button type="submit" [disabled]="household.busy()">Invite</button>
+        </form>
+        @if (inviteStatus()) {
+          <div class="status">{{ inviteStatus() }}</div>
+        }
+      }
+
+      <button type="button" class="link" (click)="signOut()">Sign out</button>
+    </div>
+  }
+</main>

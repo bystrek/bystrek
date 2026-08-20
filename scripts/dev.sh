@@ -17,11 +17,6 @@ docker compose version >/dev/null 2>&1 || fail "docker compose plugin not found"
 [ -d api/node_modules ] || (cd api && echo "==> Installing api deps" && bun install)
 [ -d ui/node_modules ] || (cd ui && echo "==> Installing ui deps" && bun install)
 
-if [ ! -f ui/.env ]; then
-  echo "==> Generating ui/.env from defaults"
-  cp ui/.env.example ui/.env
-fi
-
 if [ ! -f api/.env ]; then
   echo "==> Generating api/.env with a fresh local VAPID keypair"
   vapid_json="$(cd api && ./node_modules/.bin/web-push generate-vapid-keys --json)"
@@ -80,8 +75,8 @@ echo "==> Starting api (start:dev)"
 pids+=($!)
 
 echo "==> Starting ui (dev)"
-(cd ui && exec bun run dev) &
+(cd ui && exec bun run start) &
 pids+=($!)
 
-echo "==> api: http://localhost:3000  ui: http://localhost:5173  (Ctrl+C to stop)"
+echo "==> api: http://localhost:3000  ui: http://localhost:4200  (Ctrl+C to stop)"
 wait
