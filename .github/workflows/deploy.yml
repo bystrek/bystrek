@@ -48,6 +48,10 @@ jobs:
       # Resend, this only needs to satisfy env.ts's required() check.
       AUTH_SECRET: ci-only-throwaway-secret-not-used-for-anything-real
       RESEND_API_KEY: ci-only-throwaway-not-a-real-key
+      # Throwaway value — tests stub the Anthropic client, never a real call.
+      ANTHROPIC_API_KEY: ci-only-throwaway-not-a-real-key
+      # Throwaway, but must decode to 32 bytes (AES-256) for env.ts's check.
+      ENCRYPTION_KEY: q8Uj3wsNN67RSs76SMLKQ/OIW6vE8Fmm7suUEmBlaaM=
     steps:
       - uses: actions/checkout@v4
 
