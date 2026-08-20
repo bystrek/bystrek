@@ -7,11 +7,10 @@ RUN bun install --frozen-lockfile
 COPY . .
 RUN bun run build
 
-FROM oven/bun:1
+FROM caddy:2-alpine
 
-WORKDIR /app
-COPY server.ts ./
-COPY --from=builder /app/dist/ui/browser ./browser
+WORKDIR /srv
+COPY --from=builder /app/dist/ui/browser ./
+COPY Caddyfile /etc/caddy/Caddyfile
 
 EXPOSE 3000
-CMD ["bun", "server.ts"]
