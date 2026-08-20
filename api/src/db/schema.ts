@@ -143,3 +143,32 @@ export const verifications = pgTable(
   },
   (table) => [index('verifications_identifier_idx').on(table.identifier)],
 );
+
+// Shared across domain tables: a record is visible to the whole household or
+// just its owner. Defined once here so every future domain table reuses it.
+export const visibility = pgEnum('visibility', ['private', 'household']);
+
+export const messageRole = pgEnum('message_role', ['user', 'assistant']);
+
+// One continuous thread per user, not per-conversation — see devlog day 9.
+// `content` holds an encrypted, JSON-serialized Anthropic `MessageParam`
+// content value (a string or a content-block array, e.g. tool_use/tool_result),
+// so the raw sequence sent to/from Claude can be replayed exactly.
+export const messages = pgTable(
+  'messages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    visibility: visibility('visibility').notNull().default('private'),
+    role: messageRole('role').notNull(),
+    content: text('content').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index('messages_user_id_created_at_idx').on(table.userId, table.createdAt),
+  ],
+);
