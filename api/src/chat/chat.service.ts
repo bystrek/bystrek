@@ -15,6 +15,10 @@ import { CHAT_TOOLS, type ChatTool } from './chat.tools';
 // pgvector is a later addition if this ever proves insufficient.
 const RECENCY_WINDOW = 40;
 const MAX_TOKENS = 1024;
+// Caps a single reply to this many Claude round-trips, so a tool that keeps
+// triggering another tool_use (or a model stuck in a loop) can't hold the
+// request open forever.
+export const MAX_TOOL_ITERATIONS = 8;
 const SYSTEM_PROMPT =
   'You are the personal assistant built into bystrek, a household data platform. Be direct and concise.';
 
@@ -42,7 +46,7 @@ export class ChatService {
 
     const toolDefinitions = this.tools.map((tool) => tool.definition);
 
-    for (;;) {
+    for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
       const stream = this.anthropic.messages.stream({
         model: ANTHROPIC_MODEL,
         system: SYSTEM_PROMPT,
@@ -77,6 +81,8 @@ export class ChatService {
       conversation.push({ role: 'user', content: toolResults });
       await this.persist(userId, 'user', toolResults);
     }
+
+    onDelta('\n\n(Stopped after too many tool calls — try rephrasing.)');
   }
 
   private async loadRecentMessages(

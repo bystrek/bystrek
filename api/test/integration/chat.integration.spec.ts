@@ -6,6 +6,7 @@ import { asc, eq } from 'drizzle-orm';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { ANTHROPIC } from '../../src/chat/anthropic.provider';
+import { MAX_TOOL_ITERATIONS } from '../../src/chat/chat.service';
 import { CHAT_TOOLS, type ChatTool } from '../../src/chat/chat.tools';
 import { decryptField } from '../../src/crypto/field-encryption';
 import { DRIZZLE } from '../../src/db/drizzle.provider';
@@ -162,6 +163,7 @@ describe('POST /chat (integration)', () => {
               id: 'toolu_1',
               name: 'test_tool',
               input: { foo: 'bar' },
+              caller: { type: 'direct' },
             },
           ],
           'tool_use',
@@ -262,6 +264,74 @@ describe('POST /chat (integration)', () => {
         .send({ message: '   ' });
 
       expect(res.status).toBe(400);
+
+      await app.close();
+    });
+  });
+
+  it('stops after MAX_TOOL_ITERATIONS instead of looping forever', async () => {
+    await withRollback(testDb, async (tx) => {
+      const [household] = await tx
+        .insert(households)
+        .values({ name: 'Test Household' })
+        .returning();
+      const { token } = await signUpTestUser(tx, {
+        householdId: household.id,
+        email: 'me@example.com',
+        name: 'Me',
+      });
+
+      // A tool that always asks for another tool call — the model never
+      // reaches end_turn on its own, so this only terminates if the loop's
+      // own cap does.
+      const alwaysToolUse = Array.from(
+        { length: MAX_TOOL_ITERATIONS },
+        (_, i) =>
+          fakeMessage(
+            [
+              {
+                type: 'tool_use',
+                id: `toolu_${i}`,
+                name: 'test_tool',
+                input: {},
+                caller: { type: 'direct' },
+              },
+            ],
+            'tool_use',
+          ),
+      );
+      const anthropic = fakeAnthropic(alwaysToolUse);
+      const handler = mock(() => Promise.resolve({ ok: true }));
+      const tools: ChatTool[] = [
+        {
+          definition: {
+            name: 'test_tool',
+            description: 'a fake tool that always triggers another call',
+            input_schema: { type: 'object' },
+          },
+          handler,
+        },
+      ];
+
+      const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+        .overrideProvider(DRIZZLE)
+        .useValue(tx)
+        .overrideProvider(ANTHROPIC)
+        .useValue(anthropic)
+        .overrideProvider(CHAT_TOOLS)
+        .useValue(tools)
+        .compile();
+      const app: INestApplication = moduleRef.createNestApplication();
+      await app.init();
+
+      const res = await request(app.getHttpServer())
+        .post('/chat')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ message: 'go' });
+
+      expect(res.status).toBe(200);
+      expect(handler).toHaveBeenCalledTimes(MAX_TOOL_ITERATIONS);
+      expect(res.text).toContain('Stopped after too many tool calls');
 
       await app.close();
     });
