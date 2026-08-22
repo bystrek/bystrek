@@ -40,7 +40,14 @@ export class ChatService {
       const history = await firstValueFrom(
         this.http.get<ChatMessage[]>(`${environment.apiUrl}/chat/history`),
       );
-      this.messages.set(history);
+      // Only apply if nothing has been sent yet — a send() that started
+      // while this request was in flight already owns `messages`, and
+      // overwriting it here would wipe the pending user/assistant turns
+      // out from under an in-progress stream.
+      if (this.messages().length === 0) {
+        this.messages.set(history);
+      }
+      this.error.set('');
     } catch (err) {
       this.error.set(errorMessage(err, 'Could not load chat history.'));
     }

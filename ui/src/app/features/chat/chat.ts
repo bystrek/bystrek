@@ -27,12 +27,31 @@ export class Chat implements OnInit, AfterViewChecked {
 
   readonly draft = signal('');
 
+  // Tracks the last message content actually rendered, so `ngAfterViewChecked`
+  // (which fires on every change detection pass, including unrelated ones
+  // like typing in the input) only auto-scrolls when a message was added or
+  // grew — not on every keystroke.
+  private lastRenderedMessages = '';
+
   ngOnInit(): void {
     void this.chat.loadHistory();
   }
 
   ngAfterViewChecked(): void {
-    this.scrollAnchor?.nativeElement.scrollIntoView({ block: 'end' });
+    const snapshot = this.chat
+      .messages()
+      .map((m) => m.text.length)
+      .join(',');
+    if (snapshot === this.lastRenderedMessages) return;
+    this.lastRenderedMessages = snapshot;
+
+    const anchor = this.scrollAnchor?.nativeElement;
+    const container = anchor?.parentElement;
+    if (!anchor || !container) return;
+    const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 80;
+    if (nearBottom) {
+      anchor.scrollIntoView({ block: 'end' });
+    }
   }
 
   send(): void {

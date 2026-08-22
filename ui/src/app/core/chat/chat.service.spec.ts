@@ -98,6 +98,37 @@ describe('ChatService', () => {
     expect(service.messages().length).toBe(2);
   });
 
+  it('does not let a slow loadHistory clobber messages appended by a send that started first', async () => {
+    const pending = service.loadHistory();
+    const historyReq = httpMock.expectOne(`${environment.apiUrl}/chat/history`);
+
+    service.send('hi there');
+    expect(service.messages()).toEqual([
+      { role: 'user', text: 'hi there' },
+      { role: 'assistant', text: '' },
+    ]);
+
+    historyReq.flush([{ role: 'user', text: 'stale history' }]);
+    await pending;
+
+    expect(service.messages()).toEqual([
+      { role: 'user', text: 'hi there' },
+      { role: 'assistant', text: '' },
+    ]);
+
+    httpMock.expectOne(`${environment.apiUrl}/chat`).flush('');
+  });
+
+  it('clears a stale error once loadHistory succeeds', async () => {
+    service.error.set('previous failure');
+
+    const pending = service.loadHistory();
+    httpMock.expectOne(`${environment.apiUrl}/chat/history`).flush([]);
+    await pending;
+
+    expect(service.error()).toBe('');
+  });
+
   it('sets an error and clears sending when the request fails', () => {
     // `responseType: 'text'` means a failed response body never gets
     // JSON-parsed, so this always falls back to the generic message.
