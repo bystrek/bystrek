@@ -11,10 +11,7 @@ const IV_LENGTH = 12;
 export function encryptField(plaintext: string): string {
   const iv = randomBytes(IV_LENGTH);
   const cipher = createCipheriv(ALGORITHM, ENCRYPTION_KEY, iv);
-  const ciphertext = Buffer.concat([
-    cipher.update(plaintext, 'utf8'),
-    cipher.final(),
-  ]);
+  const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
   const authTag = cipher.getAuthTag();
   return [iv, authTag, ciphertext].map((b) => b.toString('base64')).join('.');
 }
@@ -24,11 +21,7 @@ export function decryptField(encoded: string): string {
   if (!ivB64 || !authTagB64 || !ciphertextB64) {
     throw new Error('malformed encrypted field value');
   }
-  const decipher = createDecipheriv(
-    ALGORITHM,
-    ENCRYPTION_KEY,
-    Buffer.from(ivB64, 'base64'),
-  );
+  const decipher = createDecipheriv(ALGORITHM, ENCRYPTION_KEY, Buffer.from(ivB64, 'base64'));
   decipher.setAuthTag(Buffer.from(authTagB64, 'base64'));
   const plaintext = Buffer.concat([
     decipher.update(Buffer.from(ciphertextB64, 'base64')),

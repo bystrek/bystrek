@@ -1,9 +1,7 @@
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../../../src/db/schema';
 
-type Tx = Parameters<
-  Parameters<PostgresJsDatabase<typeof schema>['transaction']>[0]
->[0];
+type Tx = Parameters<Parameters<PostgresJsDatabase<typeof schema>['transaction']>[0]>[0];
 
 class RollbackSignal extends Error {}
 

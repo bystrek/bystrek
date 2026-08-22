@@ -16,9 +16,7 @@ export interface SubscriptionInput {
 
 @Injectable()
 export class PushService {
-  constructor(
-    @Inject(DRIZZLE) private readonly db: PostgresJsDatabase<typeof schema>,
-  ) {}
+  constructor(@Inject(DRIZZLE) private readonly db: PostgresJsDatabase<typeof schema>) {}
 
   getVapidPublicKey() {
     return { publicKey: VAPID_PUBLIC_KEY };
@@ -60,9 +58,7 @@ export class PushService {
         } catch (err: unknown) {
           const statusCode = (err as { statusCode?: number })?.statusCode;
           if (statusCode === 404 || statusCode === 410) {
-            await this.db
-              .delete(subscriptions)
-              .where(eq(subscriptions.endpoint, sub.endpoint));
+            await this.db.delete(subscriptions).where(eq(subscriptions.endpoint, sub.endpoint));
             removed++;
           } else {
             failed++;

@@ -32,11 +32,7 @@ export class ChatService {
     @Inject(CHAT_TOOLS) private readonly tools: ChatTool[],
   ) {}
 
-  async reply(
-    userId: string,
-    userText: string,
-    onDelta: (text: string) => void,
-  ): Promise<void> {
+  async reply(userId: string, userText: string, onDelta: (text: string) => void): Promise<void> {
     const history = await this.loadRecentMessages(userId);
     const conversation: Anthropic.MessageParam[] = [
       ...history,
@@ -85,9 +81,7 @@ export class ChatService {
     onDelta('\n\n(Stopped after too many tool calls — try rephrasing.)');
   }
 
-  private async loadRecentMessages(
-    userId: string,
-  ): Promise<Anthropic.MessageParam[]> {
+  private async loadRecentMessages(userId: string): Promise<Anthropic.MessageParam[]> {
     const rows = await this.db
       .select()
       .from(messages)
@@ -97,17 +91,11 @@ export class ChatService {
 
     return rows.reverse().map((row) => ({
       role: row.role,
-      content: JSON.parse(
-        decryptField(row.content),
-      ) as Anthropic.MessageParam['content'],
+      content: JSON.parse(decryptField(row.content)) as Anthropic.MessageParam['content'],
     }));
   }
 
-  private async persist(
-    userId: string,
-    role: Role,
-    content: unknown,
-  ): Promise<void> {
+  private async persist(userId: string, role: Role, content: unknown): Promise<void> {
     await this.db.insert(messages).values({
       userId,
       role,

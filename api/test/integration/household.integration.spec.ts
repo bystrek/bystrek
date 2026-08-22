@@ -30,15 +30,11 @@ describe('households/users data model (integration)', () => {
         .values({ name: 'Test Household' })
         .returning();
 
-      await tx
-        .insert(users)
-        .values({ householdId: household.id, email: 'dup@example.com' });
+      await tx.insert(users).values({ householdId: household.id, email: 'dup@example.com' });
 
       let threw = false;
       try {
-        await tx
-          .insert(users)
-          .values({ householdId: household.id, email: 'dup@example.com' });
+        await tx.insert(users).values({ householdId: household.id, email: 'dup@example.com' });
       } catch {
         threw = true;
       }
@@ -68,16 +64,11 @@ describe('households/users data model (integration)', () => {
         .values({ name: 'Test Household' })
         .returning();
 
-      await tx
-        .insert(users)
-        .values({ householdId: household.id, email: 'cascade@example.com' });
+      await tx.insert(users).values({ householdId: household.id, email: 'cascade@example.com' });
 
       await tx.delete(households).where(eq(households.id, household.id));
 
-      const rows = await tx
-        .select()
-        .from(users)
-        .where(eq(users.email, 'cascade@example.com'));
+      const rows = await tx.select().from(users).where(eq(users.email, 'cascade@example.com'));
       expect(rows).toHaveLength(0);
     });
   });
