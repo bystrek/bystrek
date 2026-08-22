@@ -63,6 +63,10 @@ Confirmed on a real device: the installed PWA and Safari do *not* share `localSt
 
 Done for everything except chat (item 5's last piece). `ui` re-ports login, push notify, and household admin on Angular (zoneless, standalone, esbuild/Vite builder, CSR-only) — see [`docs/frontend-migration.md`](frontend-migration.md). `docs/architecture.md`'s "Frontend & chat" section and the README's status section still describe the old SvelteKit setup; update both once the chat page lands and the migration is fully done, per `frontend-migration.md`'s own note.
 
+## 9. Signal Forms migration
+
+`login`, `main`'s invite form, `reset-password`, and `profile` (`ui`) all use manual `signal()` fields + `FormsModule`/`ngModel`. Angular 22 made Signal Forms stable — migrate all four forms together in one PR, not piecemeal, to avoid two form idioms coexisting.
+
 ## Unrelated: media server
 
 Personal project, not part of this product — see [`docs/media-server.md`](media-server.md). Far-future, no urgency.
