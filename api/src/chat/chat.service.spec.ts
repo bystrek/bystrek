@@ -7,6 +7,10 @@ describe('collapseTurnText', () => {
     expect(collapseTurnText('what is my week look like?')).toBe('what is my week look like?');
   });
 
+  it('returns null for empty string content, same as an array with no text blocks', () => {
+    expect(collapseTurnText('')).toBeNull();
+  });
+
   it('concatenates text blocks in an array', () => {
     const content: Anthropic.MessageParam['content'] = [
       { type: 'text', text: 'Hello ', citations: [] },

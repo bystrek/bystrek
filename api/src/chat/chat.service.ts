@@ -35,7 +35,7 @@ export interface ChatHistoryTurn {
 // by the caller.
 export function collapseTurnText(content: Anthropic.MessageParam['content']): string | null {
   if (typeof content === 'string') {
-    return content;
+    return content.length > 0 ? content : null;
   }
   const text = content
     .filter((block): block is Anthropic.TextBlockParam => block.type === 'text')
@@ -111,6 +111,10 @@ export class ChatService {
     onDelta('\n\n(Stopped after too many tool calls — try rephrasing.)');
   }
 
+  // Deliberately bounded to the same RECENCY_WINDOW as the context sent to
+  // Claude, not the full persisted thread — see devlog day 9. Pagination
+  // over older messages is a later addition if that ever proves
+  // insufficient, same call as pgvector retrieval.
   async getHistory(userId: string): Promise<ChatHistoryTurn[]> {
     const history = await this.loadRecentMessages(userId);
     return toHistoryTurns(history);
