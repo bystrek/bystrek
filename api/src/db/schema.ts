@@ -33,6 +33,12 @@ export const users = pgTable(
       .references(() => households.id, { onDelete: 'cascade' }),
     email: text('email').notNull(),
     name: text('name'),
+    // `image` is a better-auth core field, handled automatically.
+    // `firstName`/`lastName` are declared as `user.additionalFields` in
+    // auth.config.ts so the same update-user/get-session endpoints cover them.
+    image: text('image'),
+    firstName: text('first_name'),
+    lastName: text('last_name'),
     emailVerified: boolean('email_verified').notNull().default(false),
     status: userStatus('status').notNull().default('invited'),
     // better-auth admin plugin
