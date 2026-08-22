@@ -6,12 +6,14 @@ on:
     paths:
       - "api/**"
       - "ui/**"
+      - ".prettierrc"
       - ".github/workflows/deploy.yml"
   pull_request:
     branches: [main]
     paths:
       - "api/**"
       - "ui/**"
+      - ".prettierrc"
       - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
