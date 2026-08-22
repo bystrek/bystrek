@@ -57,9 +57,11 @@
           <div class="status">{{ inviteStatus() }}</div>
         }
       }
-
-      <a class="link" routerLink="/profile">Edit profile</a>
-      <button type="button" class="link" (click)="signOut()">Sign out</button>
     </div>
+  }
+
+  @if (auth.session()) {
+    <a class="link" routerLink="/profile">Edit profile</a>
+    <button type="button" class="link" (click)="signOut()">Sign out</button>
   }
 </main>

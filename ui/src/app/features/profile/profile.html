@@ -5,7 +5,12 @@
   @if (image(); as src) {
     <img class="avatar" [src]="src" alt="Avatar preview" />
   }
-  <input type="file" accept="image/*" (change)="onFileSelected($event)" />
+  <input
+    type="file"
+    accept="image/*"
+    aria-label="Choose avatar image"
+    (change)="onFileSelected($event)"
+  />
 
   <form id="profile" (ngSubmit)="save()">
     <input
@@ -24,7 +29,7 @@
       placeholder="Last name"
       required
     />
-    <button type="submit" [disabled]="busy()">Save</button>
+    <button type="submit" [disabled]="busy() || converting()">Save</button>
     <button type="button" class="link" (click)="back()">Back</button>
   </form>
 

@@ -20,6 +20,7 @@ export class Profile implements OnInit {
   readonly image = signal<string | null>(null);
   readonly status = signal('');
   readonly busy = signal(false);
+  readonly converting = signal(false);
 
   ngOnInit(): void {
     const user = this.auth.session()?.user;
@@ -32,10 +33,13 @@ export class Profile implements OnInit {
   async onFileSelected(event: Event): Promise<void> {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
+    this.converting.set(true);
     try {
       this.image.set(await downscaleImage(file));
     } catch (err) {
       this.status.set((err as Error).message);
+    } finally {
+      this.converting.set(false);
     }
   }
 

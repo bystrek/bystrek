@@ -104,13 +104,18 @@ export class AuthService {
   }
 
   async updateProfile(firstName: string, lastName: string, image: string | null): Promise<void> {
-    const name = `${firstName} ${lastName}`.trim();
+    const trimmedFirst = firstName.trim();
+    const trimmedLast = lastName.trim();
+    if (!trimmedFirst || !trimmedLast) {
+      throw new Error('First and last name are required.');
+    }
+    const name = `${trimmedFirst} ${trimmedLast}`;
     try {
       await firstValueFrom(
         this.http.post(`${environment.apiUrl}/api/auth/update-user`, {
           name,
-          firstName,
-          lastName,
+          firstName: trimmedFirst,
+          lastName: trimmedLast,
           image,
         }),
       );

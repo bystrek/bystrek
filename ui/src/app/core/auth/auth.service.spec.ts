@@ -95,6 +95,13 @@ describe('AuthService', () => {
     expect(service.session()?.user.firstName).toBe('Michał');
   });
 
+  it('updateProfile rejects whitespace-only names without sending a request', async () => {
+    await expect(service.updateProfile('  ', 'B', null)).rejects.toThrow(
+      'First and last name are required.',
+    );
+    httpMock.expectNone(`${environment.apiUrl}/api/auth/update-user`);
+  });
+
   it('updateProfile throws on a failed request without refreshing the session', async () => {
     const pending = service.updateProfile('Michał', 'B', null);
 
