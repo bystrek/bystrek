@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
   boolean,
   index,
@@ -155,7 +156,14 @@ export const messages = pgTable(
     visibility: visibility('visibility').notNull().default('private'),
     role: messageRole('role').notNull(),
     content: text('content').notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    // clock_timestamp(), not defaultNow() (= now(), frozen for a whole
+    // transaction): a single reply persists several rows in quick
+    // succession, and their relative order (fed back to Claude as
+    // conversation history, and returned by GET /chat/history) must reflect
+    // real insertion order even when those inserts share one transaction.
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .default(sql`clock_timestamp()`),
   },
   (table) => [index('messages_user_id_created_at_idx').on(table.userId, table.createdAt)],
 );

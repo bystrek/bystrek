@@ -316,3 +316,86 @@ describe('POST /chat (integration)', () => {
     });
   });
 });
+
+describe('GET /chat/history (integration)', () => {
+  it('401s without a session token', async () => {
+    await withRollback(testDb, async (tx) => {
+      const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+        .overrideProvider(DRIZZLE)
+        .useValue(tx)
+        .compile();
+      const app: INestApplication = moduleRef.createNestApplication();
+      await app.init();
+
+      const res = await request(app.getHttpServer()).get('/chat/history');
+
+      expect(res.status).toBe(401);
+
+      await app.close();
+    });
+  });
+
+  it('returns persisted turns collapsed to plain text, dropping pure tool turns', async () => {
+    await withRollback(testDb, async (tx) => {
+      const [household] = await tx
+        .insert(households)
+        .values({ name: 'Test Household' })
+        .returning();
+      const { token } = await signUpTestUser(tx, {
+        householdId: household.id,
+        email: 'me@example.com',
+        name: 'Me',
+      });
+
+      const anthropic = fakeAnthropic([
+        fakeMessage(
+          [
+            {
+              type: 'tool_use',
+              id: 'toolu_1',
+              name: 'test_tool',
+              input: {},
+              caller: { type: 'direct' },
+            },
+          ],
+          'tool_use',
+        ),
+        fakeMessage([{ type: 'text', text: 'done', citations: [] }], 'end_turn'),
+      ]);
+      const tools: ChatTool[] = [
+        {
+          definition: { name: 'test_tool', description: 'a fake tool', input_schema: {} },
+          handler: () => Promise.resolve({ ok: true }),
+        },
+      ];
+
+      const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+        .overrideProvider(DRIZZLE)
+        .useValue(tx)
+        .overrideProvider(ANTHROPIC)
+        .useValue(anthropic)
+        .overrideProvider(CHAT_TOOLS)
+        .useValue(tools)
+        .compile();
+      const app: INestApplication = moduleRef.createNestApplication();
+      await app.init();
+
+      await request(app.getHttpServer())
+        .post('/chat')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ message: 'run the tool' });
+
+      const res = await request(app.getHttpServer())
+        .get('/chat/history')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual([
+        { role: 'user', text: 'run the tool' },
+        { role: 'assistant', text: 'done' },
+      ]);
+
+      await app.close();
+    });
+  });
+});

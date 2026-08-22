@@ -1,4 +1,13 @@
-import { BadRequestException, Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
 import { ChatService } from './chat.service';
@@ -10,6 +19,12 @@ class ChatDto {
 @Controller('chat')
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
+
+  @Get('history')
+  @UseGuards(AuthGuard)
+  async history(@Req() req: Request) {
+    return this.chatService.getHistory(req.session!.user.id);
+  }
 
   @Post()
   @UseGuards(AuthGuard)
