@@ -13,17 +13,13 @@ export const subscriptions = pgTable('subscriptions', {
   endpoint: text('endpoint').primaryKey(),
   p256dh: text('p256dh').notNull(),
   auth: text('auth').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const households = pgTable('households', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const userStatus = pgEnum('user_status', ['invited', 'active']);
@@ -44,9 +40,7 @@ export const users = pgTable(
     banned: boolean('banned').notNull().default(false),
     banReason: text('ban_reason'),
     banExpires: timestamp('ban_expires', { withTimezone: true }),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow()
@@ -74,9 +68,7 @@ export const sessions = pgTable(
     // better-auth admin plugin (session impersonation) — unused, kept so
     // the admin plugin's schema expectations are met from the start.
     impersonatedBy: text('impersonated_by'),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow()
@@ -109,19 +101,14 @@ export const accounts = pgTable(
       withTimezone: true,
     }),
     scope: text('scope'),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
   (table) => [
-    uniqueIndex('accounts_issuer_account_id_unique').on(
-      table.issuer,
-      table.accountId,
-    ),
+    uniqueIndex('accounts_issuer_account_id_unique').on(table.issuer, table.accountId),
     index('accounts_user_id_idx').on(table.userId),
   ],
 );
@@ -133,9 +120,7 @@ export const verifications = pgTable(
     identifier: text('identifier').notNull(),
     value: text('value').notNull(),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow()
@@ -164,11 +149,7 @@ export const messages = pgTable(
     visibility: visibility('visibility').notNull().default('private'),
     role: messageRole('role').notNull(),
     content: text('content').notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [
-    index('messages_user_id_created_at_idx').on(table.userId, table.createdAt),
-  ],
+  (table) => [index('messages_user_id_created_at_idx').on(table.userId, table.createdAt)],
 );

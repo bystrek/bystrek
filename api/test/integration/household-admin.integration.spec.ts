@@ -74,10 +74,7 @@ describe('household admin endpoints (integration)', () => {
 
       expect(res.status).toBe(201);
 
-      const [invited] = await tx
-        .select()
-        .from(users)
-        .where(eq(users.email, 'new@example.com'));
+      const [invited] = await tx.select().from(users).where(eq(users.email, 'new@example.com'));
       expect(invited).toBeDefined();
       expect(invited.status).toBe('invited');
       expect(sendEmailMock).toHaveBeenCalledTimes(1);
@@ -118,10 +115,7 @@ describe('household admin endpoints (integration)', () => {
         .set('Authorization', `Bearer ${adminToken}`);
       expect(banRes.status).toBe(201);
 
-      const [bannedRow] = await tx
-        .select()
-        .from(users)
-        .where(eq(users.id, member.id));
+      const [bannedRow] = await tx.select().from(users).where(eq(users.id, member.id));
       expect(bannedRow.banned).toBe(true);
 
       const unbanRes = await request(app.getHttpServer())
@@ -129,10 +123,7 @@ describe('household admin endpoints (integration)', () => {
         .set('Authorization', `Bearer ${adminToken}`);
       expect(unbanRes.status).toBe(201);
 
-      const [unbannedRow] = await tx
-        .select()
-        .from(users)
-        .where(eq(users.id, member.id));
+      const [unbannedRow] = await tx.select().from(users).where(eq(users.id, member.id));
       expect(unbannedRow.banned).toBe(false);
 
       await app.close();

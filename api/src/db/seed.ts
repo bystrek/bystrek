@@ -23,23 +23,14 @@ const OWNER = {
 async function seed() {
   const db = drizzle(postgres(DATABASE_URL), { schema });
 
-  let [household] = await db
-    .select()
-    .from(households)
-    .where(eq(households.name, HOUSEHOLD_NAME));
+  let [household] = await db.select().from(households).where(eq(households.name, HOUSEHOLD_NAME));
 
   if (!household) {
-    [household] = await db
-      .insert(households)
-      .values({ name: HOUSEHOLD_NAME })
-      .returning();
+    [household] = await db.insert(households).values({ name: HOUSEHOLD_NAME }).returning();
     console.log(`created household "${HOUSEHOLD_NAME}"`);
   }
 
-  const [existing] = await db
-    .select()
-    .from(users)
-    .where(eq(users.email, OWNER.email));
+  const [existing] = await db.select().from(users).where(eq(users.email, OWNER.email));
 
   if (!existing) {
     await db.insert(users).values({

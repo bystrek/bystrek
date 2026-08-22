@@ -25,9 +25,7 @@ describe('field encryption', () => {
     const [iv, authTag, ciphertext] = encoded.split('.');
     const tampered = Buffer.from(ciphertext, 'base64');
     tampered[0] ^= 0xff;
-    const tamperedEncoded = [iv, authTag, tampered.toString('base64')].join(
-      '.',
-    );
+    const tamperedEncoded = [iv, authTag, tampered.toString('base64')].join('.');
 
     expect(() => decryptField(tamperedEncoded)).toThrow();
   });

@@ -74,9 +74,7 @@ describe('POST /chat (integration)', () => {
       const app: INestApplication = moduleRef.createNestApplication();
       await app.init();
 
-      const res = await request(app.getHttpServer())
-        .post('/chat')
-        .send({ message: 'hi' });
+      const res = await request(app.getHttpServer()).post('/chat').send({ message: 'hi' });
 
       expect(res.status).toBe(401);
 
@@ -97,10 +95,7 @@ describe('POST /chat (integration)', () => {
       });
 
       const anthropic = fakeAnthropic([
-        fakeMessage(
-          [{ type: 'text', text: 'Hello there', citations: [] }],
-          'end_turn',
-        ),
+        fakeMessage([{ type: 'text', text: 'Hello there', citations: [] }], 'end_turn'),
       ]);
 
       const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
@@ -131,9 +126,7 @@ describe('POST /chat (integration)', () => {
       expect(rows[0].role).toBe('user');
       expect(rows[0].visibility).toBe('private');
       expect(rows[0].content).not.toContain('what is my week');
-      expect(JSON.parse(decryptField(rows[0].content))).toBe(
-        'what is my week look like?',
-      );
+      expect(JSON.parse(decryptField(rows[0].content))).toBe('what is my week look like?');
       expect(rows[1].role).toBe('assistant');
       expect(JSON.parse(decryptField(rows[1].content))).toEqual([
         { type: 'text', text: 'Hello there', citations: [] },
@@ -168,15 +161,10 @@ describe('POST /chat (integration)', () => {
           ],
           'tool_use',
         ),
-        fakeMessage(
-          [{ type: 'text', text: 'done', citations: [] }],
-          'end_turn',
-        ),
+        fakeMessage([{ type: 'text', text: 'done', citations: [] }], 'end_turn'),
       ]);
 
-      const handler = mock((input: unknown) =>
-        Promise.resolve({ ok: true, input }),
-      );
+      const handler = mock((input: unknown) => Promise.resolve({ ok: true, input }));
       const tools: ChatTool[] = [
         {
           definition: {
@@ -214,16 +202,9 @@ describe('POST /chat (integration)', () => {
         .where(eq(messages.userId, user.id))
         .orderBy(asc(messages.createdAt));
 
-      expect(rows.map((r) => r.role)).toEqual([
-        'user',
-        'assistant',
-        'user',
-        'assistant',
-      ]);
+      expect(rows.map((r) => r.role)).toEqual(['user', 'assistant', 'user', 'assistant']);
 
-      const toolResultContent = JSON.parse(
-        decryptField(rows[2].content),
-      ) as Array<{
+      const toolResultContent = JSON.parse(decryptField(rows[2].content)) as Array<{
         type: string;
         tool_use_id: string;
         content: string;
@@ -284,21 +265,19 @@ describe('POST /chat (integration)', () => {
       // A tool that always asks for another tool call — the model never
       // reaches end_turn on its own, so this only terminates if the loop's
       // own cap does.
-      const alwaysToolUse = Array.from(
-        { length: MAX_TOOL_ITERATIONS },
-        (_, i) =>
-          fakeMessage(
-            [
-              {
-                type: 'tool_use',
-                id: `toolu_${i}`,
-                name: 'test_tool',
-                input: {},
-                caller: { type: 'direct' },
-              },
-            ],
-            'tool_use',
-          ),
+      const alwaysToolUse = Array.from({ length: MAX_TOOL_ITERATIONS }, (_, i) =>
+        fakeMessage(
+          [
+            {
+              type: 'tool_use',
+              id: `toolu_${i}`,
+              name: 'test_tool',
+              input: {},
+              caller: { type: 'direct' },
+            },
+          ],
+          'tool_use',
+        ),
       );
       const anthropic = fakeAnthropic(alwaysToolUse);
       const handler = mock(() => Promise.resolve({ ok: true }));

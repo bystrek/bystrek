@@ -3,7 +3,9 @@
   <p>Enable notifications to let the assistant reach you. (Chat is offline for now — back soon.)</p>
 
   @if (auth.session(); as session) {
-    <p class="signed-in">Signed in as {{ session.user.name ?? session.user.id }} ({{ session.user.role }})</p>
+    <p class="signed-in">
+      Signed in as {{ session.user.name ?? session.user.id }} ({{ session.user.role }})
+    </p>
   }
 
   <button (click)="push.subscribe()" [disabled]="push.busy() || push.subscribed()">

@@ -1,12 +1,4 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Post,
-  Req,
-  Res,
-  UseGuards,
-} from '@nestjs/common';
+import { BadRequestException, Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
 import { ChatService } from './chat.service';
@@ -32,13 +24,9 @@ export class ChatController {
       Connection: 'keep-alive',
     });
 
-    await this.chatService.reply(
-      req.session!.user.id,
-      body.message,
-      (delta) => {
-        res.write(`data: ${JSON.stringify({ delta })}\n\n`);
-      },
-    );
+    await this.chatService.reply(req.session!.user.id, body.message, (delta) => {
+      res.write(`data: ${JSON.stringify({ delta })}\n\n`);
+    });
 
     res.end();
   }
