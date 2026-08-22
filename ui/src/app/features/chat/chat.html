@@ -1,0 +1,35 @@
+<main>
+  <h1>Chat</h1>
+
+  <div class="messages">
+    @for (message of chat.messages(); track $index) {
+      <div
+        class="bubble"
+        [class.user]="message.role === 'user'"
+        [class.assistant]="message.role === 'assistant'"
+      >
+        {{ message.text }}
+      </div>
+    }
+    <div #scrollAnchor></div>
+  </div>
+
+  @if (chat.error()) {
+    <div class="status">{{ chat.error() }}</div>
+  }
+
+  <form id="chat-input" (ngSubmit)="send()">
+    <input
+      type="text"
+      name="draft"
+      [ngModel]="draft()"
+      (ngModelChange)="draft.set($event)"
+      placeholder="Message"
+      [disabled]="chat.sending()"
+      required
+    />
+    <button type="submit" [disabled]="chat.sending()">Send</button>
+  </form>
+
+  <button type="button" class="link" (click)="back()">Back</button>
+</main>
