@@ -1,13 +1,13 @@
 import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { HouseholdService, type Member } from '../../core/household/household.service';
 import { PushService } from '../../core/push/push.service';
 
 @Component({
   selector: 'app-main',
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   templateUrl: './main.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './main.css',

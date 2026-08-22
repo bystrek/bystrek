@@ -45,7 +45,7 @@ button:disabled {
   cursor: default;
 }
 
-button.link {
+.link {
   background: none;
   color: #591622;
   text-decoration: underline;
@@ -53,6 +53,9 @@ button.link {
   margin: 0;
   font-size: 13px;
   font-weight: 400;
+  border: none;
+  cursor: pointer;
+  display: inline-block;
 }
 
 input {

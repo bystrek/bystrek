@@ -1,0 +1,34 @@
+<main>
+  <h1>Profile</h1>
+  <p>Update your name and avatar.</p>
+
+  @if (image(); as src) {
+    <img class="avatar" [src]="src" alt="Avatar preview" />
+  }
+  <input type="file" accept="image/*" (change)="onFileSelected($event)" />
+
+  <form id="profile" (ngSubmit)="save()">
+    <input
+      type="text"
+      name="firstName"
+      [ngModel]="firstName()"
+      (ngModelChange)="firstName.set($event)"
+      placeholder="First name"
+      required
+    />
+    <input
+      type="text"
+      name="lastName"
+      [ngModel]="lastName()"
+      (ngModelChange)="lastName.set($event)"
+      placeholder="Last name"
+      required
+    />
+    <button type="submit" [disabled]="busy()">Save</button>
+    <button type="button" class="link" (click)="back()">Back</button>
+  </form>
+
+  @if (status()) {
+    <div class="status">{{ status() }}</div>
+  }
+</main>

@@ -5,7 +5,16 @@ import { environment } from '../../../environments/environment';
 
 const TOKEN_KEY = 'bystrek_token';
 
-export type Session = { user: { id: string; name: string | null; role: string } };
+export type Session = {
+  user: {
+    id: string;
+    name: string | null;
+    role: string;
+    firstName: string | null;
+    lastName: string | null;
+    image: string | null;
+  };
+};
 
 function errorMessage(err: unknown, fallback: string): string {
   if (err instanceof HttpErrorResponse) {
@@ -92,6 +101,23 @@ export class AuthService {
     } catch {
       throw new Error('Could not request a password reset.');
     }
+  }
+
+  async updateProfile(firstName: string, lastName: string, image: string | null): Promise<void> {
+    const name = `${firstName} ${lastName}`.trim();
+    try {
+      await firstValueFrom(
+        this.http.post(`${environment.apiUrl}/api/auth/update-user`, {
+          name,
+          firstName,
+          lastName,
+          image,
+        }),
+      );
+    } catch (err) {
+      throw new Error(errorMessage(err, 'Could not update your profile.'));
+    }
+    await this.initSession();
   }
 
   async resetPassword(newPassword: string, token: string): Promise<void> {
