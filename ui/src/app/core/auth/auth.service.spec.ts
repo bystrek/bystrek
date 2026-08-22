@@ -34,10 +34,14 @@ describe('AuthService', () => {
 
     const pending = service.initSession();
     const req = httpMock.expectOne(`${environment.apiUrl}/api/auth/get-session`);
-    req.flush({ user: { id: '1', name: 'Me', role: 'user' } });
+    req.flush({
+      user: { id: '1', name: 'Me', role: 'user', firstName: null, lastName: null, image: null },
+    });
     await pending;
 
-    expect(service.session()).toEqual({ user: { id: '1', name: 'Me', role: 'user' } });
+    expect(service.session()).toEqual({
+      user: { id: '1', name: 'Me', role: 'user', firstName: null, lastName: null, image: null },
+    });
   });
 
   it('signIn stores the bearer token from the set-auth-token response header', async () => {
@@ -58,5 +62,53 @@ describe('AuthService', () => {
 
     await expect(pending).rejects.toThrow('no session token was returned');
     expect(localStorage.getItem('bystrek_token')).toBeNull();
+  });
+
+  it('updateProfile posts the derived name plus split fields, then refreshes the session', async () => {
+    localStorage.setItem('bystrek_token', 'existing-token');
+
+    const pending = service.updateProfile('Michał', 'B', 'data:image/jpeg;base64,abc');
+
+    const updateReq = httpMock.expectOne(`${environment.apiUrl}/api/auth/update-user`);
+    expect(updateReq.request.body).toEqual({
+      name: 'Michał B',
+      firstName: 'Michał',
+      lastName: 'B',
+      image: 'data:image/jpeg;base64,abc',
+    });
+    updateReq.flush({ status: true });
+    await Promise.resolve();
+
+    const sessionReq = httpMock.expectOne(`${environment.apiUrl}/api/auth/get-session`);
+    sessionReq.flush({
+      user: {
+        id: '1',
+        name: 'Michał B',
+        role: 'user',
+        firstName: 'Michał',
+        lastName: 'B',
+        image: 'data:image/jpeg;base64,abc',
+      },
+    });
+    await pending;
+
+    expect(service.session()?.user.firstName).toBe('Michał');
+  });
+
+  it('updateProfile rejects whitespace-only names without sending a request', async () => {
+    await expect(service.updateProfile('  ', 'B', null)).rejects.toThrow(
+      'First and last name are required.',
+    );
+    httpMock.expectNone(`${environment.apiUrl}/api/auth/update-user`);
+  });
+
+  it('updateProfile throws on a failed request without refreshing the session', async () => {
+    const pending = service.updateProfile('Michał', 'B', null);
+
+    const updateReq = httpMock.expectOne(`${environment.apiUrl}/api/auth/update-user`);
+    updateReq.flush({ message: 'nope' }, { status: 400, statusText: 'Bad Request' });
+
+    await expect(pending).rejects.toThrow('nope');
+    httpMock.expectNone(`${environment.apiUrl}/api/auth/get-session`);
   });
 });
