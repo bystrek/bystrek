@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'bun:test';
-import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { toNodeHandler } from 'better-auth/node';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
