@@ -24,6 +24,36 @@ const SYSTEM_PROMPT =
 
 type Role = 'user' | 'assistant';
 
+export interface ChatHistoryTurn {
+  role: Role;
+  text: string;
+}
+
+// Collapses one stored turn's content down to plain text for `GET
+// /chat/history` — text-only for v1 (see devlog day 9), so a turn with no
+// text block (pure tool_use/tool_result) has nothing to show and is dropped
+// by the caller.
+export function collapseTurnText(content: Anthropic.MessageParam['content']): string | null {
+  if (typeof content === 'string') {
+    return content.length > 0 ? content : null;
+  }
+  const text = content
+    .filter((block): block is Anthropic.TextBlockParam => block.type === 'text')
+    .map((block) => block.text)
+    .join('');
+  return text.length > 0 ? text : null;
+}
+
+// `Anthropic.MessageParam['role']` also allows `'system'`, which this app
+// never persists (`persist()` only ever writes the `Role` above) — narrowed
+// back to `Role` here rather than widening `ChatHistoryTurn` to match.
+export function toHistoryTurns(messages: Anthropic.MessageParam[]): ChatHistoryTurn[] {
+  return messages.flatMap((message) => {
+    const text = collapseTurnText(message.content);
+    return text === null ? [] : [{ role: message.role as Role, text }];
+  });
+}
+
 @Injectable()
 export class ChatService {
   constructor(
@@ -79,6 +109,15 @@ export class ChatService {
     }
 
     onDelta('\n\n(Stopped after too many tool calls — try rephrasing.)');
+  }
+
+  // Deliberately bounded to the same RECENCY_WINDOW as the context sent to
+  // Claude, not the full persisted thread — see devlog day 9. Pagination
+  // over older messages is a later addition if that ever proves
+  // insufficient, same call as pgvector retrieval.
+  async getHistory(userId: string): Promise<ChatHistoryTurn[]> {
+    const history = await this.loadRecentMessages(userId);
+    return toHistoryTurns(history);
   }
 
   private async loadRecentMessages(userId: string): Promise<Anthropic.MessageParam[]> {
