@@ -1,6 +1,6 @@
 <main>
   <h1>bystrek</h1>
-  <p>Enable notifications to let the assistant reach you. (Chat is offline for now — back soon.)</p>
+  <p>Enable notifications to let the assistant reach you.</p>
 
   @if (auth.session(); as session) {
     <p class="signed-in">
@@ -61,6 +61,7 @@
   }
 
   @if (auth.session()) {
+    <a class="link" routerLink="/chat">Chat</a>
     <a class="link" routerLink="/profile">Edit profile</a>
     <button type="button" class="link" (click)="signOut()">Sign out</button>
   }

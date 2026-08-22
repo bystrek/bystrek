@@ -1,0 +1,35 @@
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 60vh;
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
+
+.bubble {
+  padding: 8px 12px;
+  border-radius: 12px;
+  max-width: 80%;
+  white-space: pre-wrap;
+}
+
+.bubble.user {
+  align-self: flex-end;
+  background: #dbe7ff;
+}
+
+.bubble.assistant {
+  align-self: flex-start;
+  background: #f0f0f0;
+}
+
+#chat-input {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+#chat-input input {
+  flex: 1;
+}
