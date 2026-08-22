@@ -34,6 +34,12 @@ export function createAuth(db: PostgresJsDatabase<typeof schema>) {
       expiresIn: 60 * 60 * 24 * 90, // 90 days
       updateAge: 60 * 60 * 24, // refresh if used within the last day
     },
+    user: {
+      additionalFields: {
+        firstName: { type: 'string', required: false, input: true },
+        lastName: { type: 'string', required: false, input: true },
+      },
+    },
     plugins: [admin(), bearer()],
   });
 }
