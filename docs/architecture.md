@@ -1,10 +1,10 @@
 # Architecture direction — bystrek
 
-Target shape for where this project is heading, as of 2026-08-09. Not a snapshot of what's built — see `docs/whats-next.md` for that. Update when the direction changes, not on every feature shipped.
+Target shape for where this project is heading, as of 2026-08-23. Not a snapshot of what's built — see `docs/roadmap.md` for that. Update when the direction changes, not on every feature shipped.
 
 ## Vision
 
-A personal data platform — calendar, notes, research, medical records, nutrition, gym — with an LLM that reads and writes into it, plus a real app for browsing and visualization. Some domains mirror external services (e.g. iCloud Calendar via CalDAV); bystrek always keeps its own copy, so the LLM and the app share one store.
+A personal data platform — calendar, notes, research, medical records, nutrition, gym — with an LLM that reads and writes into it, plus a real app for browsing and visualization. Some domains mirror external services (e.g. Infomaniak kCalendar via CalDAV); bystrek always keeps its own copy, so the LLM and the app share one store.
 
 ## Layering (decided)
 
@@ -14,18 +14,20 @@ Chat UI ──tool calls──▶ Backend API ──▶ Postgres (+pgvector)
 Custom app (browse/viz) ─────┘              │
                                               │
 Sync connectors (calendar, ...) ─────────────┘
+
+Scheduler ──▶ RabbitMQ ──▶ Worker ──▶ Backend API / push
 ```
 
 - Backend API is the single gateway to Postgres. Nothing else talks to it directly.
 - Chat and the app live in one installed PWA, one icon.
 - Chat UI is custom-built.
 - Sync connectors are small, scheduled, per-source jobs. Shared interface once there are 2–3 of them.
+- Scheduled/async work (daily agenda digest, later proactive nudging) runs through **RabbitMQ**: a scheduler publishes a job, a worker consumes it and calls the backend API/push. Keeps async work off the request path and out of ad hoc cron scripts, with retry/dead-letter handling built in.
 
 ## Frontend & chat (decided)
 
-- **Svelte (SvelteKit)** — mutation-friendly reactivity fits streaming chat state well, and gives a solid PWA story (owns `sw.js` directly).
+- **Angular** (zoneless — standalone components, signals-based change detection, no Zone.js). Dependency injection, hierarchical service scoping, and enforced separation of concerns matter more here than framework popularity or minimal bundle size — Angular is the only mainstream frontend framework with those as first-class, compiler-backed patterns rather than convention. Zoneless removes the historical bundle/runtime cost that used to be the main counter-argument.
 - **No Vercel AI SDK.** Talk to `@anthropic-ai/sdk` directly, stream raw SSE. This is a Claude-only app — AI SDK's multi-provider abstraction buys nothing. Cost: hand-write the multi-step tool-call loop (~30–80 lines).
-- **RxJS** on the frontend to consume the stream. Not required (a plain async generator would work), but its operators (e.g. `switchMap` to cancel an in-flight stream) and native fit with Svelte's store contract earn their keep.
 
 ## Write safety
 
@@ -46,13 +48,13 @@ Tailscale gates who can reach the server; CORS gates which sites' JS can use an 
 
 ## Auth (decided direction)
 
-- Multi-user via **household**: users belong to a household, every row has `owner_id` + `visibility` (`private`/`household`), sensible per-domain default, overridable per record. No per-item ACLs.
+- Multi-user directly on `users`, no household grouping layer: every row has `owner_id` + `visibility` (`private`/`shared`), sensible per-domain default, overridable per record. No per-item ACLs. A second family wanting bystrek gets its own instance/droplet/DB, not a second tenant on this one — the sensitive data here (medical records, private chat) is only tier-2 encrypted (see below), so instance-level separation is the actual isolation boundary, not an app-level tenant id.
 - **better-auth**, self-hosted, embedded in the API — keeps auth data owned rather than routed through a third-party identity provider. Mounted directly via `better-auth/node`'s `toNodeHandler`, ahead of Nest's own JSON body parser (`bodyParser: false` + a manual `express.json()` after the mount) — no third-party NestJS wrapper package, to avoid stacking a second unofficial-Bun-compat dependency on top of the accepted Nest-on-Bun risk below.
 - Bearer tokens, not cookies — sidesteps cross-origin-cookie/CSRF complexity. Sessions use a 90-day rolling TTL, refreshed if used within the last day.
 - **Email/password only for v1** — no magic-link, no passkey. No public signup: an admin creates the user row directly (`status: invited`); `disableSignUp: true` means only an email with an existing row can sign in. Inviting a member and a forgotten password are the same mechanism — both send a Resend-delivered "set your password" link through the admin plugin's password-reset flow, rather than a separate invite-token system.
 - **User management**: `better-auth`'s admin plugin (create/list/ban/unban users) backs a small in-app page — no separate admin console or hosted dashboard.
 - **Passkey (WebAuthn)**: deferred past v1. Adds independently later (own credential table, doesn't touch the schema already built) as a per-device credential added from an authenticated session, not as the account-bootstrap method.
-- Sharing granularity: `private`/`household` is enough, no per-member sharing.
+- Sharing granularity: `private`/`shared` is enough, no per-member sharing.
 
 ## Encryption of sensitive data (decided)
 
