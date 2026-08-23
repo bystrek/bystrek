@@ -10,7 +10,11 @@ function toolByName(tools: ReturnType<typeof buildCalendarTools>, name: string) 
   return tool;
 }
 
-const ctx = (requestId = 'req-1') => ({ userId: 'user-1', requestId });
+const ctx = (requestId = 'req-1') => ({
+  userId: 'user-1',
+  requestId,
+  timezone: 'Europe/Warsaw',
+});
 
 describe('list_calendar_events', () => {
   it('passes the parsed date range through to the service', async () => {
@@ -24,10 +28,14 @@ describe('list_calendar_events', () => {
     );
 
     expect(result).toEqual([{ uid: 'e1' }]);
-    expect(listEvents).toHaveBeenCalledWith('user-1', {
-      start: new Date('2026-09-01T00:00:00Z'),
-      end: new Date('2026-09-02T00:00:00Z'),
-    });
+    expect(listEvents).toHaveBeenCalledWith(
+      'user-1',
+      {
+        start: new Date('2026-09-01T00:00:00Z'),
+        end: new Date('2026-09-02T00:00:00Z'),
+      },
+      'Europe/Warsaw',
+    );
   });
 
   it('turns a domain error into a tool_result-shaped error rather than throwing', async () => {

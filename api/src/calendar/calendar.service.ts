@@ -6,6 +6,7 @@ type DAVClient = Awaited<ReturnType<typeof createDAVClient>>;
 import { assertSafeCaldavUrl } from './caldav-url';
 import { CalendarCredentialsService } from './calendar-credentials.service';
 import { buildEventIcs, parseEventIcs, updateEventIcs, type EventInput } from './ical-event';
+import { assertValidTimeZone } from './zoned-time';
 
 export class CalendarNotConfiguredError extends Error {
   constructor() {
@@ -102,7 +103,12 @@ export class CalendarService {
     return { client, calendar };
   }
 
-  async listEvents(userId: string, range: { start: Date; end: Date }) {
+  // `timeZone` is the requesting user's own timezone (see chat.tools.ts) —
+  // event times are returned already formatted for it (explicit UTC
+  // offset, never raw UTC) so the model never has to convert timezones
+  // itself. See zoned-time.ts / devlog day 12.
+  async listEvents(userId: string, range: { start: Date; end: Date }, timeZone: string) {
+    assertValidTimeZone(timeZone);
     const { client, calendar } = await this.connect(userId);
     const objects = await client.fetchCalendarObjects({
       calendar,
@@ -113,7 +119,7 @@ export class CalendarService {
     return objects.flatMap((object) => {
       if (!object.data) return [];
       try {
-        return [parseEventIcs(object.data as string)];
+        return [parseEventIcs(object.data as string, timeZone)];
       } catch {
         return [];
       }
@@ -122,10 +128,11 @@ export class CalendarService {
 
   // Used to build a human-readable confirmation preview before an
   // update/delete executes — see pending-actions.ts.
-  async getEvent(userId: string, uid: string) {
+  async getEvent(userId: string, uid: string, timeZone: string) {
+    assertValidTimeZone(timeZone);
     const { client, calendar } = await this.connect(userId);
     const object = await this.findObjectByUid(client, calendar, uid);
-    return parseEventIcs(object.data as string);
+    return parseEventIcs(object.data as string, timeZone);
   }
 
   async createEvent(userId: string, input: EventInput): Promise<{ uid: string }> {
@@ -163,7 +170,8 @@ export class CalendarService {
     for (const object of objects) {
       if (!object.data) continue;
       try {
-        if (parseEventIcs(object.data as string).uid === uid) return object;
+        // Timezone is irrelevant here — only the uid is used.
+        if (parseEventIcs(object.data as string, 'UTC').uid === uid) return object;
       } catch {
         continue;
       }
