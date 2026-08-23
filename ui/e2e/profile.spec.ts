@@ -39,7 +39,13 @@ test('edits first/last name and avatar, then saves via update-user', async ({ pa
   await page.route('**/users', (route) => route.fulfill({ json: [] }));
   await page.route('**/calendar/credentials', (route) =>
     route.fulfill({
-      json: { configured: false, caldavUrl: null, username: null, calendarName: null },
+      json: {
+        configured: false,
+        caldavUrl: null,
+        username: null,
+        calendarUrl: null,
+        calendarDisplayName: null,
+      },
     }),
   );
   let updateBody: Record<string, unknown> | undefined;

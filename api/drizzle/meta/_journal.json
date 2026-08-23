@@ -64,6 +64,20 @@
       "when": 1787516939249,
       "tag": "0008_common_redwing",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1787519034847,
+      "tag": "0009_organic_anthem",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1787519042383,
+      "tag": "0010_strong_garia",
+      "breakpoints": true
     }
   ]
 }

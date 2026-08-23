@@ -43,7 +43,8 @@ describe('/calendar/credentials (integration)', () => {
         configured: false,
         caldavUrl: null,
         username: null,
-        calendarName: null,
+        calendarUrl: null,
+        calendarDisplayName: null,
       });
 
       const setRes = await request(app.getHttpServer())
@@ -53,7 +54,8 @@ describe('/calendar/credentials (integration)', () => {
           caldavUrl: 'https://sync.infomaniak.com',
           username: 'me@ik.me',
           password: 'super-secret-app-password',
-          calendarName: 'Personal',
+          calendarUrl: 'https://sync.infomaniak.com/calendars/me/personal/',
+          calendarDisplayName: 'Personal',
         });
       expect(setRes.status).toBe(200);
 
@@ -62,7 +64,8 @@ describe('/calendar/credentials (integration)', () => {
         configured: true,
         caldavUrl: 'https://sync.infomaniak.com',
         username: 'me@ik.me',
-        calendarName: 'Personal',
+        calendarUrl: 'https://sync.infomaniak.com/calendars/me/personal/',
+        calendarDisplayName: 'Personal',
       });
       expect(JSON.stringify(after.body)).not.toContain('super-secret-app-password');
 
@@ -172,6 +175,28 @@ describe('/calendar/credentials (integration)', () => {
         .put('/calendar/credentials')
         .set('Authorization', `Bearer ${token}`)
         .send({ caldavUrl: 'https://169.254.169.254/', username: 'me', password: 'secret' });
+
+      expect(res.status).toBe(400);
+
+      await app.close();
+    });
+  });
+
+  it('preview-calendars rejects a non-https URL before attempting to connect', async () => {
+    await withRollback(testDb, async (tx) => {
+      const { token } = await signUpTestUser(tx, { email: 'me@example.com', name: 'Me' });
+
+      const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+        .overrideProvider(DRIZZLE)
+        .useValue(tx)
+        .compile();
+      const app: INestApplication = moduleRef.createNestApplication();
+      await app.init();
+
+      const res = await request(app.getHttpServer())
+        .post('/calendar/credentials/preview-calendars')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ caldavUrl: 'http://sync.infomaniak.com', username: 'me', password: 'secret' });
 
       expect(res.status).toBe(400);
 

@@ -13,10 +13,25 @@ export class CalendarNotConfiguredError extends Error {
   }
 }
 
+export class CalendarUrlMismatchError extends Error {
+  constructor(configuredUrl: string, availableUrls: string[]) {
+    super(
+      `configured calendar (${configuredUrl}) no longer exists on this account ` +
+        `(available: ${availableUrls.length ? availableUrls.join(', ') : 'none'}) — ` +
+        `pick a calendar again on the profile page, or clear it to use the first calendar`,
+    );
+  }
+}
+
 export class CalendarEventNotFoundError extends Error {
   constructor(uid: string) {
     super(`no event found with uid "${uid}"`);
   }
+}
+
+export interface CalendarSummary {
+  url: string;
+  displayName: string | null;
 }
 
 // Thin per-request wrapper: builds a tsdav DAVClient from the requesting
@@ -28,27 +43,60 @@ export class CalendarEventNotFoundError extends Error {
 export class CalendarService {
   constructor(private readonly credentials: CalendarCredentialsService) {}
 
-  private async connect(userId: string): Promise<{ client: DAVClient; calendar: DAVCalendar }> {
-    const creds = await this.credentials.getInternal(userId);
-    if (!creds) throw new CalendarNotConfiguredError();
-    // Defense-in-depth alongside the store-time check in
-    // CalendarCredentialsService — catches a row written before this check
-    // existed, or by any other path that bypasses the service.
-    assertSafeCaldavUrl(creds.caldavUrl);
+  // Connects with raw, not-yet-saved credentials — backs the profile
+  // page's "load calendars" step, so a user can pick a calendar before
+  // anything is persisted. Never touches the database.
+  async previewCalendars(
+    caldavUrl: string,
+    username: string,
+    password: string,
+  ): Promise<CalendarSummary[]> {
+    const client = await this.buildClient(caldavUrl, username, password);
+    const calendars = await client.fetchCalendars();
+    return calendars.map((c) => ({
+      url: c.url,
+      displayName: typeof c.displayName === 'string' ? c.displayName : null,
+    }));
+  }
 
-    const client = await createDAVClient({
-      serverUrl: creds.caldavUrl,
-      credentials: { username: creds.username, password: creds.password },
+  private async buildClient(
+    caldavUrl: string,
+    username: string,
+    password: string,
+  ): Promise<DAVClient> {
+    assertSafeCaldavUrl(caldavUrl);
+    return createDAVClient({
+      serverUrl: caldavUrl,
+      credentials: { username, password },
       authMethod: 'Basic',
       defaultAccountType: 'caldav',
     });
+  }
+
+  private async connect(userId: string): Promise<{ client: DAVClient; calendar: DAVCalendar }> {
+    const creds = await this.credentials.getInternal(userId);
+    if (!creds) throw new CalendarNotConfiguredError();
+
+    const client = await this.buildClient(creds.caldavUrl, creds.username, creds.password);
 
     const calendars = await client.fetchCalendars();
-    const calendar = creds.calendarName
-      ? calendars.find((c) => c.displayName === creds.calendarName)
-      : calendars[0];
-    if (!calendar) {
+    if (calendars.length === 0) {
       throw new CalendarNotConfiguredError();
+    }
+
+    if (!creds.calendarUrl) {
+      return { client, calendar: calendars[0] };
+    }
+
+    // Matched by the calendar's own (server-assigned, stable) URL, not a
+    // human-typed display name — no encoding/mismatch class of bug, since
+    // this value is never typed by hand (see schema.ts).
+    const calendar = calendars.find((c) => c.url === creds.calendarUrl);
+    if (!calendar) {
+      throw new CalendarUrlMismatchError(
+        creds.calendarUrl,
+        calendars.map((c) => c.url),
+      );
     }
 
     return { client, calendar };

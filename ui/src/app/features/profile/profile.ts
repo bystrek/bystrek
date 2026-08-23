@@ -2,7 +2,7 @@ import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@ang
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
-import { CalendarService } from '../../core/calendar/calendar.service';
+import { CalendarOption, CalendarService } from '../../core/calendar/calendar.service';
 import { downscaleImage } from './downscale-image';
 
 @Component({
@@ -27,8 +27,12 @@ export class Profile implements OnInit {
   readonly caldavUrl = signal('');
   readonly caldavUsername = signal('');
   readonly caldavPassword = signal('');
-  readonly caldavCalendarName = signal('');
   readonly calendarStatus = signal('');
+
+  // '' means "use the account's first calendar" (calendarUrl: null).
+  readonly calendarOptions = signal<CalendarOption[]>([]);
+  readonly selectedCalendarUrl = signal('');
+  readonly loadingCalendars = signal(false);
 
   ngOnInit(): void {
     const user = this.auth.session()?.user;
@@ -42,18 +46,45 @@ export class Profile implements OnInit {
       if (!creds?.configured) return;
       this.caldavUrl.set(creds.caldavUrl ?? this.caldavUrl());
       this.caldavUsername.set(creds.username ?? '');
-      this.caldavCalendarName.set(creds.calendarName ?? '');
+      this.selectedCalendarUrl.set(creds.calendarUrl ?? '');
+      if (creds.calendarUrl && creds.calendarDisplayName) {
+        this.calendarOptions.set([
+          { url: creds.calendarUrl, displayName: creds.calendarDisplayName },
+        ]);
+      }
     });
+  }
+
+  async loadCalendars(): Promise<void> {
+    this.calendarStatus.set('');
+    this.loadingCalendars.set(true);
+    try {
+      const options = await this.calendar.previewCalendars({
+        caldavUrl: this.caldavUrl(),
+        username: this.caldavUsername(),
+        password: this.caldavPassword(),
+      });
+      this.calendarOptions.set(options);
+      if (!options.some((o) => o.url === this.selectedCalendarUrl())) {
+        this.selectedCalendarUrl.set('');
+      }
+    } catch (err) {
+      this.calendarStatus.set((err as Error).message);
+    } finally {
+      this.loadingCalendars.set(false);
+    }
   }
 
   async saveCalendar(): Promise<void> {
     this.calendarStatus.set('');
     try {
+      const selected = this.calendarOptions().find((o) => o.url === this.selectedCalendarUrl());
       await this.calendar.save({
         caldavUrl: this.caldavUrl(),
         username: this.caldavUsername(),
         password: this.caldavPassword(),
-        calendarName: this.caldavCalendarName(),
+        calendarUrl: selected?.url ?? null,
+        calendarDisplayName: selected?.displayName ?? null,
       });
       this.caldavPassword.set('');
       this.calendarStatus.set('Saved.');
@@ -67,7 +98,8 @@ export class Profile implements OnInit {
     try {
       await this.calendar.disconnect();
       this.caldavUsername.set('');
-      this.caldavCalendarName.set('');
+      this.calendarOptions.set([]);
+      this.selectedCalendarUrl.set('');
       this.calendarStatus.set('Disconnected.');
     } catch (err) {
       this.calendarStatus.set((err as Error).message);
