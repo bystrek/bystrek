@@ -33,6 +33,11 @@ export const users = pgTable(
     lastName: text('last_name'),
     emailVerified: boolean('email_verified').notNull().default(false),
     status: userStatus('status').notNull().default('invited'),
+    // No settings UI yet — set from sensible defaults, editable later
+    // alongside profile/calendar settings. Used to give the chat system
+    // prompt real "now"/formatting context (see devlog day 12).
+    timezone: text('timezone').notNull().default('Europe/Warsaw'),
+    locale: text('locale').notNull().default('en-PL'),
     // better-auth admin plugin
     role: text('role').notNull().default('user'),
     banned: boolean('banned').notNull().default(false),
@@ -154,4 +159,30 @@ export const messages = pgTable(
       .default(sql`clock_timestamp()`),
   },
   (table) => [index('messages_user_id_created_at_idx').on(table.userId, table.createdAt)],
+);
+
+// One CalDAV account per user (Infomaniak kCalendar — see docs/roadmap.md).
+// `password` is tier-2 encrypted (api/src/crypto/field-encryption.ts), same
+// as `messages.content`; `caldavUrl`/`username`/`calendarName` aren't
+// credentials on their own so are stored plain.
+export const calendarCredentials = pgTable(
+  'calendar_credentials',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    caldavUrl: text('caldav_url').notNull(),
+    username: text('username').notNull(),
+    password: text('password').notNull(),
+    // Target calendar's displayName on the CalDAV server; null picks the
+    // first calendar returned for the account.
+    calendarName: text('calendar_name'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [uniqueIndex('calendar_credentials_user_id_unique').on(table.userId)],
 );

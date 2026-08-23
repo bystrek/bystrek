@@ -36,4 +36,57 @@
   @if (status()) {
     <div class="status">{{ status() }}</div>
   }
+
+  <h2>Calendar</h2>
+  @if (calendar.credentials()?.configured) {
+    <p>Connected to {{ calendar.credentials()?.caldavUrl }}.</p>
+  } @else {
+    <p>Connect a CalDAV calendar account so the assistant can read and edit your calendar.</p>
+  }
+
+  <form id="calendar" (ngSubmit)="saveCalendar()">
+    <input
+      type="url"
+      name="caldavUrl"
+      aria-label="CalDAV URL"
+      [ngModel]="caldavUrl()"
+      (ngModelChange)="caldavUrl.set($event)"
+      placeholder="CalDAV URL"
+      required
+    />
+    <input
+      type="text"
+      name="caldavUsername"
+      aria-label="CalDAV username"
+      [ngModel]="caldavUsername()"
+      (ngModelChange)="caldavUsername.set($event)"
+      placeholder="CalDAV username"
+      required
+    />
+    <input
+      type="password"
+      name="caldavPassword"
+      aria-label="CalDAV app-specific password"
+      [ngModel]="caldavPassword()"
+      (ngModelChange)="caldavPassword.set($event)"
+      placeholder="App-specific password"
+      [required]="!calendar.credentials()?.configured"
+    />
+    <input
+      type="text"
+      name="caldavCalendarName"
+      aria-label="Calendar name"
+      [ngModel]="caldavCalendarName()"
+      (ngModelChange)="caldavCalendarName.set($event)"
+      placeholder="Calendar name (optional)"
+    />
+    <button type="submit" [disabled]="calendar.busy()">Save</button>
+    @if (calendar.credentials()?.configured) {
+      <button type="button" class="link" (click)="disconnectCalendar()">Disconnect</button>
+    }
+  </form>
+
+  @if (calendarStatus()) {
+    <div class="status">{{ calendarStatus() }}</div>
+  }
 </main>

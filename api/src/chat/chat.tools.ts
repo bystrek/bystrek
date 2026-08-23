@@ -1,17 +1,18 @@
 import type Anthropic from '@anthropic-ai/sdk';
-import { Provider } from '@nestjs/common';
+
+// `requestId` is unique per `ChatService.reply()` call (i.e. per user
+// message, not per tool-call iteration within it) — tools that need a
+// staged action confirmed in a genuinely later turn (see
+// calendar/pending-actions.ts) use it to reject a confirm attempt that
+// lands in the same request as the proposal.
+export interface ToolContext {
+  userId: string;
+  requestId: string;
+}
 
 export interface ChatTool {
   definition: Anthropic.Tool;
-  handler: (input: unknown) => Promise<unknown>;
+  handler: (input: unknown, ctx: ToolContext) => Promise<unknown>;
 }
 
 export const CHAT_TOOLS = Symbol('CHAT_TOOLS');
-
-// Domains register their tools here (see whats-next.md item 6 — calendar is
-// the first). Empty for now: the loop in ChatService already handles
-// tool_use turns, it just has nothing to dispatch to yet.
-export const chatToolsProvider: Provider = {
-  provide: CHAT_TOOLS,
-  useValue: [] satisfies ChatTool[],
-};

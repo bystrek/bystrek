@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import Anthropic from '@anthropic-ai/sdk';
 import { Inject, Injectable } from '@nestjs/common';
 import { desc, eq } from 'drizzle-orm';
@@ -5,7 +6,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { decryptField, encryptField } from '../crypto/field-encryption';
 import { DRIZZLE } from '../db/drizzle.provider';
 import * as schema from '../db/schema';
-import { messages } from '../db/schema';
+import { messages, users } from '../db/schema';
 import { ANTHROPIC_MODEL } from '../env';
 import { ANTHROPIC } from './anthropic.provider';
 import { CHAT_TOOLS, type ChatTool } from './chat.tools';
@@ -19,8 +20,34 @@ const MAX_TOKENS = 1024;
 // triggering another tool_use (or a model stuck in a loop) can't hold the
 // request open forever.
 export const MAX_TOOL_ITERATIONS = 8;
-const SYSTEM_PROMPT =
-  'You are the personal assistant built into bystrek, a household data platform. Be direct and concise.';
+
+// Computed per request from the user's own timezone/locale (`users` table
+// — no settings UI yet, defaults only), not baked into a constant: without
+// today's actual date, the model guesses from training-data recency when
+// resolving relative ranges like "next 30 days" — confirmed live, it
+// guessed Dec 2024 instead of Aug 2026, which sent calendar tool calls a
+// year and a half off and silently returned zero events. See devlog day 12.
+function buildSystemPrompt(timezone: string, locale: string): string {
+  const now = new Date();
+  const formatted = new Intl.DateTimeFormat(locale, {
+    timeZone: timezone,
+    weekday: 'long',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(now);
+
+  return (
+    'You are the personal assistant built into bystrek, a household data platform. ' +
+    'Be direct and concise. ' +
+    `The current date and time is ${formatted} (${timezone}), machine-readable as ${now.toISOString()}. ` +
+    `Use this as "now" for any relative date/time reference — never guess it from training data. ` +
+    `When calling a tool with date/time inputs, use ISO 8601 in ${timezone}.`
+  );
+}
 
 type Role = 'user' | 'assistant';
 
@@ -63,6 +90,12 @@ export class ChatService {
   ) {}
 
   async reply(userId: string, userText: string, onDelta: (text: string) => void): Promise<void> {
+    // One id per user message, shared across every tool-call iteration
+    // below — lets a tool (e.g. calendar's confirm_calendar_action) refuse
+    // to execute a staged action confirmed within the same request it was
+    // proposed in, forcing a genuinely separate human turn in between.
+    const requestId = randomUUID();
+    const { timezone, locale } = await this.loadUserContext(userId);
     const history = await this.loadRecentMessages(userId);
     const conversation: Anthropic.MessageParam[] = [
       ...history,
@@ -75,7 +108,7 @@ export class ChatService {
     for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
       const stream = this.anthropic.messages.stream({
         model: ANTHROPIC_MODEL,
-        system: SYSTEM_PROMPT,
+        system: buildSystemPrompt(timezone, locale),
         max_tokens: MAX_TOKENS,
         messages: conversation,
         tools: toolDefinitions,
@@ -95,7 +128,7 @@ export class ChatService {
         if (block.type !== 'tool_use') continue;
         const tool = this.tools.find((t) => t.definition.name === block.name);
         const output = tool
-          ? await tool.handler(block.input)
+          ? await tool.handler(block.input, { userId, requestId })
           : { error: `no handler registered for tool "${block.name}"` };
         toolResults.push({
           type: 'tool_result',
@@ -118,6 +151,15 @@ export class ChatService {
   async getHistory(userId: string): Promise<ChatHistoryTurn[]> {
     const history = await this.loadRecentMessages(userId);
     return toHistoryTurns(history);
+  }
+
+  private async loadUserContext(userId: string): Promise<{ timezone: string; locale: string }> {
+    const [row] = await this.db
+      .select({ timezone: users.timezone, locale: users.locale })
+      .from(users)
+      .where(eq(users.id, userId));
+    if (!row) throw new Error(`user ${userId} not found`);
+    return row;
   }
 
   private async loadRecentMessages(userId: string): Promise<Anthropic.MessageParam[]> {

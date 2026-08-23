@@ -37,6 +37,11 @@ test('edits first/last name and avatar, then saves via update-user', async ({ pa
   await mockSignIn(page);
   await mockSession(page);
   await page.route('**/users', (route) => route.fulfill({ json: [] }));
+  await page.route('**/calendar/credentials', (route) =>
+    route.fulfill({
+      json: { configured: false, caldavUrl: null, username: null, calendarName: null },
+    }),
+  );
   let updateBody: Record<string, unknown> | undefined;
   await page.route('**/api/auth/update-user', (route) => {
     updateBody = route.request().postDataJSON();
@@ -60,7 +65,7 @@ test('edits first/last name and avatar, then saves via update-user', async ({ pa
   await page.locator('input[type="file"]').setInputFiles(fixtureImage);
   await expect(page.locator('img.avatar')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Save' }).click();
+  await page.locator('#profile').getByRole('button', { name: 'Save' }).click();
 
   await expect(page.locator('.status')).toHaveText('Saved.');
   expect(updateBody?.['firstName']).toBe('Michał');

@@ -50,6 +50,20 @@
       "when": 1787499550744,
       "tag": "0006_mixed_callisto",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787502258212,
+      "tag": "0007_cute_mantis",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1787516939249,
+      "tag": "0008_common_redwing",
+      "breakpoints": true
     }
   ]
 }

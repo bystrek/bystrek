@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@ang
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
+import { CalendarService } from '../../core/calendar/calendar.service';
 import { downscaleImage } from './downscale-image';
 
 @Component({
@@ -13,6 +14,7 @@ import { downscaleImage } from './downscale-image';
 })
 export class Profile implements OnInit {
   protected readonly auth = inject(AuthService);
+  protected readonly calendar = inject(CalendarService);
   private readonly router = inject(Router);
 
   readonly firstName = signal('');
@@ -22,12 +24,54 @@ export class Profile implements OnInit {
   readonly busy = signal(false);
   readonly converting = signal(false);
 
+  readonly caldavUrl = signal('');
+  readonly caldavUsername = signal('');
+  readonly caldavPassword = signal('');
+  readonly caldavCalendarName = signal('');
+  readonly calendarStatus = signal('');
+
   ngOnInit(): void {
     const user = this.auth.session()?.user;
     if (!user) return;
     this.firstName.set(user.firstName ?? '');
     this.lastName.set(user.lastName ?? '');
     this.image.set(user.image);
+
+    void this.calendar.load().then(() => {
+      const creds = this.calendar.credentials();
+      if (!creds?.configured) return;
+      this.caldavUrl.set(creds.caldavUrl ?? this.caldavUrl());
+      this.caldavUsername.set(creds.username ?? '');
+      this.caldavCalendarName.set(creds.calendarName ?? '');
+    });
+  }
+
+  async saveCalendar(): Promise<void> {
+    this.calendarStatus.set('');
+    try {
+      await this.calendar.save({
+        caldavUrl: this.caldavUrl(),
+        username: this.caldavUsername(),
+        password: this.caldavPassword(),
+        calendarName: this.caldavCalendarName(),
+      });
+      this.caldavPassword.set('');
+      this.calendarStatus.set('Saved.');
+    } catch (err) {
+      this.calendarStatus.set((err as Error).message);
+    }
+  }
+
+  async disconnectCalendar(): Promise<void> {
+    this.calendarStatus.set('');
+    try {
+      await this.calendar.disconnect();
+      this.caldavUsername.set('');
+      this.caldavCalendarName.set('');
+      this.calendarStatus.set('Disconnected.');
+    } catch (err) {
+      this.calendarStatus.set((err as Error).message);
+    }
   }
 
   async onFileSelected(event: Event): Promise<void> {
