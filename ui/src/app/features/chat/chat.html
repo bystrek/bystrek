@@ -1,7 +1,7 @@
 <main>
   <h1>Chat</h1>
 
-  <div class="messages">
+  <div class="messages" (scroll)="onScroll()">
     @for (message of chat.messages(); track $index) {
       <div
         class="bubble"
