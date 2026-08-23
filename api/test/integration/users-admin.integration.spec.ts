@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { DRIZZLE } from '../../src/db/drizzle.provider';
-import { households, users } from '../../src/db/schema';
+import { users } from '../../src/db/schema';
 import { signUpTestUser } from './support/auth';
 import { withRollback } from './support/rollback';
 import { testDb } from './support/test-db';
@@ -15,15 +15,10 @@ import { testDb } from './support/test-db';
 const sendEmailMock = mock();
 mock.module('../../src/auth/resend', () => ({ sendEmail: sendEmailMock }));
 
-describe('household admin endpoints (integration)', () => {
-  it('rejects invite/ban/unban for a non-admin member', async () => {
+describe('user admin endpoints (integration)', () => {
+  it('rejects invite/ban/unban for a non-admin user', async () => {
     await withRollback(testDb, async (tx) => {
-      const [household] = await tx
-        .insert(households)
-        .values({ name: 'Test Household' })
-        .returning();
       const { token } = await signUpTestUser(tx, {
-        householdId: household.id,
         email: 'member@example.com',
         name: 'Member',
         role: 'user',
@@ -37,7 +32,7 @@ describe('household admin endpoints (integration)', () => {
       await app.init();
 
       const res = await request(app.getHttpServer())
-        .post('/household/invite')
+        .post('/users/invite')
         .set('Authorization', `Bearer ${token}`)
         .send({ email: 'new@example.com', name: 'New Person' });
 
@@ -47,14 +42,9 @@ describe('household admin endpoints (integration)', () => {
     });
   });
 
-  it('lets an admin invite a new member', async () => {
+  it('lets an admin invite a new user', async () => {
     await withRollback(testDb, async (tx) => {
-      const [household] = await tx
-        .insert(households)
-        .values({ name: 'Test Household' })
-        .returning();
       const { token } = await signUpTestUser(tx, {
-        householdId: household.id,
         email: 'admin@example.com',
         name: 'Admin',
         role: 'admin',
@@ -68,7 +58,7 @@ describe('household admin endpoints (integration)', () => {
       await app.init();
 
       const res = await request(app.getHttpServer())
-        .post('/household/invite')
+        .post('/users/invite')
         .set('Authorization', `Bearer ${token}`)
         .send({ email: 'new@example.com', name: 'New Person' });
 
@@ -84,20 +74,14 @@ describe('household admin endpoints (integration)', () => {
     });
   });
 
-  it('lets an admin ban and unban a member', async () => {
+  it('lets an admin ban and unban a user', async () => {
     await withRollback(testDb, async (tx) => {
-      const [household] = await tx
-        .insert(households)
-        .values({ name: 'Test Household' })
-        .returning();
       const { token: adminToken } = await signUpTestUser(tx, {
-        householdId: household.id,
         email: 'admin@example.com',
         name: 'Admin',
         role: 'admin',
       });
       const { user: member } = await signUpTestUser(tx, {
-        householdId: household.id,
         email: 'member@example.com',
         name: 'Member',
         role: 'user',
@@ -111,7 +95,7 @@ describe('household admin endpoints (integration)', () => {
       await app.init();
 
       const banRes = await request(app.getHttpServer())
-        .post(`/household/members/${member.id}/ban`)
+        .post(`/users/${member.id}/ban`)
         .set('Authorization', `Bearer ${adminToken}`);
       expect(banRes.status).toBe(201);
 
@@ -119,7 +103,7 @@ describe('household admin endpoints (integration)', () => {
       expect(bannedRow.banned).toBe(true);
 
       const unbanRes = await request(app.getHttpServer())
-        .post(`/household/members/${member.id}/unban`)
+        .post(`/users/${member.id}/unban`)
         .set('Authorization', `Bearer ${adminToken}`);
       expect(unbanRes.status).toBe(201);
 

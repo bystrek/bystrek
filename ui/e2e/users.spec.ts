@@ -31,17 +31,12 @@ test('redirects to the login page when signed out', async ({ page }) => {
   await expect(page.locator('#login')).toBeVisible();
 });
 
-test('signs in and shows household members, without admin controls for a regular member', async ({
-  page,
-}) => {
+test('signs in and shows users, without admin controls for a regular user', async ({ page }) => {
   await mockSignIn(page);
   await mockSession(page, 'user');
-  await page.route('**/household', (route) =>
+  await page.route('**/users', (route) =>
     route.fulfill({
-      json: {
-        name: 'bystrek',
-        members: [{ id: '1', name: 'Michał', status: 'active', banned: false }],
-      },
+      json: [{ id: '1', name: 'Michał', status: 'active', banned: false }],
     }),
   );
 
@@ -53,20 +48,17 @@ test('signs in and shows household members, without admin controls for a regular
   await page.getByRole('button', { name: 'Sign in' }).click();
 
   await expect(page).toHaveURL('/');
-  await expect(page.locator('#household h2')).toHaveText('bystrek');
-  await expect(page.locator('#household li')).toContainText('Michał');
+  await expect(page.locator('#users h2')).toHaveText('Users');
+  await expect(page.locator('#users li')).toContainText('Michał');
   await expect(page.locator('#invite')).toHaveCount(0);
 });
 
 test('shows invite form and ban controls for an admin', async ({ page }) => {
   await mockSignIn(page);
   await mockSession(page, 'admin');
-  await page.route('**/household', (route) =>
+  await page.route('**/users', (route) =>
     route.fulfill({
-      json: {
-        name: 'bystrek',
-        members: [{ id: '1', name: 'Michał', status: 'active', banned: false }],
-      },
+      json: [{ id: '1', name: 'Michał', status: 'active', banned: false }],
     }),
   );
 

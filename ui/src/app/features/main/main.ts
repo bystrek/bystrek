@@ -2,7 +2,7 @@ import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@ang
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
-import { HouseholdService, type Member } from '../../core/household/household.service';
+import { UsersService, type Member } from '../../core/users/users.service';
 import { PushService } from '../../core/push/push.service';
 
 @Component({
@@ -15,7 +15,7 @@ import { PushService } from '../../core/push/push.service';
 export class Main implements OnInit {
   protected readonly auth = inject(AuthService);
   protected readonly push = inject(PushService);
-  protected readonly household = inject(HouseholdService);
+  protected readonly users = inject(UsersService);
   private readonly router = inject(Router);
 
   readonly inviteName = signal('');
@@ -24,7 +24,7 @@ export class Main implements OnInit {
 
   ngOnInit(): void {
     void this.push.checkExistingSubscription();
-    void this.household.load();
+    void this.users.load();
   }
 
   async signOut(): Promise<void> {
@@ -35,7 +35,7 @@ export class Main implements OnInit {
   async invite(): Promise<void> {
     this.inviteStatus.set('');
     try {
-      await this.household.invite(this.inviteName(), this.inviteEmail());
+      await this.users.invite(this.inviteName(), this.inviteEmail());
       this.inviteName.set('');
       this.inviteEmail.set('');
       this.inviteStatus.set('Invited — they’ll get an email to set a password.');
@@ -45,6 +45,6 @@ export class Main implements OnInit {
   }
 
   toggleBan(member: Member): void {
-    void this.household.toggleBan(member);
+    void this.users.toggleBan(member);
   }
 }

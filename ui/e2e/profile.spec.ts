@@ -36,9 +36,7 @@ function mockSession(page: import('@playwright/test').Page) {
 test('edits first/last name and avatar, then saves via update-user', async ({ page }) => {
   await mockSignIn(page);
   await mockSession(page);
-  await page.route('**/household', (route) =>
-    route.fulfill({ json: { name: 'bystrek', members: [] } }),
-  );
+  await page.route('**/users', (route) => route.fulfill({ json: [] }));
   let updateBody: Record<string, unknown> | undefined;
   await page.route('**/api/auth/update-user', (route) => {
     updateBody = route.request().postDataJSON();

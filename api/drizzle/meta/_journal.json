@@ -43,6 +43,13 @@
       "when": 1787435038276,
       "tag": "0005_glossy_gorilla_man",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787499550744,
+      "tag": "0006_mixed_callisto",
+      "breakpoints": true
     }
   ]
 }
