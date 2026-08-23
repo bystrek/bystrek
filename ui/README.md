@@ -1,6 +1,6 @@
 # ui
 
-Angular (zoneless, standalone, esbuild/Vite builder) frontend for bystrek — login, push notifications, household admin, password reset. CSR-only, no SSR.
+Angular (zoneless, standalone, esbuild/Vite builder) frontend for bystrek — login, push notifications, user admin, password reset. CSR-only, no SSR.
 
 ## Developing
 

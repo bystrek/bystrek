@@ -4,7 +4,6 @@ import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 export type Member = { id: string; name: string | null; status: string; banned: boolean };
-export type Household = { name: string; members: Member[] };
 
 function errorMessage(err: unknown, fallback: string): string {
   if (err instanceof HttpErrorResponse) {
@@ -15,29 +14,25 @@ function errorMessage(err: unknown, fallback: string): string {
 }
 
 @Injectable({ providedIn: 'root' })
-export class HouseholdService {
+export class UsersService {
   private readonly http = inject(HttpClient);
 
-  readonly household = signal<Household | null>(null);
+  readonly members = signal<Member[] | null>(null);
   readonly busy = signal(false);
 
   async load(): Promise<void> {
     try {
-      const result = await firstValueFrom(
-        this.http.get<Household>(`${environment.apiUrl}/household`),
-      );
-      this.household.set(result);
+      const result = await firstValueFrom(this.http.get<Member[]>(`${environment.apiUrl}/users`));
+      this.members.set(result);
     } catch {
-      this.household.set(null);
+      this.members.set(null);
     }
   }
 
   async invite(name: string, email: string): Promise<void> {
     this.busy.set(true);
     try {
-      await firstValueFrom(
-        this.http.post(`${environment.apiUrl}/household/invite`, { email, name }),
-      );
+      await firstValueFrom(this.http.post(`${environment.apiUrl}/users/invite`, { email, name }));
       await this.load();
     } catch (err) {
       throw new Error(errorMessage(err, 'Invite failed.'));
@@ -51,7 +46,7 @@ export class HouseholdService {
     try {
       const action = member.banned ? 'unban' : 'ban';
       await firstValueFrom(
-        this.http.post(`${environment.apiUrl}/household/members/${member.id}/${action}`, {}),
+        this.http.post(`${environment.apiUrl}/users/${member.id}/${action}`, {}),
       );
       await this.load();
     } finally {

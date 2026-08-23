@@ -10,7 +10,7 @@ import { MAX_TOOL_ITERATIONS } from '../../src/chat/chat.service';
 import { CHAT_TOOLS, type ChatTool } from '../../src/chat/chat.tools';
 import { decryptField } from '../../src/crypto/field-encryption';
 import { DRIZZLE } from '../../src/db/drizzle.provider';
-import { households, messages } from '../../src/db/schema';
+import { messages } from '../../src/db/schema';
 import { signUpTestUser } from './support/auth';
 import { withRollback } from './support/rollback';
 import { testDb } from './support/test-db';
@@ -84,12 +84,7 @@ describe('POST /chat (integration)', () => {
 
   it('streams the reply and persists both turns, encrypted at rest', async () => {
     await withRollback(testDb, async (tx) => {
-      const [household] = await tx
-        .insert(households)
-        .values({ name: 'Test Household' })
-        .returning();
       const { user, token } = await signUpTestUser(tx, {
-        householdId: household.id,
         email: 'me@example.com',
         name: 'Me',
       });
@@ -138,12 +133,7 @@ describe('POST /chat (integration)', () => {
 
   it('runs a registered tool and persists the full tool_use/tool_result sequence', async () => {
     await withRollback(testDb, async (tx) => {
-      const [household] = await tx
-        .insert(households)
-        .values({ name: 'Test Household' })
-        .returning();
       const { user, token } = await signUpTestUser(tx, {
-        householdId: household.id,
         email: 'me@example.com',
         name: 'Me',
       });
@@ -222,12 +212,7 @@ describe('POST /chat (integration)', () => {
 
   it('rejects an empty message', async () => {
     await withRollback(testDb, async (tx) => {
-      const [household] = await tx
-        .insert(households)
-        .values({ name: 'Test Household' })
-        .returning();
       const { token } = await signUpTestUser(tx, {
-        householdId: household.id,
         email: 'me@example.com',
         name: 'Me',
       });
@@ -252,12 +237,7 @@ describe('POST /chat (integration)', () => {
 
   it('stops after MAX_TOOL_ITERATIONS instead of looping forever', async () => {
     await withRollback(testDb, async (tx) => {
-      const [household] = await tx
-        .insert(households)
-        .values({ name: 'Test Household' })
-        .returning();
       const { token } = await signUpTestUser(tx, {
-        householdId: household.id,
         email: 'me@example.com',
         name: 'Me',
       });
@@ -337,12 +317,7 @@ describe('GET /chat/history (integration)', () => {
 
   it('returns persisted turns collapsed to plain text, dropping pure tool turns', async () => {
     await withRollback(testDb, async (tx) => {
-      const [household] = await tx
-        .insert(households)
-        .values({ name: 'Test Household' })
-        .returning();
       const { token } = await signUpTestUser(tx, {
-        householdId: household.id,
         email: 'me@example.com',
         name: 'Me',
       });

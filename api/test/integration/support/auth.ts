@@ -15,7 +15,6 @@ type Db = PostgresJsDatabase<typeof schema>;
 export async function signUpTestUser(
   db: Db,
   params: {
-    householdId: string;
     email: string;
     name: string;
     role?: 'user' | 'admin';
@@ -27,7 +26,6 @@ export async function signUpTestUser(
   const [user] = await db
     .insert(users)
     .values({
-      householdId: params.householdId,
       email: params.email,
       name: params.name,
       status: 'active',
@@ -45,10 +43,10 @@ export async function signUpTestUser(
   });
 
   const auth = createAuth(db);
-  const res = (await auth.api.signInEmail({
+  const res = await auth.api.signInEmail({
     body: { email: params.email, password },
     asResponse: true,
-  })) as Response;
+  });
 
   const token = res.headers.get('set-auth-token');
   if (!token) {

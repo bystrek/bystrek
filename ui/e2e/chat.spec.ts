@@ -43,9 +43,7 @@ async function signIn(page: import('@playwright/test').Page) {
 
 test('sends a message and renders the streamed reply', async ({ page }) => {
   await signIn(page);
-  await page.route('**/household', (route) =>
-    route.fulfill({ json: { name: 'bystrek', members: [] } }),
-  );
+  await page.route('**/users', (route) => route.fulfill({ json: [] }));
   await page.route('**/chat/history', (route) => route.fulfill({ json: [] }));
 
   let releaseChat!: () => void;

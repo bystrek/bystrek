@@ -17,21 +17,12 @@ export const subscriptions = pgTable('subscriptions', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const households = pgTable('households', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  name: text('name').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
-
 export const userStatus = pgEnum('user_status', ['invited', 'active']);
 
 export const users = pgTable(
   'users',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    householdId: uuid('household_id')
-      .notNull()
-      .references(() => households.id, { onDelete: 'cascade' }),
     email: text('email').notNull(),
     name: text('name'),
     // `image` is a better-auth core field, handled automatically.
@@ -53,10 +44,7 @@ export const users = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (table) => [
-    uniqueIndex('users_email_unique').on(table.email),
-    index('users_household_id_idx').on(table.householdId),
-  ],
+  (table) => [uniqueIndex('users_email_unique').on(table.email)],
 );
 
 // better-auth core tables (session/account/verification) — field shapes
@@ -136,9 +124,9 @@ export const verifications = pgTable(
   (table) => [index('verifications_identifier_idx').on(table.identifier)],
 );
 
-// Shared across domain tables: a record is visible to the whole household or
-// just its owner. Defined once here so every future domain table reuses it.
-export const visibility = pgEnum('visibility', ['private', 'household']);
+// Shared across domain tables: a record is visible to every user or just its
+// owner. Defined once here so every future domain table reuses it.
+export const visibility = pgEnum('visibility', ['private', 'shared']);
 
 export const messageRole = pgEnum('message_role', ['user', 'assistant']);
 

@@ -14,13 +14,13 @@
   align-items: stretch;
 }
 
-#household {
+#users {
   margin-top: 28px;
   padding-top: 20px;
   border-top: 1px solid rgba(89, 22, 34, 0.15);
 }
 
-#household h2 {
+#users h2 {
   font-size: 15px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -28,7 +28,7 @@
   margin: 0 0 10px;
 }
 
-#household ul {
+#users ul {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -37,7 +37,7 @@
   gap: 6px;
 }
 
-#household li {
+#users li {
   display: flex;
   align-items: center;
   justify-content: center;

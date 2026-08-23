@@ -8,7 +8,6 @@ import { AUTH } from '../../src/auth/auth.provider';
 import type { Auth } from '../../src/auth/auth.config';
 import { AppModule } from '../../src/app.module';
 import { DRIZZLE } from '../../src/db/drizzle.provider';
-import { households } from '../../src/db/schema';
 import type * as schema from '../../src/db/schema';
 import { signUpTestUser } from './support/auth';
 import { withRollback } from './support/rollback';
@@ -35,12 +34,7 @@ async function createApp(tx: Tx) {
 describe('profile fields via better-auth (integration)', () => {
   it('round-trips firstName/lastName/image through update-user and get-session', async () => {
     await withRollback(testDb, async (tx) => {
-      const [household] = await tx
-        .insert(households)
-        .values({ name: 'Test Household' })
-        .returning();
       const { token } = await signUpTestUser(tx, {
-        householdId: household.id,
         email: 'me@example.com',
         name: 'Me',
       });
@@ -78,12 +72,7 @@ describe('profile fields via better-auth (integration)', () => {
 
   it('rejects an oversized image on update-user', async () => {
     await withRollback(testDb, async (tx) => {
-      const [household] = await tx
-        .insert(households)
-        .values({ name: 'Test Household' })
-        .returning();
       const { token } = await signUpTestUser(tx, {
-        householdId: household.id,
         email: 'me@example.com',
         name: 'Me',
       });

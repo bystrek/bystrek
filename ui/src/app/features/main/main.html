@@ -16,16 +16,16 @@
   </button>
   <div id="status">{{ push.status() }}</div>
 
-  @if (household.household(); as h) {
-    <div id="household">
-      <h2>{{ h.name }}</h2>
+  @if (users.members(); as members) {
+    <div id="users">
+      <h2>Users</h2>
       <ul>
-        @for (member of h.members; track member.id) {
+        @for (member of members; track member.id) {
           <li>
-            {{ member.name ?? 'Unnamed member' }}
+            {{ member.name ?? 'Unnamed user' }}
             <span class="badge">{{ member.status }}</span>
             @if (auth.session()?.user?.role === 'admin') {
-              <button class="link" (click)="toggleBan(member)" [disabled]="household.busy()">
+              <button class="link" (click)="toggleBan(member)" [disabled]="users.busy()">
                 {{ member.banned ? 'Unban' : 'Ban' }}
               </button>
             }
@@ -51,7 +51,7 @@
             placeholder="Email"
             required
           />
-          <button type="submit" [disabled]="household.busy()">Invite</button>
+          <button type="submit" [disabled]="users.busy()">Invite</button>
         </form>
         @if (inviteStatus()) {
           <div class="status">{{ inviteStatus() }}</div>
