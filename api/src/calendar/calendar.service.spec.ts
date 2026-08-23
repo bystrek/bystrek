@@ -160,6 +160,33 @@ describe('CalendarService', () => {
     ).rejects.toThrow('caldavUrl must use https');
   });
 
+  it('rejects an invalid timeZone up front, before any CalDAV work, and never masks it as an empty list', async () => {
+    const fetchCalendars = mock(() => Promise.resolve([fakeCalendar]));
+    const service = await loadCalendarService(
+      () => Promise.resolve({ fetchCalendars, fetchCalendarObjects: () => Promise.resolve([]) }),
+      fakeCredentials(),
+    );
+
+    await expect(
+      service.listEvents('user-1', { start: new Date(), end: new Date() }, 'Not/A_Real_Zone'),
+    ).rejects.toThrow('invalid IANA timezone');
+    // Not a CalDAV problem — should fail before ever connecting.
+    expect(fetchCalendars).not.toHaveBeenCalled();
+  });
+
+  it('getEvent also rejects an invalid timeZone up front', async () => {
+    const fetchCalendars = mock(() => Promise.resolve([fakeCalendar]));
+    const service = await loadCalendarService(
+      () => Promise.resolve({ fetchCalendars, fetchCalendarObjects: () => Promise.resolve([]) }),
+      fakeCredentials(),
+    );
+
+    await expect(service.getEvent('user-1', 'e1', 'Not/A_Real_Zone')).rejects.toThrow(
+      'invalid IANA timezone',
+    );
+    expect(fetchCalendars).not.toHaveBeenCalled();
+  });
+
   it('selects the calendar matching calendarUrl when one is configured', async () => {
     const other: FakeDAVCalendar = {
       url: 'https://dav.example.com/cal/other/',
