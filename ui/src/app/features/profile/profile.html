@@ -36,4 +36,55 @@
   @if (status()) {
     <div class="status">{{ status() }}</div>
   }
+
+  <h2>Calendar</h2>
+  @if (calendar.credentials()?.configured) {
+    <p>Connected to {{ calendar.credentials()?.caldavUrl }}.</p>
+  } @else {
+    <p>
+      Connect your Infomaniak kCalendar account so the assistant can read and edit your calendar.
+    </p>
+  }
+
+  <form id="calendar" (ngSubmit)="saveCalendar()">
+    <input
+      type="url"
+      name="caldavUrl"
+      [ngModel]="caldavUrl()"
+      (ngModelChange)="caldavUrl.set($event)"
+      placeholder="CalDAV URL"
+      required
+    />
+    <input
+      type="text"
+      name="caldavUsername"
+      [ngModel]="caldavUsername()"
+      (ngModelChange)="caldavUsername.set($event)"
+      placeholder="Short login ID from config.infomaniak.com (e.g. AB12345), not your email"
+      required
+    />
+    <input
+      type="password"
+      name="caldavPassword"
+      [ngModel]="caldavPassword()"
+      (ngModelChange)="caldavPassword.set($event)"
+      placeholder="App-specific password"
+      [required]="!calendar.credentials()?.configured"
+    />
+    <input
+      type="text"
+      name="caldavCalendarName"
+      [ngModel]="caldavCalendarName()"
+      (ngModelChange)="caldavCalendarName.set($event)"
+      placeholder="Calendar name (optional)"
+    />
+    <button type="submit" [disabled]="calendar.busy()">Save</button>
+    @if (calendar.credentials()?.configured) {
+      <button type="button" class="link" (click)="disconnectCalendar()">Disconnect</button>
+    }
+  </form>
+
+  @if (calendarStatus()) {
+    <div class="status">{{ calendarStatus() }}</div>
+  }
 </main>

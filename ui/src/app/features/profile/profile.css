@@ -14,7 +14,8 @@ input[type='file'] {
   font-size: 13px;
 }
 
-#profile {
+#profile,
+#calendar {
   display: flex;
   flex-direction: column;
   gap: 10px;

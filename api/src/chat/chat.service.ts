@@ -19,8 +19,36 @@ const MAX_TOKENS = 1024;
 // triggering another tool_use (or a model stuck in a loop) can't hold the
 // request open forever.
 export const MAX_TOOL_ITERATIONS = 8;
-const SYSTEM_PROMPT =
-  'You are the personal assistant built into bystrek, a household data platform. Be direct and concise.';
+// Only user so far, so a fixed timezone rather than a per-user setting —
+// revisit once there's more than one household member using this.
+const TIMEZONE = 'Europe/Warsaw';
+
+// Computed per request, not baked into a constant: without today's actual
+// date, the model guesses from training-data recency when resolving
+// relative ranges like "next 30 days" — confirmed live, it guessed
+// Dec 2024 instead of Aug 2026, which sent calendar tool calls a year and a
+// half off and silently returned zero events. See devlog day 12.
+function buildSystemPrompt(): string {
+  const now = new Date();
+  const formatted = new Intl.DateTimeFormat('en-CA', {
+    timeZone: TIMEZONE,
+    weekday: 'long',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(now);
+
+  return (
+    'You are the personal assistant built into bystrek, a household data platform. ' +
+    'Be direct and concise. ' +
+    `The current date and time is ${formatted} (${TIMEZONE}), machine-readable as ${now.toISOString()}. ` +
+    `Use this as "now" for any relative date/time reference — never guess it from training data. ` +
+    `When calling a tool with date/time inputs, use ISO 8601 in ${TIMEZONE}.`
+  );
+}
 
 type Role = 'user' | 'assistant';
 
@@ -75,7 +103,7 @@ export class ChatService {
     for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
       const stream = this.anthropic.messages.stream({
         model: ANTHROPIC_MODEL,
-        system: SYSTEM_PROMPT,
+        system: buildSystemPrompt(),
         max_tokens: MAX_TOKENS,
         messages: conversation,
         tools: toolDefinitions,
@@ -95,7 +123,7 @@ export class ChatService {
         if (block.type !== 'tool_use') continue;
         const tool = this.tools.find((t) => t.definition.name === block.name);
         const output = tool
-          ? await tool.handler(block.input)
+          ? await tool.handler(block.input, userId)
           : { error: `no handler registered for tool "${block.name}"` };
         toolResults.push({
           type: 'tool_result',
