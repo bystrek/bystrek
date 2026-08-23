@@ -24,7 +24,7 @@ export class Profile implements OnInit {
   readonly busy = signal(false);
   readonly converting = signal(false);
 
-  readonly caldavUrl = signal('https://sync.infomaniak.com');
+  readonly caldavUrl = signal('');
   readonly caldavUsername = signal('');
   readonly caldavPassword = signal('');
   readonly caldavCalendarName = signal('');

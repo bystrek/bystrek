@@ -25,7 +25,10 @@ export interface CalendarCredentialsSummary {
 export class CalendarCredentialsService {
   constructor(@Inject(DRIZZLE) private readonly db: PostgresJsDatabase<typeof schema>) {}
 
-  async get(userId: string): Promise<CalendarCredentials | null> {
+  // Full record including the decrypted password — internal use only
+  // (CalendarService connecting to CalDAV), never returned from an
+  // endpoint.
+  async getInternal(userId: string): Promise<CalendarCredentials | null> {
     const [row] = await this.db
       .select()
       .from(calendarCredentials)
@@ -39,9 +42,10 @@ export class CalendarCredentialsService {
     };
   }
 
-  // Never returns the password — this backs the profile page's settings
-  // form, which only ever needs to show whether credentials are set.
-  async getSummary(userId: string): Promise<CalendarCredentialsSummary> {
+  // Redacted, endpoint-safe view — never includes the password. Backs the
+  // profile page's settings form, which only ever needs to show whether
+  // credentials are set.
+  async getDisplayable(userId: string): Promise<CalendarCredentialsSummary> {
     const [row] = await this.db
       .select({
         caldavUrl: calendarCredentials.caldavUrl,

@@ -33,6 +33,11 @@ export const users = pgTable(
     lastName: text('last_name'),
     emailVerified: boolean('email_verified').notNull().default(false),
     status: userStatus('status').notNull().default('invited'),
+    // No settings UI yet — set from sensible defaults, editable later
+    // alongside profile/calendar settings. Used to give the chat system
+    // prompt real "now"/formatting context (see devlog day 12).
+    timezone: text('timezone').notNull().default('Europe/Warsaw'),
+    locale: text('locale').notNull().default('en-PL'),
     // better-auth admin plugin
     role: text('role').notNull().default('user'),
     banned: boolean('banned').notNull().default(false),

@@ -29,7 +29,7 @@ export class CalendarService {
   constructor(private readonly credentials: CalendarCredentialsService) {}
 
   private async connect(userId: string): Promise<{ client: DAVClient; calendar: DAVCalendar }> {
-    const creds = await this.credentials.get(userId);
+    const creds = await this.credentials.getInternal(userId);
     if (!creds) throw new CalendarNotConfiguredError();
     // Defense-in-depth alongside the store-time check in
     // CalendarCredentialsService — catches a row written before this check

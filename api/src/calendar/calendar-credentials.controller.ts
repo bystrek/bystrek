@@ -17,7 +17,7 @@ export class CalendarCredentialsController {
 
   @Get()
   async get(@Req() req: Request) {
-    return this.credentials.getSummary(req.session!.user.id);
+    return this.credentials.getDisplayable(req.session!.user.id);
   }
 
   @Put()

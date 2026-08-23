@@ -41,9 +41,7 @@
   @if (calendar.credentials()?.configured) {
     <p>Connected to {{ calendar.credentials()?.caldavUrl }}.</p>
   } @else {
-    <p>
-      Connect your Infomaniak kCalendar account so the assistant can read and edit your calendar.
-    </p>
+    <p>Connect a CalDAV calendar account so the assistant can read and edit your calendar.</p>
   }
 
   <form id="calendar" (ngSubmit)="saveCalendar()">
@@ -62,7 +60,7 @@
       aria-label="CalDAV username"
       [ngModel]="caldavUsername()"
       (ngModelChange)="caldavUsername.set($event)"
-      placeholder="Short login ID from config.infomaniak.com (e.g. AB12345), not your email"
+      placeholder="CalDAV username"
       required
     />
     <input

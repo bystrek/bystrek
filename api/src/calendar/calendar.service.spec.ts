@@ -41,7 +41,7 @@ function fakeCredentials(overrides: Partial<CalendarCredentials> = {}): Calendar
     calendarName: null,
     ...overrides,
   };
-  return { get: () => Promise.resolve(creds) } as unknown as CalendarCredentialsService;
+  return { getInternal: () => Promise.resolve(creds) } as unknown as CalendarCredentialsService;
 }
 
 // tsdav is mocked at the module level so CalendarService's actual CalDAV
