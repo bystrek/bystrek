@@ -69,7 +69,7 @@ Done for everything except chat (item 5's last piece). `ui` re-ports login, push
 
 ## 10. Done: image size limit on `update-user`
 
-A `databaseHooks.user.update.before` hook in `auth.config.ts` rejects an `image` payload over ~200KB decoded (413), closing the gap where `/api/auth`'s bypass of Nest's `express.json()` body limit let a bearer-token holder push an arbitrarily large `image` straight past the UI's client-side downscale.
+A `databaseHooks.user.update.before` hook in `auth.config.ts` rejects an `image` payload over 280,000 chars (~210KB decoded, no decoding performed) (413), closing the gap where `/api/auth`'s bypass of Nest's `express.json()` body limit let a bearer-token holder push an arbitrarily large `image` straight past the UI's client-side downscale.
 
 ## Unrelated: media server
 

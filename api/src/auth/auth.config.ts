@@ -9,8 +9,10 @@ import { sendEmail } from './resend';
 export type Auth = ReturnType<typeof createAuth>;
 
 // A 256px JPEG at quality 0.8 (the UI's client-side downscale target) is tens
-// of KB; this caps the base64 string length at ~200KB decoded, well above
-// that, to leave headroom without allowing arbitrarily large payloads.
+// of KB; this caps the stored data-URL string length at 280,000 chars
+// (~210KB decoded), well above that, to leave headroom without allowing
+// arbitrarily large payloads. Checking string length avoids decoding
+// untrusted input just to reject most of it.
 const MAX_IMAGE_BASE64_LENGTH = 280_000;
 
 export function createAuth(db: PostgresJsDatabase<typeof schema>) {
