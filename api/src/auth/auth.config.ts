@@ -1,4 +1,4 @@
-import { betterAuth } from 'better-auth';
+import { APIError, betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { admin, bearer } from 'better-auth/plugins';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
@@ -7,6 +7,11 @@ import type * as schema from '../db/schema';
 import { sendEmail } from './resend';
 
 export type Auth = ReturnType<typeof createAuth>;
+
+// A 256px JPEG at quality 0.8 (the UI's client-side downscale target) is tens
+// of KB; this caps the base64 string length at ~200KB decoded, well above
+// that, to leave headroom without allowing arbitrarily large payloads.
+const MAX_IMAGE_BASE64_LENGTH = 280_000;
 
 export function createAuth(db: PostgresJsDatabase<typeof schema>) {
   return betterAuth({
@@ -38,6 +43,22 @@ export function createAuth(db: PostgresJsDatabase<typeof schema>) {
       additionalFields: {
         firstName: { type: 'string', required: false, input: true },
         lastName: { type: 'string', required: false, input: true },
+      },
+    },
+    databaseHooks: {
+      user: {
+        update: {
+          before: async (user) => {
+            if (
+              typeof user.image === 'string' &&
+              user.image.length > MAX_IMAGE_BASE64_LENGTH
+            ) {
+              throw new APIError('PAYLOAD_TOO_LARGE', {
+                message: 'Image is too large.',
+              });
+            }
+          },
+        },
       },
     },
     plugins: [admin(), bearer()],
