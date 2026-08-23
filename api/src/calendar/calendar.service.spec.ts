@@ -144,4 +144,64 @@ describe('CalendarService', () => {
       expect.objectContaining({ calendar: fakeCalendar }),
     );
   });
+
+  // Real bug hit in production: a configured calendarName that doesn't
+  // match any calendar's actual displayName was silently treated the same
+  // as "nothing configured at all" — a deeply misleading error when
+  // credentials were, in fact, saved and correct.
+  it('gives a distinct, actionable error when calendarName matches nothing, not the generic not-configured error', async () => {
+    const service = await loadCalendarService(
+      () =>
+        Promise.resolve({
+          fetchCalendars: () => Promise.resolve([fakeCalendar]),
+          fetchCalendarObjects: () => Promise.resolve([]),
+        }),
+      fakeCredentials({ calendarName: 'kCalendar' }),
+    );
+
+    await expect(
+      service.listEvents('user-1', { start: new Date(), end: new Date() }),
+    ).rejects.toThrow(/kCalendar.*Personal/s);
+  });
+
+  it('matches calendarName even when Unicode-normalized differently (NFD vs NFC)', async () => {
+    // "é" as a single precomposed codepoint (NFC) vs. "e" + a combining
+    // acute accent (NFD) — renders identically, compares unequal with a
+    // naive `===` (unlike e.g. Polish "ł", which has no NFD decomposition
+    // at all — this needs a character that genuinely does).
+    const nfc = 'Café Calendar';
+    const nfd = nfc.normalize('NFD');
+    expect(nfc).not.toBe(nfd); // sanity check they really are byte-different
+
+    const owner: FakeDAVCalendar = { url: 'https://dav.example.com/cal/owner/', displayName: nfd };
+    const fetchCalendarObjects = mock(() => Promise.resolve([] as FakeCalendarObject[]));
+    const service = await loadCalendarService(
+      () =>
+        Promise.resolve({
+          fetchCalendars: () => Promise.resolve([owner]),
+          fetchCalendarObjects,
+        }),
+      fakeCredentials({ calendarName: nfc }),
+    );
+
+    await service.listEvents('user-1', { start: new Date(), end: new Date() });
+    expect(fetchCalendarObjects).toHaveBeenCalledWith(expect.objectContaining({ calendar: owner }));
+  });
+
+  it('uses the first calendar when no calendarName is configured', async () => {
+    const fetchCalendarObjects = mock(() => Promise.resolve([] as FakeCalendarObject[]));
+    const service = await loadCalendarService(
+      () =>
+        Promise.resolve({
+          fetchCalendars: () => Promise.resolve([fakeCalendar]),
+          fetchCalendarObjects,
+        }),
+      fakeCredentials({ calendarName: null }),
+    );
+
+    await service.listEvents('user-1', { start: new Date(), end: new Date() });
+    expect(fetchCalendarObjects).toHaveBeenCalledWith(
+      expect.objectContaining({ calendar: fakeCalendar }),
+    );
+  });
 });

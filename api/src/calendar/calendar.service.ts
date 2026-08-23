@@ -13,6 +13,16 @@ export class CalendarNotConfiguredError extends Error {
   }
 }
 
+export class CalendarNameMismatchError extends Error {
+  constructor(configuredName: string, availableNames: string[]) {
+    super(
+      `configured calendar name "${configuredName}" doesn't match any calendar on this account ` +
+        `(available: ${availableNames.length ? availableNames.join(', ') : 'none'}) — ` +
+        `fix the calendar name on the profile page, or clear it to use the first calendar`,
+    );
+  }
+}
+
 export class CalendarEventNotFoundError extends Error {
   constructor(uid: string) {
     super(`no event found with uid "${uid}"`);
@@ -44,11 +54,30 @@ export class CalendarService {
     });
 
     const calendars = await client.fetchCalendars();
-    const calendar = creds.calendarName
-      ? calendars.find((c) => c.displayName === creds.calendarName)
-      : calendars[0];
-    if (!calendar) {
+    if (calendars.length === 0) {
       throw new CalendarNotConfiguredError();
+    }
+
+    const configuredName = creds.calendarName?.trim();
+    if (!configuredName) {
+      return { client, calendar: calendars[0] };
+    }
+
+    // Trimmed + Unicode-normalized (NFC) on both sides: a display name
+    // typed into a browser and the same-looking string round-tripped
+    // through a CalDAV server's XML response can differ in how accented
+    // characters are encoded (precomposed vs. combining marks) while
+    // rendering identically — a naive `===` silently fails on that.
+    const normalize = (s: string) => s.trim().normalize('NFC');
+    const target = normalize(configuredName);
+    const calendar = calendars.find(
+      (c) => typeof c.displayName === 'string' && normalize(c.displayName) === target,
+    );
+    if (!calendar) {
+      throw new CalendarNameMismatchError(
+        configuredName,
+        calendars.map((c) => (typeof c.displayName === 'string' ? c.displayName : '(unnamed)')),
+      );
     }
 
     return { client, calendar };
