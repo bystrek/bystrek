@@ -15,9 +15,13 @@ export class CalendarNotConfiguredError extends Error {
 
 export class CalendarNameMismatchError extends Error {
   constructor(configuredName: string, availableNames: string[]) {
+    // Each name individually quoted, not comma-joined bare — a display
+    // name containing a comma (or anything else) can't make the list
+    // ambiguous about where one name ends and the next begins.
+    const quoted = (name: string) => `"${name.replace(/"/g, '\\"')}"`;
     super(
-      `configured calendar name "${configuredName}" doesn't match any calendar on this account ` +
-        `(available: ${availableNames.length ? availableNames.join(', ') : 'none'}) — ` +
+      `configured calendar name ${quoted(configuredName)} doesn't match any calendar on this account ` +
+        `(available: ${availableNames.length ? availableNames.map(quoted).join(', ') : 'none'}) — ` +
         `fix the calendar name on the profile page, or clear it to use the first calendar`,
     );
   }
