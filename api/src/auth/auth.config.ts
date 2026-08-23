@@ -51,10 +51,7 @@ export function createAuth(db: PostgresJsDatabase<typeof schema>) {
       user: {
         update: {
           before: async (user) => {
-            if (
-              typeof user.image === 'string' &&
-              user.image.length > MAX_IMAGE_BASE64_LENGTH
-            ) {
+            if (typeof user.image === 'string' && user.image.length > MAX_IMAGE_BASE64_LENGTH) {
               throw new APIError('PAYLOAD_TOO_LARGE', {
                 message: 'Image is too large.',
               });
