@@ -7,7 +7,13 @@ export type CalendarCredentialsSummary = {
   configured: boolean;
   caldavUrl: string | null;
   username: string | null;
-  calendarName: string | null;
+  calendarUrl: string | null;
+  calendarDisplayName: string | null;
+};
+
+export type CalendarOption = {
+  url: string;
+  displayName: string | null;
 };
 
 function errorMessage(err: unknown, fallback: string): string {
@@ -36,11 +42,33 @@ export class CalendarService {
     }
   }
 
+  // Connects with the given (not-yet-saved) credentials and lists the
+  // account's calendars — doesn't touch stored credentials at all, just
+  // lets the form offer a dropdown before Save.
+  async previewCalendars(input: {
+    caldavUrl: string;
+    username: string;
+    password: string;
+  }): Promise<CalendarOption[]> {
+    try {
+      const result = await firstValueFrom(
+        this.http.post<{ calendars: CalendarOption[] }>(
+          `${environment.apiUrl}/calendar/credentials/preview-calendars`,
+          input,
+        ),
+      );
+      return result.calendars;
+    } catch (err) {
+      throw new Error(errorMessage(err, 'Could not connect to load calendars.'));
+    }
+  }
+
   async save(input: {
     caldavUrl: string;
     username: string;
     password: string;
-    calendarName: string;
+    calendarUrl: string | null;
+    calendarDisplayName: string | null;
   }): Promise<void> {
     this.busy.set(true);
     try {
@@ -49,7 +77,8 @@ export class CalendarService {
           caldavUrl: input.caldavUrl,
           username: input.username,
           password: input.password,
-          calendarName: input.calendarName || undefined,
+          calendarUrl: input.calendarUrl ?? undefined,
+          calendarDisplayName: input.calendarDisplayName ?? undefined,
         }),
       );
       await this.load();

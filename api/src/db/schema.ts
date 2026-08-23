@@ -163,8 +163,8 @@ export const messages = pgTable(
 
 // One CalDAV account per user (Infomaniak kCalendar — see docs/roadmap.md).
 // `password` is tier-2 encrypted (api/src/crypto/field-encryption.ts), same
-// as `messages.content`; `caldavUrl`/`username`/`calendarName` aren't
-// credentials on their own so are stored plain.
+// as `messages.content`; `caldavUrl`/`username`/`calendarUrl`/
+// `calendarDisplayName` aren't credentials on their own so are stored plain.
 export const calendarCredentials = pgTable(
   'calendar_credentials',
   {
@@ -175,9 +175,14 @@ export const calendarCredentials = pgTable(
     caldavUrl: text('caldav_url').notNull(),
     username: text('username').notNull(),
     password: text('password').notNull(),
-    // Target calendar's displayName on the CalDAV server; null picks the
-    // first calendar returned for the account.
-    calendarName: text('calendar_name'),
+    // Target calendar's own URL (stable, server-assigned — not a
+    // human-typed display name, so no encoding/mismatch class of bug); null
+    // picks the first calendar returned for the account. `calendarDisplayName`
+    // is a cached label only, for showing something readable on the profile
+    // page without reconnecting to CalDAV on every page load — never used
+    // to identify the calendar.
+    calendarUrl: text('calendar_url'),
+    calendarDisplayName: text('calendar_display_name'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()

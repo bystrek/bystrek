@@ -11,14 +11,19 @@ export interface CalendarCredentials {
   caldavUrl: string;
   username: string;
   password: string;
-  calendarName: string | null;
+  // Target calendar's own URL (stable, server-assigned), not a
+  // human-typed display name — see schema.ts. Null picks the first
+  // calendar returned for the account.
+  calendarUrl: string | null;
 }
 
 export interface CalendarCredentialsSummary {
   configured: boolean;
   caldavUrl: string | null;
   username: string | null;
-  calendarName: string | null;
+  calendarUrl: string | null;
+  // Cached label only, for display — never used to identify the calendar.
+  calendarDisplayName: string | null;
 }
 
 @Injectable()
@@ -38,7 +43,7 @@ export class CalendarCredentialsService {
       caldavUrl: row.caldavUrl,
       username: row.username,
       password: decryptField(row.password),
-      calendarName: row.calendarName,
+      calendarUrl: row.calendarUrl,
     };
   }
 
@@ -50,11 +55,20 @@ export class CalendarCredentialsService {
       .select({
         caldavUrl: calendarCredentials.caldavUrl,
         username: calendarCredentials.username,
-        calendarName: calendarCredentials.calendarName,
+        calendarUrl: calendarCredentials.calendarUrl,
+        calendarDisplayName: calendarCredentials.calendarDisplayName,
       })
       .from(calendarCredentials)
       .where(eq(calendarCredentials.userId, userId));
-    if (!row) return { configured: false, caldavUrl: null, username: null, calendarName: null };
+    if (!row) {
+      return {
+        configured: false,
+        caldavUrl: null,
+        username: null,
+        calendarUrl: null,
+        calendarDisplayName: null,
+      };
+    }
     return { configured: true, ...row };
   }
 
@@ -63,7 +77,13 @@ export class CalendarCredentialsService {
   // field blank while editing other fields must not wipe it.
   async set(
     userId: string,
-    input: { caldavUrl: string; username: string; password: string; calendarName: string | null },
+    input: {
+      caldavUrl: string;
+      username: string;
+      password: string;
+      calendarUrl: string | null;
+      calendarDisplayName: string | null;
+    },
   ): Promise<void> {
     if (typeof input.caldavUrl !== 'string' || !input.caldavUrl.trim()) {
       throw new BadRequestException('caldavUrl is required');
@@ -90,7 +110,8 @@ export class CalendarCredentialsService {
         caldavUrl: input.caldavUrl,
         username: input.username,
         password,
-        calendarName: input.calendarName,
+        calendarUrl: input.calendarUrl,
+        calendarDisplayName: input.calendarDisplayName,
       })
       .onConflictDoUpdate({
         target: calendarCredentials.userId,
@@ -98,7 +119,8 @@ export class CalendarCredentialsService {
           caldavUrl: input.caldavUrl,
           username: input.username,
           password,
-          calendarName: input.calendarName,
+          calendarUrl: input.calendarUrl,
+          calendarDisplayName: input.calendarDisplayName,
         },
       });
   }

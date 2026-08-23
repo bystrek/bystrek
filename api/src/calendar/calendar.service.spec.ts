@@ -15,7 +15,7 @@ interface FakeDAVCalendar {
 }
 
 const fakeCalendar: FakeDAVCalendar = {
-  url: 'https://dav.example.com/cal/',
+  url: 'https://dav.example.com/cal/personal/',
   displayName: 'Personal',
 };
 
@@ -38,23 +38,22 @@ function fakeCredentials(overrides: Partial<CalendarCredentials> = {}): Calendar
     caldavUrl: 'https://dav.example.com',
     username: 'user',
     password: 'pass',
-    calendarName: null,
+    calendarUrl: null,
     ...overrides,
   };
   return { getInternal: () => Promise.resolve(creds) } as unknown as CalendarCredentialsService;
+}
+
+interface FakeClient {
+  fetchCalendars: () => Promise<FakeDAVCalendar[]>;
+  fetchCalendarObjects: (params: unknown) => Promise<FakeCalendarObject[]>;
 }
 
 // tsdav is mocked at the module level so CalendarService's actual CalDAV
 // boundary logic (calendar selection, UID-based lookup, not just the ICS
 // helpers) gets exercised — see devlog day 12: the UID-by-filename bug this
 // catches would have passed CI with only mocked-tool-handler tests.
-async function loadCalendarService(
-  createClient: () => Promise<{
-    fetchCalendars: () => Promise<FakeDAVCalendar[]>;
-    fetchCalendarObjects: (params: unknown) => Promise<FakeCalendarObject[]>;
-  }>,
-  credentials: CalendarCredentialsService,
-) {
+async function loadCalendarModule(createClient: () => Promise<FakeClient>) {
   await mock.module('tsdav', () => ({ createDAVClient: createClient }));
   // Dynamic `import()` resolves to `any` under this project's
   // sourceType:'commonjs' ESLint config vs. tsconfig's module:'nodenext' —
@@ -64,7 +63,15 @@ async function loadCalendarService(
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const calendarServiceModule: typeof import('./calendar.service') =
     await import('./calendar.service');
-  return new calendarServiceModule.CalendarService(credentials);
+  return calendarServiceModule;
+}
+
+async function loadCalendarService(
+  createClient: () => Promise<FakeClient>,
+  credentials: CalendarCredentialsService,
+) {
+  const { CalendarService } = await loadCalendarModule(createClient);
+  return new CalendarService(credentials);
 }
 
 describe('CalendarService', () => {
@@ -74,7 +81,7 @@ describe('CalendarService', () => {
     // for events not created by this service.
     const objects: FakeCalendarObject[] = [
       {
-        url: 'https://dav.example.com/cal/imported-event-1.ics',
+        url: 'https://dav.example.com/cal/personal/imported-event-1.ics',
         data: icsFor('real-uid-1', 'Dentist'),
       },
     ];
@@ -93,7 +100,10 @@ describe('CalendarService', () => {
 
   it('throws CalendarEventNotFoundError when no object matches the UID', async () => {
     const objects: FakeCalendarObject[] = [
-      { url: 'https://dav.example.com/cal/other.ics', data: icsFor('some-other-uid', 'Other') },
+      {
+        url: 'https://dav.example.com/cal/personal/other.ics',
+        data: icsFor('some-other-uid', 'Other'),
+      },
     ];
     const service = await loadCalendarService(
       () =>
@@ -124,7 +134,7 @@ describe('CalendarService', () => {
     ).rejects.toThrow('caldavUrl must use https');
   });
 
-  it('selects the calendar matching calendarName when one is configured', async () => {
+  it('selects the calendar matching calendarUrl when one is configured', async () => {
     const other: FakeDAVCalendar = {
       url: 'https://dav.example.com/cal/other/',
       displayName: 'Other',
@@ -136,7 +146,7 @@ describe('CalendarService', () => {
           fetchCalendars: () => Promise.resolve([other, fakeCalendar]),
           fetchCalendarObjects,
         }),
-      fakeCredentials({ calendarName: 'Personal' }),
+      fakeCredentials({ calendarUrl: fakeCalendar.url }),
     );
 
     await service.listEvents('user-1', { start: new Date(), end: new Date() });
@@ -145,50 +155,30 @@ describe('CalendarService', () => {
     );
   });
 
-  // Real bug hit in production: a configured calendarName that doesn't
+  // Real bug hit in production: a configured calendarName that didn't
   // match any calendar's actual displayName was silently treated the same
   // as "nothing configured at all" — a deeply misleading error when
-  // credentials were, in fact, saved and correct.
-  it('gives a distinct, actionable error when calendarName matches nothing, not the generic not-configured error', async () => {
+  // credentials were, in fact, saved and correct. Matching moved from
+  // displayName (human-typed, encoding-fragile) to url (server-assigned,
+  // stable) to remove that whole bug class, but the mismatch case itself
+  // (e.g. a calendar since deleted) still needs a distinct, actionable
+  // error rather than the generic not-configured one.
+  it('gives a distinct, actionable error when calendarUrl matches nothing, not the generic not-configured error', async () => {
     const service = await loadCalendarService(
       () =>
         Promise.resolve({
           fetchCalendars: () => Promise.resolve([fakeCalendar]),
           fetchCalendarObjects: () => Promise.resolve([]),
         }),
-      fakeCredentials({ calendarName: 'kCalendar' }),
+      fakeCredentials({ calendarUrl: 'https://dav.example.com/cal/gone/' }),
     );
 
     await expect(
       service.listEvents('user-1', { start: new Date(), end: new Date() }),
-    ).rejects.toThrow(/kCalendar.*Personal/s);
+    ).rejects.toThrow(/gone.*personal/s);
   });
 
-  it('matches calendarName even when Unicode-normalized differently (NFD vs NFC)', async () => {
-    // "é" as a single precomposed codepoint (NFC) vs. "e" + a combining
-    // acute accent (NFD) — renders identically, compares unequal with a
-    // naive `===` (unlike e.g. Polish "ł", which has no NFD decomposition
-    // at all — this needs a character that genuinely does).
-    const nfc = 'Café Calendar';
-    const nfd = nfc.normalize('NFD');
-    expect(nfc).not.toBe(nfd); // sanity check they really are byte-different
-
-    const owner: FakeDAVCalendar = { url: 'https://dav.example.com/cal/owner/', displayName: nfd };
-    const fetchCalendarObjects = mock(() => Promise.resolve([] as FakeCalendarObject[]));
-    const service = await loadCalendarService(
-      () =>
-        Promise.resolve({
-          fetchCalendars: () => Promise.resolve([owner]),
-          fetchCalendarObjects,
-        }),
-      fakeCredentials({ calendarName: nfc }),
-    );
-
-    await service.listEvents('user-1', { start: new Date(), end: new Date() });
-    expect(fetchCalendarObjects).toHaveBeenCalledWith(expect.objectContaining({ calendar: owner }));
-  });
-
-  it('uses the first calendar when no calendarName is configured', async () => {
+  it('uses the first calendar when no calendarUrl is configured', async () => {
     const fetchCalendarObjects = mock(() => Promise.resolve([] as FakeCalendarObject[]));
     const service = await loadCalendarService(
       () =>
@@ -196,12 +186,47 @@ describe('CalendarService', () => {
           fetchCalendars: () => Promise.resolve([fakeCalendar]),
           fetchCalendarObjects,
         }),
-      fakeCredentials({ calendarName: null }),
+      fakeCredentials({ calendarUrl: null }),
     );
 
     await service.listEvents('user-1', { start: new Date(), end: new Date() });
     expect(fetchCalendarObjects).toHaveBeenCalledWith(
       expect.objectContaining({ calendar: fakeCalendar }),
     );
+  });
+});
+
+describe('CalendarService.previewCalendars', () => {
+  it('connects with the given raw credentials and lists calendars, without touching stored credentials', async () => {
+    const fetchCalendars = mock(() => Promise.resolve([fakeCalendar]));
+    const createClient = mock(() =>
+      Promise.resolve({ fetchCalendars, fetchCalendarObjects: () => Promise.resolve([]) }),
+    );
+    const { CalendarService } = await loadCalendarModule(createClient);
+    const credentials = {
+      getInternal: mock(() => Promise.reject(new Error('should never be called'))),
+    } as unknown as CalendarCredentialsService;
+    const service = new CalendarService(credentials);
+
+    const result = await service.previewCalendars('https://dav.example.com', 'user', 'pass');
+
+    expect(result).toEqual([{ url: fakeCalendar.url, displayName: 'Personal' }]);
+    expect(createClient).toHaveBeenCalledWith(
+      expect.objectContaining({
+        serverUrl: 'https://dav.example.com',
+        credentials: { username: 'user', password: 'pass' },
+      }),
+    );
+  });
+
+  it('rejects a non-https URL before ever connecting', async () => {
+    const createClient = mock(() => Promise.reject(new Error('should never be called')));
+    const { CalendarService } = await loadCalendarModule(createClient);
+    const service = new CalendarService({} as CalendarCredentialsService);
+
+    await expect(
+      service.previewCalendars('http://dav.example.com', 'user', 'pass'),
+    ).rejects.toThrow('caldavUrl must use https');
+    expect(createClient).not.toHaveBeenCalled();
   });
 });

@@ -39,7 +39,13 @@
 
   <h2>Calendar</h2>
   @if (calendar.credentials()?.configured) {
-    <p>Connected to {{ calendar.credentials()?.caldavUrl }}.</p>
+    <p>
+      Connected to {{ calendar.credentials()?.caldavUrl }}
+      @if (calendar.credentials()?.calendarDisplayName; as name) {
+        ({{ name }})
+      }
+      .
+    </p>
   } @else {
     <p>Connect a CalDAV calendar account so the assistant can read and edit your calendar.</p>
   }
@@ -72,14 +78,27 @@
       placeholder="App-specific password"
       [required]="!calendar.credentials()?.configured"
     />
-    <input
-      type="text"
-      name="caldavCalendarName"
-      aria-label="Calendar name"
-      [ngModel]="caldavCalendarName()"
-      (ngModelChange)="caldavCalendarName.set($event)"
-      placeholder="Calendar name (optional)"
-    />
+    <button
+      type="button"
+      class="link"
+      [disabled]="loadingCalendars() || !caldavUrl() || !caldavUsername()"
+      (click)="loadCalendars()"
+    >
+      {{ loadingCalendars() ? 'Loading calendars…' : 'Load calendars' }}
+    </button>
+    @if (calendarOptions().length) {
+      <select
+        name="calendarUrl"
+        aria-label="Calendar"
+        [ngModel]="selectedCalendarUrl()"
+        (ngModelChange)="selectedCalendarUrl.set($event)"
+      >
+        <option value="">(first calendar)</option>
+        @for (option of calendarOptions(); track option.url) {
+          <option [value]="option.url">{{ option.displayName ?? option.url }}</option>
+        }
+      </select>
+    }
     <button type="submit" [disabled]="calendar.busy()">Save</button>
     @if (calendar.credentials()?.configured) {
       <button type="button" class="link" (click)="disconnectCalendar()">Disconnect</button>
