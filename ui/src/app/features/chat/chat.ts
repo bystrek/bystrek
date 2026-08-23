@@ -33,8 +33,26 @@ export class Chat implements OnInit, AfterViewChecked {
   // grew — not on every keystroke.
   private lastRenderedMessages = '';
 
+  // Whether the user was scrolled to the bottom the last time they actually
+  // scrolled — deliberately NOT recomputed from post-update DOM
+  // measurements in ngAfterViewChecked, since by the time that runs the
+  // new message has already grown scrollHeight, making "am I near the
+  // bottom" look false for any message taller than the threshold even
+  // when the user was sitting exactly at the bottom beforehand. A plain
+  // `scroll` event only fires on genuine user scrolling (the browser
+  // doesn't move scrollTop just because content was appended below), so
+  // it reflects real intent instead.
+  private pinnedToBottom = true;
+
   ngOnInit(): void {
     void this.chat.loadHistory();
+  }
+
+  onScroll(): void {
+    const container = this.scrollAnchor?.nativeElement.parentElement;
+    if (!container) return;
+    this.pinnedToBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight < 80;
   }
 
   ngAfterViewChecked(): void {
@@ -45,12 +63,8 @@ export class Chat implements OnInit, AfterViewChecked {
     if (snapshot === this.lastRenderedMessages) return;
     this.lastRenderedMessages = snapshot;
 
-    const anchor = this.scrollAnchor?.nativeElement;
-    const container = anchor?.parentElement;
-    if (!anchor || !container) return;
-    const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 80;
-    if (nearBottom) {
-      anchor.scrollIntoView({ block: 'end' });
+    if (this.pinnedToBottom) {
+      this.scrollAnchor?.nativeElement.scrollIntoView({ block: 'end' });
     }
   }
 

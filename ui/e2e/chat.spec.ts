@@ -76,3 +76,46 @@ test('sends a message and renders the streamed reply', async ({ page }) => {
   await expect(input).toBeEnabled();
   await expect(button).toBeEnabled();
 });
+
+test('auto-scrolls to a new reply even when it pushes the message list well past the fold', async ({
+  page,
+}) => {
+  // Regression test: the old auto-scroll check measured "am I near the
+  // bottom" from the DOM *after* the new message had already grown the
+  // container, so any reply taller than ~80px made it look like the user
+  // wasn't near the bottom and skipped scrolling — the new reply landed
+  // below the fold, invisible, even though the user was at the bottom
+  // right before it arrived.
+  await signIn(page);
+  await page.route('**/users', (route) => route.fulfill({ json: [] }));
+  // Enough prior history that the message list already overflows its
+  // max-height, so there's real scrolling distance to cover.
+  const history = Array.from({ length: 20 }, (_, i) => ({
+    role: i % 2 === 0 ? 'user' : 'assistant',
+    text: `Message number ${i} with a bit of text to take up some space.`,
+  }));
+  await page.route('**/chat/history', (route) => route.fulfill({ json: history }));
+
+  const longReply =
+    'Line one of a long, multi-part reply.\n\n' +
+    'Line two, still going.\n\n' +
+    'Line three — this reply is deliberately tall enough to exceed the old 80px threshold on its own.';
+  await page.route('**/chat', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: `data: {"delta":${JSON.stringify(longReply)}}\n\n`,
+    });
+  });
+
+  await page.getByRole('link', { name: 'Chat' }).click();
+  await expect(page).toHaveURL('/chat');
+
+  const input = page.getByPlaceholder('Message');
+  await input.fill('one more thing');
+  await page.getByRole('button', { name: 'Send' }).click();
+
+  const newReply = page.locator('.bubble.assistant').last();
+  await expect(newReply).toHaveText(longReply);
+  await expect(newReply).toBeInViewport();
+});
