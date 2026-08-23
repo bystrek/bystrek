@@ -7,7 +7,7 @@ describe('buildEventIcs / parseEventIcs', () => {
     const end = new Date('2026-09-01T11:00:00Z');
     const ics = buildEventIcs('event-1', { summary: 'Dentist', start, end });
 
-    const parsed = parseEventIcs(ics);
+    const parsed = parseEventIcs(ics, 'UTC');
     expect(parsed.uid).toBe('event-1');
     expect(parsed.summary).toBe('Dentist');
     expect(new Date(parsed.start)).toEqual(start);
@@ -25,8 +25,20 @@ describe('buildEventIcs / parseEventIcs', () => {
       rrule: 'FREQ=WEEKLY;BYDAY=TU',
     });
 
-    const parsed = parseEventIcs(ics);
+    const parsed = parseEventIcs(ics, 'UTC');
     expect(parsed.rrule).toBe('FREQ=WEEKLY;BYDAY=TU');
+  });
+
+  it('formats start/end in the requested timezone, with an explicit offset', () => {
+    const ics = buildEventIcs('event-tz', {
+      summary: 'Standup',
+      start: new Date('2026-08-24T04:00:00Z'),
+      end: new Date('2026-08-24T04:15:00Z'),
+    });
+
+    const parsed = parseEventIcs(ics, 'Europe/Warsaw');
+    expect(parsed.start).toBe('2026-08-24T06:00:00+02:00');
+    expect(parsed.end).toBe('2026-08-24T06:15:00+02:00');
   });
 
   it('includes optional description/location', () => {
@@ -38,7 +50,7 @@ describe('buildEventIcs / parseEventIcs', () => {
       location: 'Airport',
     });
 
-    const parsed = parseEventIcs(ics);
+    const parsed = parseEventIcs(ics, 'UTC');
     expect(parsed.description).toBe('Pack early');
     expect(parsed.location).toBe('Airport');
   });
@@ -54,7 +66,7 @@ describe('updateEventIcs', () => {
     });
 
     const updated = updateEventIcs(original, { summary: 'Renamed' });
-    const parsed = parseEventIcs(updated);
+    const parsed = parseEventIcs(updated, 'UTC');
 
     expect(parsed.uid).toBe('event-4');
     expect(parsed.summary).toBe('Renamed');
@@ -69,7 +81,7 @@ describe('updateEventIcs', () => {
     });
 
     const updated = updateEventIcs(original, { rrule: 'FREQ=DAILY' });
-    expect(parseEventIcs(updated).rrule).toBe('FREQ=DAILY');
+    expect(parseEventIcs(updated, 'UTC').rrule).toBe('FREQ=DAILY');
   });
 
   it('clears an RRULE when passed an empty string', () => {
@@ -81,6 +93,6 @@ describe('updateEventIcs', () => {
     });
 
     const updated = updateEventIcs(original, { rrule: '' });
-    expect(parseEventIcs(updated).rrule).toBeNull();
+    expect(parseEventIcs(updated, 'UTC').rrule).toBeNull();
   });
 });
