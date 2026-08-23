@@ -65,6 +65,8 @@ export class CalendarService {
     try {
       await firstValueFrom(this.http.delete(`${environment.apiUrl}/calendar/credentials`));
       await this.load();
+    } catch (err) {
+      throw new Error(errorMessage(err, 'Could not disconnect the calendar.'));
     } finally {
       this.busy.set(false);
     }

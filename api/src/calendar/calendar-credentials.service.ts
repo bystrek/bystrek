@@ -1,6 +1,7 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import { assertSafeCaldavUrl } from './caldav-url';
 import { decryptField, encryptField } from '../crypto/field-encryption';
 import { DRIZZLE } from '../db/drizzle.provider';
 import * as schema from '../db/schema';
@@ -60,6 +61,14 @@ export class CalendarCredentialsService {
     userId: string,
     input: { caldavUrl: string; username: string; password: string; calendarName: string | null },
   ): Promise<void> {
+    if (typeof input.caldavUrl !== 'string' || !input.caldavUrl.trim()) {
+      throw new BadRequestException('caldavUrl is required');
+    }
+    if (typeof input.username !== 'string' || !input.username.trim()) {
+      throw new BadRequestException('username is required');
+    }
+    assertSafeCaldavUrl(input.caldavUrl);
+
     let password = input.password ? encryptField(input.password) : null;
     if (!password) {
       const [existing] = await this.db

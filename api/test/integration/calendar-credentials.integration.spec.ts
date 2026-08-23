@@ -134,4 +134,48 @@ describe('/calendar/credentials (integration)', () => {
       await app.close();
     });
   });
+
+  it('rejects a non-https caldavUrl', async () => {
+    await withRollback(testDb, async (tx) => {
+      const { token } = await signUpTestUser(tx, { email: 'me@example.com', name: 'Me' });
+
+      const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+        .overrideProvider(DRIZZLE)
+        .useValue(tx)
+        .compile();
+      const app: INestApplication = moduleRef.createNestApplication();
+      await app.init();
+
+      const res = await request(app.getHttpServer())
+        .put('/calendar/credentials')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ caldavUrl: 'http://sync.infomaniak.com', username: 'me', password: 'secret' });
+
+      expect(res.status).toBe(400);
+
+      await app.close();
+    });
+  });
+
+  it('rejects a caldavUrl pointing at a private/internal host', async () => {
+    await withRollback(testDb, async (tx) => {
+      const { token } = await signUpTestUser(tx, { email: 'me@example.com', name: 'Me' });
+
+      const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+        .overrideProvider(DRIZZLE)
+        .useValue(tx)
+        .compile();
+      const app: INestApplication = moduleRef.createNestApplication();
+      await app.init();
+
+      const res = await request(app.getHttpServer())
+        .put('/calendar/credentials')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ caldavUrl: 'https://169.254.169.254/', username: 'me', password: 'secret' });
+
+      expect(res.status).toBe(400);
+
+      await app.close();
+    });
+  });
 });

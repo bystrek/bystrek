@@ -50,6 +50,7 @@
     <input
       type="url"
       name="caldavUrl"
+      aria-label="CalDAV URL"
       [ngModel]="caldavUrl()"
       (ngModelChange)="caldavUrl.set($event)"
       placeholder="CalDAV URL"
@@ -58,6 +59,7 @@
     <input
       type="text"
       name="caldavUsername"
+      aria-label="CalDAV username"
       [ngModel]="caldavUsername()"
       (ngModelChange)="caldavUsername.set($event)"
       placeholder="Short login ID from config.infomaniak.com (e.g. AB12345), not your email"
@@ -66,6 +68,7 @@
     <input
       type="password"
       name="caldavPassword"
+      aria-label="CalDAV app-specific password"
       [ngModel]="caldavPassword()"
       (ngModelChange)="caldavPassword.set($event)"
       placeholder="App-specific password"
@@ -74,6 +77,7 @@
     <input
       type="text"
       name="caldavCalendarName"
+      aria-label="Calendar name"
       [ngModel]="caldavCalendarName()"
       (ngModelChange)="caldavCalendarName.set($event)"
       placeholder="Calendar name (optional)"

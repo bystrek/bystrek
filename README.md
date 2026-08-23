@@ -12,13 +12,13 @@ Backend and frontend scaffolds are live on the droplet, chat included. See [`doc
 - A DigitalOcean droplet, locked down to SSH-only on its public IP, reachable everywhere else only over a private Tailscale mesh.
 - `bystrek.dev` and `api.bystrek.dev` both resolve to the droplet's Tailscale IP (Cloudflare DNS, not proxied) with real Let's Encrypt certs issued via DNS-01 — no ports 80/443 exposed publicly, ever.
 - `ui/` (Angular, zoneless) at `bystrek.dev`: subscribe UI + service worker, login/user admin, profile, and chat pages.
-- `api/` (NestJS + Drizzle + Bun) at `api.bystrek.dev`: Postgres-backed subscriptions table, push subscribe/send endpoints, `better-auth`-backed login/invite/ban, `POST /chat` streaming Claude replies over SSE. Verified end to end — a real push landed on a device via the deployed stack.
+- `api/` (NestJS + Drizzle + Bun) at `api.bystrek.dev`: Postgres-backed subscriptions table, push subscribe/send endpoints, `better-auth`-backed login/invite/ban, `POST /chat` streaming Claude replies over SSE, and a calendar tool (CalDAV against Infomaniak kCalendar) with mutating actions gated behind explicit user confirmation. Verified end to end — a real push landed on a device via the deployed stack, and calendar read/write was verified against a real Infomaniak account.
 - Auth: email/password via `better-auth`, invite-gated (admin creates the row, no public signup), bearer tokens, admin plugin for invite/list/ban. Passkey deferred past v1.
 - Deploy pipeline: GitHub Actions builds `api`/`ui` images to GHCR, then redeploys over SSH with a key restricted to a single forced command, gated by a GitHub Environment (required reviewer). **Dockge** (dashboard, loopback-only, SSH-tunnel access) stays for visibility and manual overrides.
 
 **Not built yet:**
-- `owner_id`/`visibility` on domain tables, tier-2 field encryption — deferred until real domains/schemas exist.
-- The calendar tool (CalDAV, against Infomaniak kCalendar) — planned as the platform's first vertical slice.
+- `owner_id`/`visibility` on domain tables — deferred until more domains exist (tier-2 field encryption is live, used by chat and calendar credentials).
+- An agenda view and the daily digest push for the calendar vertical slice.
 - Notes/research/medical/nutrition/gym domains.
 - Proactive nudging (the assistant messaging first, not just replying).
 

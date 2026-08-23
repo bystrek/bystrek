@@ -64,10 +64,14 @@ export class Profile implements OnInit {
 
   async disconnectCalendar(): Promise<void> {
     this.calendarStatus.set('');
-    await this.calendar.disconnect();
-    this.caldavUsername.set('');
-    this.caldavCalendarName.set('');
-    this.calendarStatus.set('Disconnected.');
+    try {
+      await this.calendar.disconnect();
+      this.caldavUsername.set('');
+      this.caldavCalendarName.set('');
+      this.calendarStatus.set('Disconnected.');
+    } catch (err) {
+      this.calendarStatus.set((err as Error).message);
+    }
   }
 
   async onFileSelected(event: Event): Promise<void> {

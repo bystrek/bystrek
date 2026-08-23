@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import Anthropic from '@anthropic-ai/sdk';
 import { Inject, Injectable } from '@nestjs/common';
 import { desc, eq } from 'drizzle-orm';
@@ -91,6 +92,11 @@ export class ChatService {
   ) {}
 
   async reply(userId: string, userText: string, onDelta: (text: string) => void): Promise<void> {
+    // One id per user message, shared across every tool-call iteration
+    // below — lets a tool (e.g. calendar's confirm_calendar_action) refuse
+    // to execute a staged action confirmed within the same request it was
+    // proposed in, forcing a genuinely separate human turn in between.
+    const requestId = randomUUID();
     const history = await this.loadRecentMessages(userId);
     const conversation: Anthropic.MessageParam[] = [
       ...history,
@@ -123,7 +129,7 @@ export class ChatService {
         if (block.type !== 'tool_use') continue;
         const tool = this.tools.find((t) => t.definition.name === block.name);
         const output = tool
-          ? await tool.handler(block.input, userId)
+          ? await tool.handler(block.input, { userId, requestId })
           : { error: `no handler registered for tool "${block.name}"` };
         toolResults.push({
           type: 'tool_result',

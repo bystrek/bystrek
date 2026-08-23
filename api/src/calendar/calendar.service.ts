@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { createDAVClient, type DAVCalendar } from 'tsdav';
 
 type DAVClient = Awaited<ReturnType<typeof createDAVClient>>;
+import { assertSafeCaldavUrl } from './caldav-url';
 import { CalendarCredentialsService } from './calendar-credentials.service';
 import { buildEventIcs, parseEventIcs, updateEventIcs, type EventInput } from './ical-event';
 
@@ -30,6 +31,10 @@ export class CalendarService {
   private async connect(userId: string): Promise<{ client: DAVClient; calendar: DAVCalendar }> {
     const creds = await this.credentials.get(userId);
     if (!creds) throw new CalendarNotConfiguredError();
+    // Defense-in-depth alongside the store-time check in
+    // CalendarCredentialsService — catches a row written before this check
+    // existed, or by any other path that bypasses the service.
+    assertSafeCaldavUrl(creds.caldavUrl);
 
     const client = await createDAVClient({
       serverUrl: creds.caldavUrl,
@@ -67,6 +72,14 @@ export class CalendarService {
     });
   }
 
+  // Used to build a human-readable confirmation preview before an
+  // update/delete executes — see pending-actions.ts.
+  async getEvent(userId: string, uid: string) {
+    const { client, calendar } = await this.connect(userId);
+    const object = await this.findObjectByUid(client, calendar, uid);
+    return parseEventIcs(object.data as string);
+  }
+
   async createEvent(userId: string, input: EventInput): Promise<{ uid: string }> {
     const { client, calendar } = await this.connect(userId);
     const uid = randomUUID();
@@ -92,10 +105,21 @@ export class CalendarService {
     await client.deleteCalendarObject({ calendarObject: object });
   }
 
+  // Matched by the iCalendar UID inside each object's body, not by resource
+  // filename — CalDAV doesn't guarantee a resource's filename equals its
+  // event UID (only events this service created itself, via
+  // `${uid}.ics`, are guaranteed to match that way; events from any other
+  // client wouldn't).
   private async findObjectByUid(client: DAVClient, calendar: DAVCalendar, uid: string) {
     const objects = await client.fetchCalendarObjects({ calendar });
-    const object = objects.find((o) => o.url.endsWith(`${uid}.ics`));
-    if (!object) throw new CalendarEventNotFoundError(uid);
-    return object;
+    for (const object of objects) {
+      if (!object.data) continue;
+      try {
+        if (parseEventIcs(object.data as string).uid === uid) return object;
+      } catch {
+        continue;
+      }
+    }
+    throw new CalendarEventNotFoundError(uid);
   }
 }
