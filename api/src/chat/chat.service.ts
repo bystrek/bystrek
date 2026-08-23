@@ -45,7 +45,9 @@ function buildSystemPrompt(timezone: string, locale: string): string {
     'Be direct and concise. ' +
     `The current date and time is ${formatted} (${timezone}), machine-readable as ${now.toISOString()}. ` +
     `Use this as "now" for any relative date/time reference — never guess it from training data. ` +
-    `When calling a tool with date/time inputs, use ISO 8601 in ${timezone}.`
+    `When calling a tool with date/time inputs, use ISO 8601 in ${timezone}. ` +
+    `Calendar tool results are already formatted in ${timezone} (with an explicit UTC offset) — ` +
+    `never convert or reinterpret them, just relay the times as given.`
   );
 }
 
@@ -128,7 +130,7 @@ export class ChatService {
         if (block.type !== 'tool_use') continue;
         const tool = this.tools.find((t) => t.definition.name === block.name);
         const output = tool
-          ? await tool.handler(block.input, { userId, requestId })
+          ? await tool.handler(block.input, { userId, requestId, timezone })
           : { error: `no handler registered for tool "${block.name}"` };
         toolResults.push({
           type: 'tool_result',

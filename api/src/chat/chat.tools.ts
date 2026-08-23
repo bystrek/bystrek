@@ -8,6 +8,10 @@ import type Anthropic from '@anthropic-ai/sdk';
 export interface ToolContext {
   userId: string;
   requestId: string;
+  // The requesting user's own IANA timezone (`users.timezone`) — tools
+  // returning date/time data should format it already localized to this,
+  // so the model never has to convert timezones itself. See devlog day 12.
+  timezone: string;
 }
 
 export interface ChatTool {

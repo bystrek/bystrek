@@ -94,8 +94,34 @@ describe('CalendarService', () => {
       fakeCredentials(),
     );
 
-    const event = await service.getEvent('user-1', 'real-uid-1');
+    const event = await service.getEvent('user-1', 'real-uid-1', 'UTC');
     expect(event.summary).toBe('Dentist');
+  });
+
+  it('formats getEvent/listEvents times in the requested timezone, not raw UTC', async () => {
+    // DTSTART/DTEND in icsFor are 10:00/11:00 UTC — confirms the timezone
+    // argument is actually applied, not just accepted and ignored.
+    const objects: FakeCalendarObject[] = [
+      { url: 'https://dav.example.com/cal/personal/e.ics', data: icsFor('e1', 'Standup') },
+    ];
+    const service = await loadCalendarService(
+      () =>
+        Promise.resolve({
+          fetchCalendars: () => Promise.resolve([fakeCalendar]),
+          fetchCalendarObjects: () => Promise.resolve(objects),
+        }),
+      fakeCredentials(),
+    );
+
+    const event = await service.getEvent('user-1', 'e1', 'Europe/Warsaw');
+    expect(event.start).toBe('2026-09-01T12:00:00+02:00');
+
+    const [listed] = await service.listEvents(
+      'user-1',
+      { start: new Date(), end: new Date() },
+      'Europe/Warsaw',
+    );
+    expect(listed.start).toBe('2026-09-01T12:00:00+02:00');
   });
 
   it('throws CalendarEventNotFoundError when no object matches the UID', async () => {
@@ -114,7 +140,7 @@ describe('CalendarService', () => {
       fakeCredentials(),
     );
 
-    await expect(service.getEvent('user-1', 'missing-uid')).rejects.toThrow(
+    await expect(service.getEvent('user-1', 'missing-uid', 'UTC')).rejects.toThrow(
       'no event found with uid "missing-uid"',
     );
   });
@@ -130,7 +156,7 @@ describe('CalendarService', () => {
     );
 
     await expect(
-      service.listEvents('user-1', { start: new Date(), end: new Date() }),
+      service.listEvents('user-1', { start: new Date(), end: new Date() }, 'UTC'),
     ).rejects.toThrow('caldavUrl must use https');
   });
 
@@ -149,7 +175,7 @@ describe('CalendarService', () => {
       fakeCredentials({ calendarUrl: fakeCalendar.url }),
     );
 
-    await service.listEvents('user-1', { start: new Date(), end: new Date() });
+    await service.listEvents('user-1', { start: new Date(), end: new Date() }, 'UTC');
     expect(fetchCalendarObjects).toHaveBeenCalledWith(
       expect.objectContaining({ calendar: fakeCalendar }),
     );
@@ -174,7 +200,7 @@ describe('CalendarService', () => {
     );
 
     await expect(
-      service.listEvents('user-1', { start: new Date(), end: new Date() }),
+      service.listEvents('user-1', { start: new Date(), end: new Date() }, 'UTC'),
     ).rejects.toThrow(/gone.*personal/s);
   });
 
@@ -189,7 +215,7 @@ describe('CalendarService', () => {
       fakeCredentials({ calendarUrl: null }),
     );
 
-    await service.listEvents('user-1', { start: new Date(), end: new Date() });
+    await service.listEvents('user-1', { start: new Date(), end: new Date() }, 'UTC');
     expect(fetchCalendarObjects).toHaveBeenCalledWith(
       expect.objectContaining({ calendar: fakeCalendar }),
     );

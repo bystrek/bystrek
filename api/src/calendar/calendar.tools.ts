@@ -65,7 +65,11 @@ export function buildCalendarTools(
       handler: async (input, ctx) => {
         const { start, end } = input as { start: string; end: string };
         return safely(() =>
-          calendar.listEvents(ctx.userId, { start: new Date(start), end: new Date(end) }),
+          calendar.listEvents(
+            ctx.userId,
+            { start: new Date(start), end: new Date(end) },
+            ctx.timezone,
+          ),
         );
       },
     },
@@ -131,7 +135,7 @@ export function buildCalendarTools(
       handler: async (input, ctx) => {
         const body = input as { uid: string } & EventInputShape;
         return safely(async () => {
-          const current = await calendar.getEvent(ctx.userId, body.uid);
+          const current = await calendar.getEvent(ctx.userId, body.uid, ctx.timezone);
           const changes: EventInputShape = {
             summary: body.summary,
             start: body.start,
@@ -175,7 +179,7 @@ export function buildCalendarTools(
       handler: async (input, ctx) => {
         const { uid } = input as { uid: string };
         return safely(async () => {
-          const current = await calendar.getEvent(ctx.userId, uid);
+          const current = await calendar.getEvent(ctx.userId, uid, ctx.timezone);
           const action: PendingCalendarAction = { kind: 'delete', uid };
           const confirmationId = pending.stage(ctx.userId, ctx.requestId, action);
           return {

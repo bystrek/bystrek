@@ -1,4 +1,5 @@
 import ICAL from 'ical.js';
+import { formatZonedIso } from './zoned-time';
 
 // Builds/reads the standard iCalendar (RFC 5545) event bodies CalDAV
 // servers store — see devlog day 12: CalDAV/iCalendar are vendor-neutral
@@ -19,6 +20,10 @@ export interface EventInput {
 export interface ParsedEvent {
   uid: string;
   summary: string;
+  // ISO 8601 with an explicit UTC offset for the timezone `parseEventIcs`
+  // was called with (e.g. "2026-08-24T06:00:00+02:00") — never raw UTC.
+  // The model reading this should never need to convert timezones itself;
+  // see devlog day 12.
   start: string;
   end: string;
   description: string | null;
@@ -73,7 +78,7 @@ export function updateEventIcs(ics: string, input: Partial<EventInput>): string 
   return calendar.toString();
 }
 
-export function parseEventIcs(ics: string): ParsedEvent {
+export function parseEventIcs(ics: string, timeZone: string): ParsedEvent {
   const calendar = new ICAL.Component(ICAL.parse(ics));
   const vevent = calendar.getFirstSubcomponent('vevent');
   if (!vevent) throw new Error('event body has no VEVENT component');
@@ -83,8 +88,8 @@ export function parseEventIcs(ics: string): ParsedEvent {
   return {
     uid: event.uid,
     summary: event.summary,
-    start: event.startDate.toJSDate().toISOString(),
-    end: event.endDate.toJSDate().toISOString(),
+    start: formatZonedIso(event.startDate.toJSDate(), timeZone),
+    end: formatZonedIso(event.endDate.toJSDate(), timeZone),
     description: event.description || null,
     location: event.location || null,
     rrule: rrule ? rrule.toString() : null,
