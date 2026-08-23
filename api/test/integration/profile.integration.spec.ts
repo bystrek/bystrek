@@ -76,6 +76,32 @@ describe('profile fields via better-auth (integration)', () => {
     });
   });
 
+  it('rejects an oversized image on update-user', async () => {
+    await withRollback(testDb, async (tx) => {
+      const [household] = await tx
+        .insert(households)
+        .values({ name: 'Test Household' })
+        .returning();
+      const { token } = await signUpTestUser(tx, {
+        householdId: household.id,
+        email: 'me@example.com',
+        name: 'Me',
+      });
+
+      const app = await createApp(tx);
+
+      const oversizedImage = `data:image/jpeg;base64,${'a'.repeat(300_000)}`;
+      const res = await request(app.getHttpServer())
+        .post('/api/auth/update-user')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ image: oversizedImage });
+
+      expect(res.status).toBe(413);
+
+      await app.close();
+    });
+  });
+
   it('401s update-user without a session token', async () => {
     await withRollback(testDb, async (tx) => {
       const app = await createApp(tx);

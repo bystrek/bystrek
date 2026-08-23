@@ -67,9 +67,9 @@ Done for everything except chat (item 5's last piece). `ui` re-ports login, push
 
 `login`, `main`'s invite form, `reset-password`, and `profile` (`ui`) all use manual `signal()` fields + `FormsModule`/`ngModel`. Angular 22 made Signal Forms stable — migrate all four forms together in one PR, not piecemeal, to avoid two form idioms coexisting.
 
-## 10. Enforce an image size limit on `update-user`
+## 10. Done: image size limit on `update-user`
 
-`/api/auth` is mounted ahead of Nest's `express.json()` (`main.ts`), so its 100KB body limit doesn't apply there, and `users.image` is a plain unbounded `text` column — a bearer-token holder can currently push an arbitrarily large `image` through `update-user`, bypassing the UI's client-side downscale entirely. Add a `databaseHooks.user.update.before` hook in `auth.config.ts` rejecting oversized `image` payloads (a 256px JPEG at quality 0.8 is tens of KB; ~200KB decoded gives headroom).
+A `databaseHooks.user.update.before` hook in `auth.config.ts` rejects an `image` payload over 280,000 chars (~210KB decoded, no decoding performed) (413), closing the gap where `/api/auth`'s bypass of Nest's `express.json()` body limit let a bearer-token holder push an arbitrarily large `image` straight past the UI's client-side downscale.
 
 ## Unrelated: media server
 
