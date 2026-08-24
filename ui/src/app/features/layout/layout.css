@@ -10,8 +10,9 @@
 .sidebar {
   width: 220px;
   flex-shrink: 0;
-  background: #591622;
-  color: #f3e7d3;
+  background: var(--color-sidebar-bg);
+  color: var(--color-sidebar-ink);
+  border-right: var(--border-width) solid var(--color-border);
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -20,38 +21,44 @@
 }
 
 .brand {
+  font-family: var(--font-sidebar);
   font-size: 20px;
   font-weight: 700;
   letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .sidebar nav {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
 .sidebar nav a {
-  border-radius: 8px;
+  border: var(--border-width) solid transparent;
   color: inherit;
+  font-family: var(--font-text);
+  font-weight: 700;
   font-size: 15px;
   padding: 10px 12px;
   text-decoration: none;
+  text-transform: uppercase;
 }
 
 .sidebar nav a.active,
 .sidebar nav a:hover {
-  background: rgba(243, 231, 211, 0.15);
+  border-color: var(--color-sidebar-border);
 }
 
 .sign-out {
   background: none;
-  border: 1px solid rgba(243, 231, 211, 0.4);
-  border-radius: 8px;
+  border: var(--border-width) solid var(--color-sidebar-border);
   color: inherit;
   cursor: pointer;
   font: inherit;
+  font-family: var(--font-text);
+  font-weight: 400;
   font-size: 14px;
   padding: 10px 12px;
 }
@@ -69,10 +76,9 @@
 @media (max-width: 768px) {
   .menu-toggle {
     align-items: center;
-    background: #591622;
-    border: none;
-    border-radius: 8px;
-    color: #f3e7d3;
+    background: var(--color-sidebar-bg);
+    border: var(--border-width) solid var(--color-border);
+    color: var(--color-sidebar-ink);
     cursor: pointer;
     display: flex;
     font-size: 18px;

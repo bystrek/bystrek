@@ -1,0 +1,39 @@
+/*
+ * Design tokens for the neo-brutalist visual direction: high contrast,
+ * bold type, thick borders standing in for depth — no border-radius, no
+ * box-shadow, no gradients anywhere (enforced structurally in styles.css
+ * and component styles).
+ *
+ * Settled: "flat" colors (several flat colors doing real work, not just
+ * one accent), black sidebar, amber user bubbles, cherry-red accent,
+ * Imbue for the app name (brand only — sidebar nav items use --font-text
+ * like everything else), Space Mono for all other text. This used to be
+ * several [data-theme] variants compared live via an in-app picker; now
+ * that every open question is settled, it's a single baseline again —
+ * the picker/ThemeService were removed rather than left in with one
+ * option.
+ */
+
+:root {
+  --color-bg: #f5f3ee;
+  --color-surface: #ffffff;
+  --color-ink: #111111;
+  --color-ink-muted: #55524a;
+  --color-border: #111111;
+  --color-accent: #7a1530;
+  --color-accent-ink: #ffffff;
+  --color-sidebar-bg: #111111;
+  --color-sidebar-ink: #f5f3ee;
+  --color-sidebar-border: #f5f3ee;
+  --color-bubble-user: #ffc107;
+  --color-bubble-user-ink: #111111;
+  --color-bubble-assistant: #ffffff;
+  --color-bubble-assistant-ink: #111111;
+  --color-code-bg: rgba(17, 17, 17, 0.08);
+  --color-danger: #7a1530;
+
+  --font-sidebar: 'Imbue', serif;
+  --font-text: 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --border-width: 3px;
+}
