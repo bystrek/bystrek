@@ -1,15 +1,12 @@
-<main>
-  <h1>Chat</h1>
-
+<main class="chat-shell">
   <div class="messages" (scroll)="onScroll()">
     @for (message of chat.messages(); track $index) {
       <div
         class="bubble"
         [class.user]="message.role === 'user'"
         [class.assistant]="message.role === 'assistant'"
-      >
-        {{ message.text }}
-      </div>
+        [innerHTML]="renderMarkdown(message.text)"
+      ></div>
     }
     <div #scrollAnchor></div>
   </div>
@@ -30,6 +27,4 @@
     />
     <button type="submit" [disabled]="chat.sending()">Send</button>
   </form>
-
-  <button type="button" class="link" (click)="back()">Back</button>
 </main>

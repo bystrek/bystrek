@@ -1,0 +1,28 @@
+<div class="shell">
+  <button
+    type="button"
+    class="menu-toggle"
+    [class.open]="sidebarOpen()"
+    (click)="sidebarOpen.set(!sidebarOpen())"
+    aria-label="Toggle menu"
+  >
+    ☰
+  </button>
+
+  <aside class="sidebar" [class.open]="sidebarOpen()">
+    <div class="brand">bystrek</div>
+    <nav>
+      <a routerLink="/chat" routerLinkActive="active" (click)="closeSidebar()">Chat</a>
+      <a routerLink="/settings" routerLinkActive="active" (click)="closeSidebar()">Settings</a>
+    </nav>
+    <button type="button" class="sign-out" (click)="signOut()">Sign out</button>
+  </aside>
+
+  @if (sidebarOpen()) {
+    <div class="scrim" (click)="closeSidebar()"></div>
+  }
+
+  <div class="content">
+    <router-outlet></router-outlet>
+  </div>
+</div>

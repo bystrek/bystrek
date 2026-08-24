@@ -1,8 +1,16 @@
-.messages {
+.chat-shell {
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  height: 100%;
+  padding: 20px 24px;
+}
+
+.messages {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   gap: 10px;
-  max-height: 60vh;
   overflow-y: auto;
   margin-bottom: 16px;
 }
@@ -11,7 +19,36 @@
   padding: 8px 12px;
   border-radius: 12px;
   max-width: 80%;
-  white-space: pre-wrap;
+}
+
+.bubble :first-child {
+  margin-top: 0;
+}
+
+.bubble :last-child {
+  margin-bottom: 0;
+}
+
+.bubble pre {
+  overflow-x: auto;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.bubble code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+}
+
+.bubble :not(pre) > code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.bubble a {
+  color: inherit;
 }
 
 .bubble.user {
@@ -27,7 +64,6 @@
 #chat-input {
   display: flex;
   gap: 8px;
-  margin-bottom: 12px;
 }
 
 #chat-input input {

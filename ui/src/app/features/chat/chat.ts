@@ -9,8 +9,8 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
 import { ChatService } from '../../core/chat/chat.service';
+import { renderMarkdown } from '../../core/chat/markdown';
 
 @Component({
   selector: 'app-chat',
@@ -21,7 +21,7 @@ import { ChatService } from '../../core/chat/chat.service';
 })
 export class Chat implements OnInit, AfterViewChecked {
   protected readonly chat = inject(ChatService);
-  private readonly router = inject(Router);
+  protected readonly renderMarkdown = renderMarkdown;
 
   @ViewChild('scrollAnchor') private scrollAnchor?: ElementRef<HTMLElement>;
 
@@ -73,9 +73,5 @@ export class Chat implements OnInit, AfterViewChecked {
     if (!text) return;
     this.chat.send(text);
     this.draft.set('');
-  }
-
-  async back(): Promise<void> {
-    await this.router.navigateByUrl('/');
   }
 }

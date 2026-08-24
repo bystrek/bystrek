@@ -1,21 +1,23 @@
 import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { CalendarOption, CalendarService } from '../../core/calendar/calendar.service';
+import { PushService } from '../../core/push/push.service';
+import { UsersService, type Member } from '../../core/users/users.service';
 import { downscaleImage } from './downscale-image';
 
 @Component({
-  selector: 'app-profile',
+  selector: 'app-settings',
   imports: [FormsModule],
-  templateUrl: './profile.html',
+  templateUrl: './settings.html',
   changeDetection: ChangeDetectionStrategy.Eager,
-  styleUrl: './profile.css',
+  styleUrl: './settings.css',
 })
-export class Profile implements OnInit {
+export class Settings implements OnInit {
   protected readonly auth = inject(AuthService);
   protected readonly calendar = inject(CalendarService);
-  private readonly router = inject(Router);
+  protected readonly push = inject(PushService);
+  protected readonly users = inject(UsersService);
 
   readonly firstName = signal('');
   readonly lastName = signal('');
@@ -34,7 +36,14 @@ export class Profile implements OnInit {
   readonly selectedCalendarUrl = signal('');
   readonly loadingCalendars = signal(false);
 
+  readonly inviteName = signal('');
+  readonly inviteEmail = signal('');
+  readonly inviteStatus = signal('');
+
   ngOnInit(): void {
+    void this.push.checkExistingSubscription();
+    void this.users.load();
+
     const user = this.auth.session()?.user;
     if (!user) return;
     this.firstName.set(user.firstName ?? '');
@@ -132,7 +141,19 @@ export class Profile implements OnInit {
     }
   }
 
-  async back(): Promise<void> {
-    await this.router.navigateByUrl('/');
+  async invite(): Promise<void> {
+    this.inviteStatus.set('');
+    try {
+      await this.users.invite(this.inviteName(), this.inviteEmail());
+      this.inviteName.set('');
+      this.inviteEmail.set('');
+      this.inviteStatus.set('Invited — they’ll get an email to set a password.');
+    } catch (err) {
+      this.inviteStatus.set((err as Error).message);
+    }
+  }
+
+  toggleBan(member: Member): void {
+    void this.users.toggleBan(member);
   }
 }
