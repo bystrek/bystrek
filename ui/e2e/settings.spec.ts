@@ -37,6 +37,7 @@ test('edits first/last name and avatar, then saves via update-user', async ({ pa
   await mockSignIn(page);
   await mockSession(page);
   await page.route('**/users', (route) => route.fulfill({ json: [] }));
+  await page.route('**/chat/history', (route) => route.fulfill({ json: [] }));
   await page.route('**/calendar/credentials', (route) =>
     route.fulfill({
       json: {
@@ -54,15 +55,15 @@ test('edits first/last name and avatar, then saves via update-user', async ({ pa
     route.fulfill({ json: { status: true } });
   });
 
-  await page.goto('/login');
+  await page.goto('/auth/login');
   await page.waitForLoadState('networkidle');
   await page.getByPlaceholder('Email').fill('me@example.com');
   await page.getByPlaceholder('Password').fill('correct horse battery staple');
   await page.getByRole('button', { name: 'Sign in' }).click();
 
-  await expect(page).toHaveURL('/');
-  await page.getByRole('link', { name: 'Edit profile' }).click();
-  await expect(page).toHaveURL('/profile');
+  await expect(page).toHaveURL('/chat');
+  await page.getByRole('link', { name: 'Settings' }).click();
+  await expect(page).toHaveURL('/settings');
 
   await expect(page.getByPlaceholder('First name')).toHaveValue('Michał');
   await expect(page.getByPlaceholder('Last name')).toHaveValue('B');

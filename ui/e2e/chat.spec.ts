@@ -30,21 +30,27 @@ function mockSession(page: import('@playwright/test').Page) {
   );
 }
 
-async function signIn(page: import('@playwright/test').Page) {
+// Signing in now lands straight on /chat (the '' route redirects there), so
+// the chat-history route must be mocked *before* signing in — it fires as
+// soon as the redirect resolves, not after a later navigation.
+async function signIn(
+  page: import('@playwright/test').Page,
+  history: { role: string; text: string }[] = [],
+) {
   await mockSignIn(page);
   await mockSession(page);
-  await page.goto('/login');
+  await page.route('**/users', (route) => route.fulfill({ json: [] }));
+  await page.route('**/chat/history', (route) => route.fulfill({ json: history }));
+  await page.goto('/auth/login');
   await page.waitForLoadState('networkidle');
   await page.getByPlaceholder('Email').fill('me@example.com');
   await page.getByPlaceholder('Password').fill('correct horse battery staple');
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page).toHaveURL('/');
+  await expect(page).toHaveURL('/chat');
 }
 
 test('sends a message and renders the streamed reply', async ({ page }) => {
   await signIn(page);
-  await page.route('**/users', (route) => route.fulfill({ json: [] }));
-  await page.route('**/chat/history', (route) => route.fulfill({ json: [] }));
 
   let releaseChat!: () => void;
   const chatRequested = new Promise<void>((resolve) => (releaseChat = resolve));
@@ -56,9 +62,6 @@ test('sends a message and renders the streamed reply', async ({ page }) => {
       body: 'data: {"delta":"Hel"}\n\ndata: {"delta":"lo!"}\n\n',
     });
   });
-
-  await page.getByRole('link', { name: 'Chat' }).click();
-  await expect(page).toHaveURL('/chat');
 
   const input = page.getByPlaceholder('Message');
   const button = page.getByRole('button', { name: 'Send' });
@@ -86,15 +89,13 @@ test('auto-scrolls to a new reply even when it pushes the message list well past
   // wasn't near the bottom and skipped scrolling — the new reply landed
   // below the fold, invisible, even though the user was at the bottom
   // right before it arrived.
-  await signIn(page);
-  await page.route('**/users', (route) => route.fulfill({ json: [] }));
   // Enough prior history that the message list already overflows its
   // max-height, so there's real scrolling distance to cover.
   const history = Array.from({ length: 20 }, (_, i) => ({
     role: i % 2 === 0 ? 'user' : 'assistant',
     text: `Message number ${i} with a bit of text to take up some space.`,
   }));
-  await page.route('**/chat/history', (route) => route.fulfill({ json: history }));
+  await signIn(page, history);
 
   const longReply =
     'Line one of a long, multi-part reply.\n\n' +
@@ -107,9 +108,6 @@ test('auto-scrolls to a new reply even when it pushes the message list well past
       body: `data: {"delta":${JSON.stringify(longReply)}}\n\n`,
     });
   });
-
-  await page.getByRole('link', { name: 'Chat' }).click();
-  await expect(page).toHaveURL('/chat');
 
   const input = page.getByPlaceholder('Message');
   await input.fill('one more thing');

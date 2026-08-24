@@ -22,12 +22,35 @@ test('enabling notifications subscribes and shows confirmation', async ({ page }
     await route.fulfill({ status: 201, json: { ok: true } });
   });
 
-  // / is now behind authGuard — push controls only render once initSession()
-  // resolves a session, which only happens when a token is already stored.
+  // /settings is behind authGuard — push controls only render once
+  // initSession() resolves a session, which only happens when a token is
+  // already stored.
   await page.route('**/api/auth/get-session', (route) =>
-    route.fulfill({ json: { user: { id: '1', name: 'Michał', role: 'user' } } }),
+    route.fulfill({
+      json: {
+        user: {
+          id: '1',
+          name: 'Michał',
+          role: 'user',
+          firstName: null,
+          lastName: null,
+          image: null,
+        },
+      },
+    }),
   );
   await page.route('**/users', (route) => route.fulfill({ status: 404, json: {} }));
+  await page.route('**/calendar/credentials', (route) =>
+    route.fulfill({
+      json: {
+        configured: false,
+        caldavUrl: null,
+        username: null,
+        calendarUrl: null,
+        calendarDisplayName: null,
+      },
+    }),
+  );
 
   await page.addInitScript(() => {
     window.localStorage.setItem('bystrek_token', 'fake-token');
@@ -67,7 +90,7 @@ test('enabling notifications subscribes and shows confirmation', async ({ page }
     });
   });
 
-  await page.goto('/');
+  await page.goto('/settings');
   // Dev-mode Vite serves the client bundle as unbundled ES modules; goto()
   // resolves on `load`, which can fire before hydration finishes attaching
   // event listeners. Without this wait, the click below occasionally lands

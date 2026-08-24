@@ -1,0 +1,173 @@
+<main class="page">
+  <h1>Settings</h1>
+
+  <section class="settings-section">
+    <h2>Profile</h2>
+    <p>Update your name and avatar.</p>
+
+    @if (image(); as src) {
+      <img class="avatar" [src]="src" alt="Avatar preview" />
+    }
+    <input
+      type="file"
+      accept="image/*"
+      aria-label="Choose avatar image"
+      (change)="onFileSelected($event)"
+    />
+
+    <form id="profile" (ngSubmit)="save()">
+      <input
+        type="text"
+        name="firstName"
+        [ngModel]="firstName()"
+        (ngModelChange)="firstName.set($event)"
+        placeholder="First name"
+        required
+      />
+      <input
+        type="text"
+        name="lastName"
+        [ngModel]="lastName()"
+        (ngModelChange)="lastName.set($event)"
+        placeholder="Last name"
+        required
+      />
+      <button type="submit" [disabled]="busy() || converting()">Save</button>
+    </form>
+
+    @if (status()) {
+      <div class="status">{{ status() }}</div>
+    }
+  </section>
+
+  <section class="settings-section">
+    <h2>Notifications</h2>
+    <p>Enable notifications to let the assistant reach you.</p>
+
+    <button (click)="push.subscribe()" [disabled]="push.busy() || push.subscribed()">
+      {{ push.subscribed() ? 'Subscribed' : 'Enable notifications' }}
+    </button>
+    <button (click)="push.sendTest()" [disabled]="push.busy() || !push.subscribed()">
+      Send test notification
+    </button>
+    <div id="status">{{ push.status() }}</div>
+  </section>
+
+  <section class="settings-section">
+    <h2>Calendar</h2>
+    @if (calendar.credentials()?.configured) {
+      <p>
+        Connected to {{ calendar.credentials()?.caldavUrl }}
+        @if (calendar.credentials()?.calendarDisplayName; as name) {
+          ({{ name }})
+        }
+        .
+      </p>
+    } @else {
+      <p>Connect a CalDAV calendar account so the assistant can read and edit your calendar.</p>
+    }
+
+    <form id="calendar" (ngSubmit)="saveCalendar()">
+      <input
+        type="url"
+        name="caldavUrl"
+        aria-label="CalDAV URL"
+        [ngModel]="caldavUrl()"
+        (ngModelChange)="caldavUrl.set($event)"
+        placeholder="CalDAV URL"
+        required
+      />
+      <input
+        type="text"
+        name="caldavUsername"
+        aria-label="CalDAV username"
+        [ngModel]="caldavUsername()"
+        (ngModelChange)="caldavUsername.set($event)"
+        placeholder="CalDAV username"
+        required
+      />
+      <input
+        type="password"
+        name="caldavPassword"
+        aria-label="CalDAV app-specific password"
+        [ngModel]="caldavPassword()"
+        (ngModelChange)="caldavPassword.set($event)"
+        placeholder="App-specific password"
+        [required]="!calendar.credentials()?.configured"
+      />
+      <button
+        type="button"
+        class="link"
+        [disabled]="loadingCalendars() || !caldavUrl() || !caldavUsername()"
+        (click)="loadCalendars()"
+      >
+        {{ loadingCalendars() ? 'Loading calendars…' : 'Load calendars' }}
+      </button>
+      @if (calendarOptions().length) {
+        <select
+          name="calendarUrl"
+          aria-label="Calendar"
+          [ngModel]="selectedCalendarUrl()"
+          (ngModelChange)="selectedCalendarUrl.set($event)"
+        >
+          <option value="">(first calendar)</option>
+          @for (option of calendarOptions(); track option.url) {
+            <option [value]="option.url">{{ option.displayName ?? option.url }}</option>
+          }
+        </select>
+      }
+      <button type="submit" [disabled]="calendar.busy()">Save</button>
+      @if (calendar.credentials()?.configured) {
+        <button type="button" class="link" (click)="disconnectCalendar()">Disconnect</button>
+      }
+    </form>
+
+    @if (calendarStatus()) {
+      <div class="status">{{ calendarStatus() }}</div>
+    }
+  </section>
+
+  @if (users.members(); as members) {
+    <section class="settings-section" id="users">
+      <h2>Users</h2>
+      <ul>
+        @for (member of members; track member.id) {
+          <li>
+            {{ member.name ?? 'Unnamed user' }}
+            <span class="badge">{{ member.status }}</span>
+            @if (auth.session()?.user?.role === 'admin') {
+              <button class="link" (click)="toggleBan(member)" [disabled]="users.busy()">
+                {{ member.banned ? 'Unban' : 'Ban' }}
+              </button>
+            }
+          </li>
+        }
+      </ul>
+
+      @if (auth.session()?.user?.role === 'admin') {
+        <form id="invite" (ngSubmit)="invite()">
+          <input
+            type="text"
+            name="inviteName"
+            [ngModel]="inviteName()"
+            (ngModelChange)="inviteName.set($event)"
+            placeholder="Name"
+            required
+          />
+          <input
+            type="email"
+            name="inviteEmail"
+            [ngModel]="inviteEmail()"
+            (ngModelChange)="inviteEmail.set($event)"
+            placeholder="Email"
+            required
+          />
+          <button type="submit" [disabled]="users.busy()">Invite</button>
+        </form>
+        @if (inviteStatus()) {
+          <div class="status">{{ inviteStatus() }}</div>
+        }
+      }
+    </section>
+  }
+</main>

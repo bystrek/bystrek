@@ -1,0 +1,29 @@
+<div class="shell">
+  <button
+    type="button"
+    class="menu-toggle"
+    (click)="sidebarOpen.set(!sidebarOpen())"
+    aria-label="Toggle menu"
+    aria-controls="sidebar"
+    [attr.aria-expanded]="sidebarOpen()"
+  >
+    {{ sidebarOpen() ? '✕' : '☰' }}
+  </button>
+
+  <aside id="sidebar" class="sidebar" [class.open]="sidebarOpen()">
+    <div class="brand">bystrek</div>
+    <nav>
+      <a routerLink="/chat" routerLinkActive="active" (click)="closeSidebar()">Chat</a>
+      <a routerLink="/settings" routerLinkActive="active" (click)="closeSidebar()">Settings</a>
+    </nav>
+    <button type="button" class="sign-out" (click)="signOut()">Sign out</button>
+  </aside>
+
+  @if (sidebarOpen()) {
+    <button type="button" class="scrim" aria-label="Close menu" (click)="closeSidebar()"></button>
+  }
+
+  <div class="content">
+    <router-outlet></router-outlet>
+  </div>
+</div>

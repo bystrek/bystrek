@@ -27,7 +27,7 @@ function mockSignIn(page: import('@playwright/test').Page) {
 test('redirects to the login page when signed out', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page).toHaveURL('/login');
+  await expect(page).toHaveURL('/auth/login');
   await expect(page.locator('#login')).toBeVisible();
 });
 
@@ -39,15 +39,30 @@ test('signs in and shows users, without admin controls for a regular user', asyn
       json: [{ id: '1', name: 'Michał', status: 'active', banned: false }],
     }),
   );
+  await page.route('**/chat/history', (route) => route.fulfill({ json: [] }));
+  await page.route('**/calendar/credentials', (route) =>
+    route.fulfill({
+      json: {
+        configured: false,
+        caldavUrl: null,
+        username: null,
+        calendarUrl: null,
+        calendarDisplayName: null,
+      },
+    }),
+  );
 
-  await page.goto('/login');
+  await page.goto('/auth/login');
   await page.waitForLoadState('networkidle');
 
   await page.getByPlaceholder('Email').fill('me@example.com');
   await page.getByPlaceholder('Password').fill('correct horse battery staple');
   await page.getByRole('button', { name: 'Sign in' }).click();
 
-  await expect(page).toHaveURL('/');
+  await expect(page).toHaveURL('/chat');
+  await page.getByRole('link', { name: 'Settings' }).click();
+  await expect(page).toHaveURL('/settings');
+
   await expect(page.locator('#users h2')).toHaveText('Users');
   await expect(page.locator('#users li')).toContainText('Michał');
   await expect(page.locator('#invite')).toHaveCount(0);
@@ -61,15 +76,30 @@ test('shows invite form and ban controls for an admin', async ({ page }) => {
       json: [{ id: '1', name: 'Michał', status: 'active', banned: false }],
     }),
   );
+  await page.route('**/chat/history', (route) => route.fulfill({ json: [] }));
+  await page.route('**/calendar/credentials', (route) =>
+    route.fulfill({
+      json: {
+        configured: false,
+        caldavUrl: null,
+        username: null,
+        calendarUrl: null,
+        calendarDisplayName: null,
+      },
+    }),
+  );
 
-  await page.goto('/login');
+  await page.goto('/auth/login');
   await page.waitForLoadState('networkidle');
 
   await page.getByPlaceholder('Email').fill('admin@example.com');
   await page.getByPlaceholder('Password').fill('correct horse battery staple');
   await page.getByRole('button', { name: 'Sign in' }).click();
 
-  await expect(page).toHaveURL('/');
+  await expect(page).toHaveURL('/chat');
+  await page.getByRole('link', { name: 'Settings' }).click();
+  await expect(page).toHaveURL('/settings');
+
   await expect(page.locator('#invite')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Ban' })).toBeVisible();
 });
