@@ -64,7 +64,7 @@ test('sends a message and renders the streamed reply', async ({ page }) => {
   });
 
   const input = page.getByPlaceholder('Message');
-  const button = page.getByRole('button', { name: 'Send' });
+  const button = page.getByRole('button', { name: 'Send message' });
 
   await input.fill('hi there');
   await button.click();
@@ -111,7 +111,7 @@ test('auto-scrolls to a new reply even when it pushes the message list well past
 
   const input = page.getByPlaceholder('Message');
   await input.fill('one more thing');
-  await page.getByRole('button', { name: 'Send' }).click();
+  await page.getByRole('button', { name: 'Send message' }).click();
 
   const newReply = page.locator('.bubble.assistant').last();
   await expect(newReply).toHaveText(longReply);
