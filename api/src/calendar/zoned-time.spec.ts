@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { assertValidTimeZone, formatZonedIso } from './zoned-time';
+import { assertValidTimeZone, formatZonedIso, parseZonedIso } from './zoned-time';
 
 describe('formatZonedIso', () => {
   it('formats UTC as +00:00', () => {
@@ -33,6 +33,48 @@ describe('formatZonedIso', () => {
     const second = formatZonedIso(new Date('2026-08-24T04:00:00Z'), 'Europe/Vienna');
     expect(first).toBe(second);
     expect(first).toBe('2026-08-24T06:00:00+02:00');
+  });
+});
+
+describe('parseZonedIso', () => {
+  it('parses a bare (offset-less) datetime as wall-clock time in the given timezone', () => {
+    // The reported issue #17 repro: "19:00 Warsaw" with no offset must not
+    // be interpreted as 19:00 UTC.
+    const parsed = parseZonedIso('2026-08-26T19:00:00', 'Europe/Warsaw');
+    expect(parsed.toISOString()).toBe('2026-08-26T17:00:00.000Z');
+  });
+
+  it('parses a bare datetime in winter (CET, UTC+1) correctly, DST included', () => {
+    const parsed = parseZonedIso('2026-01-26T19:00:00', 'Europe/Warsaw');
+    expect(parsed.toISOString()).toBe('2026-01-26T18:00:00.000Z');
+  });
+
+  it('respects an explicit offset over the timezone argument', () => {
+    const parsed = parseZonedIso('2026-08-26T19:00:00+00:00', 'Europe/Warsaw');
+    expect(parsed.toISOString()).toBe('2026-08-26T19:00:00.000Z');
+  });
+
+  it('respects a trailing Z (UTC) over the timezone argument', () => {
+    const parsed = parseZonedIso('2026-08-26T19:00:00Z', 'Europe/Warsaw');
+    expect(parsed.toISOString()).toBe('2026-08-26T19:00:00.000Z');
+  });
+
+  it('round-trips with formatZonedIso', () => {
+    const original = new Date('2026-08-26T17:00:00Z');
+    const formatted = formatZonedIso(original, 'Europe/Warsaw');
+    expect(parseZonedIso(formatted, 'Europe/Warsaw').getTime()).toBe(original.getTime());
+  });
+
+  it('throws a clear error for an unparseable string', () => {
+    expect(() => parseZonedIso('not a date', 'Europe/Warsaw')).toThrow(
+      'invalid date-time: "not a date"',
+    );
+  });
+
+  it('throws a clear timezone error, not a misleading date-time error, for an invalid timezone', () => {
+    expect(() => parseZonedIso('2026-08-26T19:00:00', 'Not/A_Real_Zone')).toThrow(
+      'invalid IANA timezone: "Not/A_Real_Zone"',
+    );
   });
 });
 

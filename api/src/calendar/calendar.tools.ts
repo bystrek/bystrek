@@ -2,6 +2,7 @@ import type { Provider } from '@nestjs/common';
 import type { ChatTool } from '../chat/chat.tools';
 import { CalendarService } from './calendar.service';
 import { PendingCalendarActions, type PendingCalendarAction } from './pending-actions';
+import { parseZonedIso } from './zoned-time';
 
 interface EventInputShape {
   summary?: string;
@@ -19,7 +20,7 @@ const CONFIRM_INSTRUCTION =
 // found, upstream CalDAV error) becomes a `{ error }` tool_result so Claude
 // can explain it or ask the user to fix it, rather than the whole chat
 // request failing.
-async function safely<T>(fn: () => Promise<T>): Promise<T | { error: string }> {
+async function safely<T>(fn: () => T | Promise<T>): Promise<T | { error: string }> {
   try {
     return await fn();
   } catch (err) {
@@ -67,7 +68,7 @@ export function buildCalendarTools(
         return safely(() =>
           calendar.listEvents(
             ctx.userId,
-            { start: new Date(start), end: new Date(end) },
+            { start: parseZonedIso(start, ctx.timezone), end: parseZonedIso(end, ctx.timezone) },
             ctx.timezone,
           ),
         );
@@ -91,27 +92,28 @@ export function buildCalendarTools(
           required: ['summary', 'start', 'end'],
         },
       },
-      handler: (input, ctx) => {
-        const body = input as Required<Pick<EventInputShape, 'summary' | 'start' | 'end'>> &
-          EventInputShape;
-        const action: PendingCalendarAction = {
-          kind: 'create',
-          input: {
-            summary: body.summary,
-            start: new Date(body.start),
-            end: new Date(body.end),
-            description: body.description,
-            location: body.location,
-            rrule: body.rrule,
-          },
-        };
-        const confirmationId = pending.stage(ctx.userId, ctx.requestId, action);
-        return Promise.resolve({
-          confirmationId,
-          summary: describeCreate(body),
-          instruction: CONFIRM_INSTRUCTION,
-        });
-      },
+      handler: (input, ctx) =>
+        safely(() => {
+          const body = input as Required<Pick<EventInputShape, 'summary' | 'start' | 'end'>> &
+            EventInputShape;
+          const action: PendingCalendarAction = {
+            kind: 'create',
+            input: {
+              summary: body.summary,
+              start: parseZonedIso(body.start, ctx.timezone),
+              end: parseZonedIso(body.end, ctx.timezone),
+              description: body.description,
+              location: body.location,
+              rrule: body.rrule,
+            },
+          };
+          const confirmationId = pending.stage(ctx.userId, ctx.requestId, action);
+          return {
+            confirmationId,
+            summary: describeCreate(body),
+            instruction: CONFIRM_INSTRUCTION,
+          };
+        }),
     },
     {
       definition: {
@@ -149,8 +151,8 @@ export function buildCalendarTools(
             uid: body.uid,
             input: {
               summary: body.summary,
-              start: body.start ? new Date(body.start) : undefined,
-              end: body.end ? new Date(body.end) : undefined,
+              start: body.start ? parseZonedIso(body.start, ctx.timezone) : undefined,
+              end: body.end ? parseZonedIso(body.end, ctx.timezone) : undefined,
               description: body.description,
               location: body.location,
               rrule: body.rrule,

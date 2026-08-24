@@ -140,6 +140,30 @@ describe('propose/confirm write flow', () => {
     expect(result).toHaveProperty('error');
   });
 
+  it("parses an offset-less start/end as wall-clock time in the caller's timezone (issue #17 regression)", async () => {
+    const createEvent = mock(() => Promise.resolve({ uid: 'e2' }));
+    const calendar = { createEvent } as unknown as CalendarService;
+    const tools = buildCalendarTools(calendar, new PendingCalendarActions());
+
+    const proposed = (await toolByName(tools, 'propose_create_calendar_event').handler(
+      { summary: 'Randka', start: '2026-08-26T19:00:00', end: '2026-08-26T20:00:00' },
+      ctx('req-1'),
+    )) as { confirmationId: string };
+
+    await toolByName(tools, 'confirm_calendar_action').handler(
+      { confirmationId: proposed.confirmationId },
+      ctx('req-2'),
+    );
+
+    expect(createEvent).toHaveBeenCalledWith(
+      'user-1',
+      expect.objectContaining({
+        start: new Date('2026-08-26T17:00:00.000Z'),
+        end: new Date('2026-08-26T18:00:00.000Z'),
+      }),
+    );
+  });
+
   it('propose_delete_calendar_event includes the current summary in its preview', async () => {
     const getEvent = mock(() => Promise.resolve({ summary: 'Dentist' }));
     const calendar = { getEvent } as unknown as CalendarService;
