@@ -5,7 +5,7 @@
         class="bubble"
         [class.user]="message.role === 'user'"
         [class.assistant]="message.role === 'assistant'"
-        [innerHTML]="renderMarkdown(message.text)"
+        [innerHTML]="message.text | markdown"
       ></div>
     }
     <div #scrollAnchor></div>

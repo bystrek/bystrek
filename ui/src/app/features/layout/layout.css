@@ -87,13 +87,12 @@
     z-index: 20;
   }
 
-  .menu-toggle.open {
-    display: none;
-  }
-
   .sidebar {
     bottom: 0;
     left: 0;
+    /* Leaves room below the always-visible, higher-stacked .menu-toggle so
+       the drawer's own content never sits underneath it. */
+    padding-top: 68px;
     position: fixed;
     top: 0;
     transform: translateX(-100%);
@@ -106,9 +105,15 @@
   }
 
   .scrim {
+    appearance: none;
     background: rgba(0, 0, 0, 0.4);
+    border: none;
+    border-radius: 0;
+    cursor: default;
     display: block;
     inset: 0;
+    margin: 0;
+    padding: 0;
     position: fixed;
     z-index: 10;
   }

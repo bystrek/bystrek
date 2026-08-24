@@ -1,9 +1,7 @@
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 
-marked.setOptions({ breaks: true });
-
 export function renderMarkdown(text: string): string {
-  const html = marked.parse(text, { async: false }) as string;
+  const html = marked.parse(text, { async: false, breaks: true }) as string;
   return DOMPurify.sanitize(html);
 }

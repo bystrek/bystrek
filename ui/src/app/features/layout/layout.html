@@ -2,14 +2,15 @@
   <button
     type="button"
     class="menu-toggle"
-    [class.open]="sidebarOpen()"
     (click)="sidebarOpen.set(!sidebarOpen())"
     aria-label="Toggle menu"
+    aria-controls="sidebar"
+    [attr.aria-expanded]="sidebarOpen()"
   >
-    ☰
+    {{ sidebarOpen() ? '✕' : '☰' }}
   </button>
 
-  <aside class="sidebar" [class.open]="sidebarOpen()">
+  <aside id="sidebar" class="sidebar" [class.open]="sidebarOpen()">
     <div class="brand">bystrek</div>
     <nav>
       <a routerLink="/chat" routerLinkActive="active" (click)="closeSidebar()">Chat</a>
@@ -19,7 +20,7 @@
   </aside>
 
   @if (sidebarOpen()) {
-    <div class="scrim" (click)="closeSidebar()"></div>
+    <button type="button" class="scrim" aria-label="Close menu" (click)="closeSidebar()"></button>
   }
 
   <div class="content">

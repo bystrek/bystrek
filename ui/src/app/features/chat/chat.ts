@@ -10,18 +10,17 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ChatService } from '../../core/chat/chat.service';
-import { renderMarkdown } from '../../core/chat/markdown';
+import { MarkdownPipe } from '../../core/chat/markdown.pipe';
 
 @Component({
   selector: 'app-chat',
-  imports: [FormsModule],
+  imports: [FormsModule, MarkdownPipe],
   templateUrl: './chat.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './chat.css',
 })
 export class Chat implements OnInit, AfterViewChecked {
   protected readonly chat = inject(ChatService);
-  protected readonly renderMarkdown = renderMarkdown;
 
   @ViewChild('scrollAnchor') private scrollAnchor?: ElementRef<HTMLElement>;
 
