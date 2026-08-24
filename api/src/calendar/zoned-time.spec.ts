@@ -70,6 +70,12 @@ describe('parseZonedIso', () => {
       'invalid date-time: "not a date"',
     );
   });
+
+  it('throws a clear timezone error, not a misleading date-time error, for an invalid timezone', () => {
+    expect(() => parseZonedIso('2026-08-26T19:00:00', 'Not/A_Real_Zone')).toThrow(
+      'invalid IANA timezone: "Not/A_Real_Zone"',
+    );
+  });
 });
 
 describe('assertValidTimeZone', () => {

@@ -25,6 +25,7 @@ const OFFSET_SUFFIX_RE = /(Z|[+-]\d{2}:\d{2})$/;
 // wall-clock time in `timeZone` when the string carries no UTC offset —
 // the reverse of `formatZonedIso`.
 export function parseZonedIso(input: string, timeZone: string): Date {
+  assertValidTimeZone(timeZone);
   try {
     if (OFFSET_SUFFIX_RE.test(input)) {
       return new Date(Temporal.Instant.from(input).epochMilliseconds);
