@@ -94,7 +94,11 @@ input,
 select {
   font: inherit;
   font-family: var(--font-text);
-  font-size: 15px;
+  /* 16px, not the 15px the other body copy uses, so iOS Safari doesn't
+     auto-zoom on focus — anything below 16px trips the built-in zoom, and
+     disabling it via `maximum-scale`/`user-scalable=no` would also block
+     legitimate pinch-zoom (accessibility regression). */
+  font-size: 16px;
   padding: 10px 14px;
   border: var(--border-width) solid var(--color-border);
   background: var(--color-surface);
