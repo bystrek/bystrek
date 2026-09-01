@@ -117,3 +117,20 @@ test('auto-scrolls to a new reply even when it pushes the message list well past
   await expect(newReply).toHaveText(longReply);
   await expect(newReply).toBeInViewport();
 });
+
+test('opens with history pinned to the bottom, not scrolled to the top', async ({ page }) => {
+  // Regression test for #22: with zoneless change detection, the initial
+  // scroll to bottom used to hang off ngAfterViewChecked, which only ran
+  // during the component-init CD pass — before history arrived. When the
+  // history signal later updated the DOM, the lifecycle hook never fired
+  // again, so the message list stayed at scrollTop: 0.
+  const history = Array.from({ length: 30 }, (_, i) => ({
+    role: i % 2 === 0 ? 'user' : 'assistant',
+    text: `Seeded message ${i}.`,
+  }));
+  await signIn(page, history);
+
+  const lastBubble = page.locator('.bubble').last();
+  await expect(lastBubble).toHaveText(`Seeded message ${history.length - 1}.`);
+  await expect(lastBubble).toBeInViewport();
+});

@@ -1,10 +1,10 @@
 import {
-  AfterViewChecked,
   ChangeDetectionStrategy,
   Component,
   ElementRef,
   OnInit,
   ViewChild,
+  afterRenderEffect,
   inject,
   signal,
 } from '@angular/core';
@@ -19,22 +19,22 @@ import { MarkdownPipe } from '../../core/chat/markdown.pipe';
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './chat.css',
 })
-export class Chat implements OnInit, AfterViewChecked {
+export class Chat implements OnInit {
   protected readonly chat = inject(ChatService);
 
   @ViewChild('scrollAnchor') private scrollAnchor?: ElementRef<HTMLElement>;
 
   readonly draft = signal('');
 
-  // Tracks the last message content actually rendered, so `ngAfterViewChecked`
-  // (which fires on every change detection pass, including unrelated ones
-  // like typing in the input) only auto-scrolls when a message was added or
-  // grew — not on every keystroke.
+  // Tracks the last message content actually rendered, so the render effect
+  // (which fires on every render whose reactive dependencies change,
+  // including unrelated ones like typing in the input) only auto-scrolls
+  // when a message was added or grew — not on every keystroke.
   private lastRenderedMessages = '';
 
   // Whether the user was scrolled to the bottom the last time they actually
   // scrolled — deliberately NOT recomputed from post-update DOM
-  // measurements in ngAfterViewChecked, since by the time that runs the
+  // measurements after the message list grows, since by that point the
   // new message has already grown scrollHeight, making "am I near the
   // bottom" look false for any message taller than the threshold even
   // when the user was sitting exactly at the bottom beforehand. A plain
@@ -42,6 +42,26 @@ export class Chat implements OnInit, AfterViewChecked {
   // doesn't move scrollTop just because content was appended below), so
   // it reflects real intent instead.
   private pinnedToBottom = true;
+
+  constructor() {
+    // afterRenderEffect (not ngAfterViewChecked) because change detection is
+    // zoneless: an async signal update (e.g. history arriving from the
+    // network) patches the DOM through the reactive graph without running
+    // the classic view-checked lifecycle, so ngAfterViewChecked never
+    // fired for the update that actually needed the scroll.
+    afterRenderEffect(() => {
+      const snapshot = this.chat
+        .messages()
+        .map((m) => m.text.length)
+        .join(',');
+      if (snapshot === this.lastRenderedMessages) return;
+      this.lastRenderedMessages = snapshot;
+
+      if (this.pinnedToBottom) {
+        this.scrollAnchor?.nativeElement.scrollIntoView({ block: 'end' });
+      }
+    });
+  }
 
   ngOnInit(): void {
     void this.chat.loadHistory();
@@ -52,19 +72,6 @@ export class Chat implements OnInit, AfterViewChecked {
     if (!container) return;
     this.pinnedToBottom =
       container.scrollHeight - container.scrollTop - container.clientHeight < 80;
-  }
-
-  ngAfterViewChecked(): void {
-    const snapshot = this.chat
-      .messages()
-      .map((m) => m.text.length)
-      .join(',');
-    if (snapshot === this.lastRenderedMessages) return;
-    this.lastRenderedMessages = snapshot;
-
-    if (this.pinnedToBottom) {
-      this.scrollAnchor?.nativeElement.scrollIntoView({ block: 'end' });
-    }
   }
 
   send(): void {
