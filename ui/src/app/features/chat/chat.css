@@ -1,9 +1,11 @@
+/* The layout's content pane is the scroll container, so the scrollbar sits
+   at the pane's edge and messages run under the sticky input (and the fixed
+   menu toggle on mobile). min-height keeps the input at the bottom when
+   there's little history; once the list overflows, sticky takes over. */
 .chat-shell {
-  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  padding: 20px 24px;
+  min-height: 100%;
 }
 
 .messages {
@@ -12,8 +14,11 @@
   flex-direction: column;
   font-family: var(--font-text);
   gap: 10px;
-  overflow-y: auto;
-  margin-bottom: 16px;
+  padding: 20px 24px 16px;
+}
+
+.chat-shell .status {
+  margin: 0 24px 16px;
 }
 
 .bubble {
@@ -69,20 +74,30 @@
   color: var(--color-bubble-assistant-ink);
 }
 
+/* A hard rule, not a fade: messages get cut off at the bar like everything
+   else in this design gets cut off — by a border. */
 #chat-input {
+  background: var(--color-bg);
+  border-top: var(--border-width) solid var(--color-border);
+  bottom: 0;
   display: flex;
-  gap: 8px;
+  padding: 16px 24px 20px;
+  position: sticky;
 }
 
 #chat-input input {
   flex: 1;
+  min-width: 0;
 }
 
-.send {
+/* Joined to the input: overlapping borders so the pair reads as one
+   control, and no global button margin so both are the same height. */
+#chat-input .send {
   align-items: center;
   display: flex;
+  flex-shrink: 0;
   justify-content: center;
+  margin: 0 0 0 calc(-1 * var(--border-width));
   padding: 0;
   width: 48px;
-  flex-shrink: 0;
 }

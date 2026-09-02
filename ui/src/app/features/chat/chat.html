@@ -1,5 +1,5 @@
 <main class="chat-shell">
-  <div class="messages" (scroll)="onScroll()">
+  <div class="messages">
     @for (message of chat.messages(); track $index) {
       <div
         class="bubble"
