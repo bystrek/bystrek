@@ -11,7 +11,6 @@ Nothing currently in flight.
 Reported after PR #21 merged. Listed in priority order.
 
 1. [#23](https://github.com/bystrek/bystrek/issues/23) — **Chat input field background.** The input's background feels heavy against the surrounding surface — try it with no background (transparent, blended with the container) instead.
-2. [#25](https://github.com/bystrek/bystrek/issues/25) — **Logo needs updating.** Current mark doesn't fit the brutalist visual direction.
 
 ## Infra follow-ups
 
