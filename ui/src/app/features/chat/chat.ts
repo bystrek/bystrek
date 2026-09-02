@@ -24,7 +24,7 @@ import { MarkdownPipe } from '../../core/chat/markdown.pipe';
   // Bubble content comes in via [innerHTML], which never gets the
   // _ngcontent attribute emulated encapsulation scopes styles by — so the
   // `.bubble p` etc. rules would never match. Styles are global; every
-  // selector in chat.css is rooted at a chat-only class/id.
+  // selector in chat.css is rooted at the `app-chat` host element.
   encapsulation: ViewEncapsulation.None,
 })
 export class Chat implements OnInit {

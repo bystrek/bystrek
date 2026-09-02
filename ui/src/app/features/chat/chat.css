@@ -1,14 +1,19 @@
+/* Every rule is rooted at the app-chat host element: the component runs
+   with ViewEncapsulation.None (see chat.ts), so without the prefix these
+   would be global styles for anything that happens to use the same class
+   names. */
+
 /* The layout's content pane is the scroll container, so the scrollbar sits
    at the pane's edge and messages run under the sticky input (and the fixed
    menu toggle on mobile). min-height keeps the input at the bottom when
    there's little history; once the list overflows, sticky takes over. */
-.chat-shell {
+app-chat .chat-shell {
   display: flex;
   flex-direction: column;
   min-height: 100%;
 }
 
-.messages {
+app-chat .messages {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -17,58 +22,58 @@
   padding: 20px 24px 16px;
 }
 
-.chat-shell .status {
+app-chat .status {
   margin: 0 24px 16px;
 }
 
-.bubble {
+app-chat .bubble {
   padding: 10px 14px;
   max-width: 80%;
   border: var(--border-width) solid var(--color-border);
 }
 
-.bubble :first-child {
+app-chat .bubble :first-child {
   margin-top: 0;
 }
 
-.bubble :last-child {
+app-chat .bubble :last-child {
   margin-bottom: 0;
 }
 
-.bubble p {
+app-chat .bubble p {
   margin: 0;
 }
 
-.bubble p + p {
+app-chat .bubble p + p {
   margin-top: 0.6em;
 }
 
-.bubble pre {
+app-chat .bubble pre {
   overflow-x: auto;
   padding: 8px;
   background: var(--color-code-bg);
 }
 
-.bubble code {
+app-chat .bubble code {
   font-size: 0.9em;
 }
 
-.bubble :not(pre) > code {
+app-chat .bubble :not(pre) > code {
   padding: 1px 4px;
   background: var(--color-code-bg);
 }
 
-.bubble a {
+app-chat .bubble a {
   color: inherit;
 }
 
-.bubble.user {
+app-chat .bubble.user {
   align-self: flex-end;
   background: var(--color-bubble-user);
   color: var(--color-bubble-user-ink);
 }
 
-.bubble.assistant {
+app-chat .bubble.assistant {
   align-self: flex-start;
   background: var(--color-bubble-assistant);
   color: var(--color-bubble-assistant-ink);
@@ -76,7 +81,7 @@
 
 /* A hard rule, not a fade: messages get cut off at the bar like everything
    else in this design gets cut off — by a border. */
-#chat-input {
+app-chat #chat-input {
   background: var(--color-bg);
   border-top: var(--border-width) solid var(--color-border);
   bottom: 0;
@@ -85,7 +90,7 @@
   position: sticky;
 }
 
-#chat-input input {
+app-chat #chat-input input {
   flex: 1;
   min-width: 0;
   /* Blend with the page instead of the white surface inputs get globally —
@@ -95,7 +100,7 @@
 
 /* Joined to the input: overlapping borders so the pair reads as one
    control, and no global button margin so both are the same height. */
-#chat-input .send {
+app-chat #chat-input .send {
   align-items: center;
   display: flex;
   flex-shrink: 0;
