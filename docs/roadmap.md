@@ -8,11 +8,14 @@ Nothing currently in flight.
 
 ## UI bugs (post-brutalist pass)
 
-Reported after PR #21 merged; not yet triaged for a fix session. Listed in priority order.
+Reported after PR #21 merged. Listed in priority order.
 
 1. [#23](https://github.com/bystrek/bystrek/issues/23) — **Chat input field background.** The input's background feels heavy against the surrounding surface — try it with no background (transparent, blended with the container) instead.
-2. [#24](https://github.com/bystrek/bystrek/issues/24) — **Viewport / zoom breaks out of bounds.** Something about the zoom/scale handling lets the app render outside its intended container — layout ends up looking messy. Repro conditions not pinned down yet; needs a look on a real device.
-3. [#25](https://github.com/bystrek/bystrek/issues/25) — **Logo needs updating.** Current mark doesn't fit the brutalist visual direction.
+2. [#25](https://github.com/bystrek/bystrek/issues/25) — **Logo needs updating.** Current mark doesn't fit the brutalist visual direction.
+
+## Infra follow-ups
+
+- [#29](https://github.com/bystrek/bystrek/issues/29) — **Self-hosted tool-call logging: Vector + Dozzle on the droplet.** Adds ~45 MB resident (Vector shipper + Dozzle browser view, loopback-only, SSH-tunnel access). Plaintext bodies to a private volume, filesystem perms as the auth boundary. Design/threat-model/rejected alternatives captured on the issue. Reach for it when chat debugging starts costing more than the ~1 evening of setup.
 
 ## MVP
 
