@@ -6,13 +6,17 @@ Working conventions for this repo. See `README.md` for what the project is, `doc
 
 Every `.md` file: short, concise, simple language, minimal words. State decisions, not the deliberation behind them — put reasoning/alternatives-considered narrative in devlog entries instead (see below).
 
-Docs (everything except `devlog/`) describe the current stack only — no archeology. Don't mention what used to be there, what got removed, or what something was swapped from (e.g. "Watchtower removed" or "swapped X for Y" doesn't belong once X is just gone). Brief reasoning for why something is the way it is is fine, but never name alternatives that were considered and rejected (e.g. "a custom script" not "a custom script over Ansible/Kamal"). All of that — history, alternatives considered, why one thing beat another — belongs in devlog entries only.
+Docs describe the current stack only — no archeology. Don't mention what used to be there, what got removed, or what something was swapped from (e.g. "Watchtower removed" or "swapped X for Y" doesn't belong once X is just gone). Brief reasoning for why something is the way it is is fine, but never name alternatives that were considered and rejected (e.g. "a custom script" not "a custom script over Ansible/Kamal"). All of that — history, alternatives considered, why one thing beat another — belongs in devlog entries only (which live in the wiki, not this repo — see below).
 
 ## Devlog
 
-Write a devlog entry per work session in `devlog/YYYY-MM-DD-day-NN.md` (sequential day number, not date-based numbering). Structure it like the existing entries: **Date/Goal** header, **What we decided** (with reasoning, not just conclusions), **What we actually built**, **Problems hit along the way (and the actual fixes)**, and a **Current state** or **Status** closer. Capture the *why* behind decisions (alternatives considered and rejected, and why) — that's the part that isn't recoverable from git history later.
+Devlog lives in the wiki: https://github.com/bystrek/bystrek/wiki (clone URL `git@github.com:bystrek/bystrek.wiki.git`, default branch `master`). Wiki is a separate git repo — clone it locally if you want a mirror or grep across history. Nothing else backs it up.
 
-Dates are unique across `devlog/`: one calendar date, one file, one day number — the day number only increments when the date changes. A second (third, ...) session on the same date appends a `## Continuation: <topic> (Nth session, same day)` section to that date's existing file, each with its own `### What we decided`/`### What we actually built`/`### Problems hit...`/`### Current state`, rather than creating a new `day-NN` file.
+Write a devlog entry per work session as a wiki page `YYYY-MM-DD-day-NN.md` (sequential day number, not date-based numbering). Structure it like the existing entries: **Date/Goal** header, **What we decided** (with reasoning, not just conclusions), **What we actually built**, **Problems hit along the way (and the actual fixes)**, and a **Current state** or **Status** closer. Capture the *why* behind decisions (alternatives considered and rejected, and why) — that's the part that isn't recoverable from git history later.
+
+Dates are unique: one calendar date, one file, one day number — the day number only increments when the date changes. A second (third, ...) session on the same date appends a `## Continuation: <topic> (Nth session, same day)` section to that date's existing file, each with its own `### What we decided`/`### What we actually built`/`### Problems hit...`/`### Current state`, rather than creating a new `day-NN` file.
+
+Also update `Home.md` (the wiki's index) when adding a new day. No `[[Page Name]]` wikilinks — plain markdown only, so content stays portable if the wiki ever moves off GitHub.
 
 ## Docs upkeep
 
@@ -38,6 +42,6 @@ Don't invent or guess URLs (docs links, dashboard links, package pages) in commi
 
 `docker-compose.yml`/`Caddyfile` (`~/bystrek/`) and Dockge's own compose file (`~/dockge/docker-compose.yml`) are managed by hand on the droplet and scp'd down to `infra/` as a reference copy only. Deploy is CI-triggered: GitHub Actions (`.github/workflows/deploy.yml`) builds `api`/`ui` to GHCR, then a `deploy` job — gated by a GitHub Environment (required reviewer) — SSHes in with a key restricted via a forced command (`authorized_keys`, can only run `infra/deploy.sh`) to `docker compose pull && up -d --remove-orphans`. Dockge stays for visibility and manual overrides.
 
-Open WebUI and `push-service` are not part of this stack; check devlog before reintroducing either.
+Open WebUI and `push-service` are not part of this stack; check the wiki devlog before reintroducing either.
 
 When the next major architectural shift lands, update this section, the README's status/architecture sections, and `docs/roadmap.md` together.
