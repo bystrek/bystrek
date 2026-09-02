@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import Anthropic from '@anthropic-ai/sdk';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { desc, eq } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { weekBoundsAround } from '../calendar/zoned-time';
@@ -90,11 +90,6 @@ export function toHistoryTurns(messages: Anthropic.MessageParam[]): ChatHistoryT
 
 @Injectable()
 export class ChatService {
-  // Nest's Logger prefixes lines with a timestamp and this context on
-  // stdout — Docker captures them, so a chat that "acts up" leaves a
-  // greppable trail (`docker logs api | grep 'ChatService'`).
-  private readonly log = new Logger(ChatService.name);
-
   constructor(
     @Inject(DRIZZLE) private readonly db: PostgresJsDatabase<typeof schema>,
     @Inject(ANTHROPIC) private readonly anthropic: Anthropic,
@@ -139,16 +134,9 @@ export class ChatService {
       for (const block of response.content) {
         if (block.type !== 'tool_use') continue;
         const tool = this.tools.find((t) => t.definition.name === block.name);
-        const started = Date.now();
-        this.log.log(
-          `tool.request ${JSON.stringify({ requestId, userId, tool: block.name, input: block.input })}`,
-        );
         const output = tool
           ? await tool.handler(block.input, { userId, requestId, timezone })
           : { error: `no handler registered for tool "${block.name}"` };
-        this.log.log(
-          `tool.response ${JSON.stringify({ requestId, userId, tool: block.name, elapsedMs: Date.now() - started, output })}`,
-        );
         toolResults.push({
           type: 'tool_result',
           tool_use_id: block.id,

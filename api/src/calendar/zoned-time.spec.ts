@@ -93,9 +93,10 @@ describe('weekdayName', () => {
   });
 
   it('respects timezone when a UTC instant crosses midnight', () => {
-    // 2026-09-06T23:30Z = 2026-09-06 (UTC, Saturday) but 2026-09-07T01:30
-    // in Europe/Warsaw (Sunday, next day) — regression guard against
-    // deriving the weekday from raw UTC instead of the zoned wall clock.
+    // 2026-09-06T23:30Z is still 2026-09-06 (Sunday) in UTC but is already
+    // 2026-09-07T01:30 (Monday) in Europe/Warsaw — regression guard
+    // against deriving the weekday from raw UTC instead of the zoned wall
+    // clock.
     const instant = new Date('2026-09-06T23:30:00Z');
     expect(weekdayName(instant, 'UTC')).toBe('Sunday');
     expect(weekdayName(instant, 'Europe/Warsaw')).toBe('Monday');
