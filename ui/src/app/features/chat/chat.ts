@@ -1,9 +1,12 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
   OnInit,
   ViewChild,
+  ViewEncapsulation,
+  afterNextRender,
   afterRenderEffect,
   inject,
   signal,
@@ -18,6 +21,11 @@ import { MarkdownPipe } from '../../core/chat/markdown.pipe';
   templateUrl: './chat.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './chat.css',
+  // Bubble content comes in via [innerHTML], which never gets the
+  // _ngcontent attribute emulated encapsulation scopes styles by — so the
+  // `.bubble p` etc. rules would never match. Styles are global; every
+  // selector in chat.css is rooted at the `app-chat` host element.
+  encapsulation: ViewEncapsulation.None,
 })
 export class Chat implements OnInit {
   protected readonly chat = inject(ChatService);
@@ -43,7 +51,23 @@ export class Chat implements OnInit {
   // it reflects real intent instead.
   private pinnedToBottom = true;
 
+  // The message list doesn't scroll itself — the nearest scrollable
+  // ancestor (the layout's content pane) does, so the scrollbar sits at the
+  // pane's edge and messages run under the sticky input. Resolved from the
+  // DOM rather than injected so this component doesn't depend on the
+  // layout's markup.
+  private scrollContainer: HTMLElement | null = null;
+
   constructor() {
+    const destroyRef = inject(DestroyRef);
+    afterNextRender(() => {
+      const container = this.resolveScrollContainer();
+      if (!container) return;
+      const onScroll = () => this.onScroll(container);
+      container.addEventListener('scroll', onScroll, { passive: true });
+      destroyRef.onDestroy(() => container.removeEventListener('scroll', onScroll));
+    });
+
     // afterRenderEffect (not ngAfterViewChecked) because change detection is
     // zoneless: an async signal update (e.g. history arriving from the
     // network) patches the DOM through the reactive graph without running
@@ -57,8 +81,12 @@ export class Chat implements OnInit {
       if (snapshot === this.lastRenderedMessages) return;
       this.lastRenderedMessages = snapshot;
 
-      if (this.pinnedToBottom) {
-        this.scrollAnchor?.nativeElement.scrollIntoView({ block: 'end' });
+      // Scroll to the very end rather than scrollIntoView on the anchor:
+      // the input is sticky over the bottom of the scrollport, and
+      // scrollIntoView would park the anchor underneath it.
+      const container = this.resolveScrollContainer();
+      if (this.pinnedToBottom && container) {
+        container.scrollTop = container.scrollHeight;
       }
     });
   }
@@ -67,11 +95,28 @@ export class Chat implements OnInit {
     void this.chat.loadHistory();
   }
 
-  onScroll(): void {
-    const container = this.scrollAnchor?.nativeElement.parentElement;
-    if (!container) return;
+  private onScroll(container: HTMLElement): void {
     this.pinnedToBottom =
       container.scrollHeight - container.scrollTop - container.clientHeight < 80;
+  }
+
+  private resolveScrollContainer(): HTMLElement | null {
+    if (this.scrollContainer) return this.scrollContainer;
+    const anchor = this.scrollAnchor?.nativeElement;
+    if (!anchor) return null;
+    for (
+      let el = anchor.parentElement;
+      el && el !== anchor.ownerDocument.body;
+      el = el.parentElement
+    ) {
+      const { overflowY } = getComputedStyle(el);
+      if (overflowY === 'auto' || overflowY === 'scroll') {
+        this.scrollContainer = el;
+        return el;
+      }
+    }
+    this.scrollContainer = anchor.ownerDocument.scrollingElement as HTMLElement | null;
+    return this.scrollContainer;
   }
 
   send(): void {
