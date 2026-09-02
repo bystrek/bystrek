@@ -6,7 +6,7 @@ A self-hosted personal data platform: calendar, notes, research, medical records
 
 ## Status
 
-Backend and frontend scaffolds are live on the droplet, chat included. See [`docs/roadmap.md`](docs/roadmap.md) for the current punch list and the [wiki](https://github.com/bystrek/bystrek/wiki) for how we got here, session by session.
+Backend and frontend scaffolds are live on the droplet, chat included. See [Issues](https://github.com/bystrek/bystrek/issues) (grouped by `MVP`/`Post-MVP` milestones) for the current punch list and the [wiki](https://github.com/bystrek/bystrek/wiki) for how we got here, session by session.
 
 **Working today:**
 - A DigitalOcean droplet, locked down to SSH-only on its public IP, reachable everywhere else only over a private Tailscale mesh.
@@ -39,7 +39,7 @@ Raw infra facts from early setup (IPs, firewall rules, initial droplet spec) are
 api/           NestJS + Drizzle + Bun backend — Postgres, push subscribe/send, chat
 ui/            Angular frontend — subscribe UI, service worker, chat
 brand/         Logo, icon, and favicon assets (SVG sources + rendered exports)
-docs/          architecture.md (direction) and roadmap.md (live punch list)
+docs/          architecture.md (direction) — live punch list is in GitHub Issues
 infra/         Manually-synced copies of what's actually running on the droplet
 ```
 

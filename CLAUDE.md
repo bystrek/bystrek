@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Working conventions for this repo. See `README.md` for what the project is, `docs/architecture.md` for the target design and reasoning, and `docs/roadmap.md` for what's currently in flight.
+Working conventions for this repo. See `README.md` for what the project is and `docs/architecture.md` for the target design and reasoning. What's currently in flight lives in GitHub Issues (grouped by the `MVP`/`Post-MVP` milestones), not a docs file.
 
 ## Docs style
 
@@ -20,7 +20,6 @@ Also update `Home.md` (the wiki's index) when adding a new day. No `[[Page Name]
 
 ## Docs upkeep
 
-- `docs/roadmap.md` is a live punch list (Done/In progress/Todo), not an archive — update it as items complete or plans change, don't just append.
 - `docs/architecture.md` is a living direction doc — the target shape, not a snapshot of what's built. Update it when the direction actually changes (like the Open WebUI → custom app pivot), not on every feature that ships.
 - `infra/` holds actual copies of the droplet's `docker-compose.yml`, `Caddyfile`, `Dockerfile`, and `deploy.sh` — manually synced via `scp`. `docker-compose.yml`/`Caddyfile`/`Dockerfile` are reference copies only, not deployed from this repo; `deploy.sh` is the exception — CI triggers it directly over SSH on every push to `main`, though updating the script itself still requires a manual `scp`. `infra/` is the source of truth for current infra config. Re-sync it (ask the user to `scp` fresh copies) whenever the droplet's config changes materially, and check new copies for literal secrets before committing (established pattern: secrets are referenced by env var name only, e.g. `env_file: .env`, `{env.CF_API_TOKEN}` — never by value).
 
@@ -44,4 +43,4 @@ Don't invent or guess URLs (docs links, dashboard links, package pages) in commi
 
 Open WebUI and `push-service` are not part of this stack; check the wiki devlog before reintroducing either.
 
-When the next major architectural shift lands, update this section, the README's status/architecture sections, and `docs/roadmap.md` together.
+When the next major architectural shift lands, update this section and the README's status/architecture sections together.
