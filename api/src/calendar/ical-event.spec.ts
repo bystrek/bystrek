@@ -41,6 +41,22 @@ describe('buildEventIcs / parseEventIcs', () => {
     expect(parsed.end).toBe('2026-08-24T06:15:00+02:00');
   });
 
+  it('attaches English weekday labels for start/end in the requested timezone', () => {
+    // Direct guard against issue #18: the model was deriving the weekday
+    // from the ISO date itself and getting it wrong. Now the tool output
+    // carries the day name, so it never has to derive it.
+    const ics = buildEventIcs('event-weekday', {
+      summary: 'Drag Race',
+      start: new Date('2026-09-06T14:00:00Z'),
+      end: new Date('2026-09-06T15:00:00Z'),
+    });
+
+    const parsed = parseEventIcs(ics, 'Europe/Warsaw');
+    expect(parsed.start).toBe('2026-09-06T16:00:00+02:00');
+    expect(parsed.startWeekday).toBe('Sunday');
+    expect(parsed.endWeekday).toBe('Sunday');
+  });
+
   it('includes optional description/location', () => {
     const ics = buildEventIcs('event-3', {
       summary: 'Trip',
