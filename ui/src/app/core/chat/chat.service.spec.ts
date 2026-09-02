@@ -1,7 +1,7 @@
 import { HttpEventType, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { environment } from '../../../environments/environment';
+import { APP_CONFIG } from '../config/app-config';
 import { ChatService } from './chat.service';
 
 describe('ChatService', () => {
@@ -10,7 +10,11 @@ describe('ChatService', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        { provide: APP_CONFIG, useValue: { apiUrl: '/api' } },
+        provideHttpClient(),
+        provideHttpClientTesting(),
+      ],
     });
     service = TestBed.inject(ChatService);
     httpMock = TestBed.inject(HttpTestingController);
@@ -23,7 +27,7 @@ describe('ChatService', () => {
   it('loadHistory populates messages from GET /chat/history', async () => {
     const pending = service.loadHistory();
 
-    const req = httpMock.expectOne(`${environment.apiUrl}/chat/history`);
+    const req = httpMock.expectOne(`/api/chat/history`);
     req.flush([
       { role: 'user', text: 'hi' },
       { role: 'assistant', text: 'hello' },
@@ -45,7 +49,7 @@ describe('ChatService', () => {
     ]);
     expect(service.sending()).toBe(true);
 
-    const req = httpMock.expectOne(`${environment.apiUrl}/chat`);
+    const req = httpMock.expectOne(`/api/chat`);
     expect(req.request.body).toEqual({ message: 'hi there' });
 
     req.event({
@@ -70,7 +74,7 @@ describe('ChatService', () => {
 
   it('ignores an incomplete trailing frame until it is completed by a later event', () => {
     service.send('hi');
-    const req = httpMock.expectOne(`${environment.apiUrl}/chat`);
+    const req = httpMock.expectOne(`/api/chat`);
 
     req.event({
       type: HttpEventType.DownloadProgress,
@@ -91,7 +95,7 @@ describe('ChatService', () => {
 
   it('send is a no-op while a stream is already in flight', () => {
     service.send('first');
-    httpMock.expectOne(`${environment.apiUrl}/chat`);
+    httpMock.expectOne(`/api/chat`);
 
     service.send('second');
     httpMock.expectNone((r) => r.body?.message === 'second');
@@ -100,7 +104,7 @@ describe('ChatService', () => {
 
   it('does not let a slow loadHistory clobber messages appended by a send that started first', async () => {
     const pending = service.loadHistory();
-    const historyReq = httpMock.expectOne(`${environment.apiUrl}/chat/history`);
+    const historyReq = httpMock.expectOne(`/api/chat/history`);
 
     service.send('hi there');
     expect(service.messages()).toEqual([
@@ -116,14 +120,14 @@ describe('ChatService', () => {
       { role: 'assistant', text: '' },
     ]);
 
-    httpMock.expectOne(`${environment.apiUrl}/chat`).flush('');
+    httpMock.expectOne(`/api/chat`).flush('');
   });
 
   it('clears a stale error once loadHistory succeeds', async () => {
     service.error.set('previous failure');
 
     const pending = service.loadHistory();
-    httpMock.expectOne(`${environment.apiUrl}/chat/history`).flush([]);
+    httpMock.expectOne(`/api/chat/history`).flush([]);
     await pending;
 
     expect(service.error()).toBe('');
@@ -134,7 +138,7 @@ describe('ChatService', () => {
     // JSON-parsed, so this always falls back to the generic message.
     service.send('hi');
 
-    const req = httpMock.expectOne(`${environment.apiUrl}/chat`);
+    const req = httpMock.expectOne(`/api/chat`);
     req.flush('boom', { status: 500, statusText: 'Server Error' });
 
     expect(service.sending()).toBe(false);

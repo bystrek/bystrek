@@ -7,18 +7,10 @@ function mockSession(page: import('@playwright/test').Page, role: 'user' | 'admi
 }
 
 function mockSignIn(page: import('@playwright/test').Page) {
-  // PUBLIC_API_URL (localhost:3000) is a different origin from the app
-  // (localhost:4173) even under Playwright's route interception, so the
-  // browser still applies CORS header-exposure rules to the mocked
-  // response — Access-Control-Expose-Headers is required for
-  // res.headers.get('set-auth-token') to see it, same as the real API.
   return page.route('**/api/auth/sign-in/email', (route) =>
     route.fulfill({
       status: 200,
-      headers: {
-        'set-auth-token': 'fake-token',
-        'Access-Control-Expose-Headers': 'set-auth-token',
-      },
+      headers: { 'set-auth-token': 'fake-token' },
       json: { token: 'fake-token', user: { id: '1' } },
     }),
   );

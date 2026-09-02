@@ -4,10 +4,7 @@ function mockSignIn(page: import('@playwright/test').Page) {
   return page.route('**/api/auth/sign-in/email', (route) =>
     route.fulfill({
       status: 200,
-      headers: {
-        'set-auth-token': 'fake-token',
-        'Access-Control-Expose-Headers': 'set-auth-token',
-      },
+      headers: { 'set-auth-token': 'fake-token' },
       json: { token: 'fake-token', user: { id: '1' } },
     }),
   );

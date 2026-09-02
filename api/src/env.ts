@@ -13,6 +13,13 @@ export const VAPID_SUBJECT = required('VAPID_SUBJECT');
 export const CORS_ORIGINS = (process.env.CORS_ORIGINS ?? 'https://bystrek.dev')
   .split(',')
   .map((origin) => origin.trim());
+// Any localhost origin is trusted alongside CORS_ORIGINS, so a local UI can
+// talk to any instance of the API: a page served from localhost means a
+// process already running on that machine, which CORS was never guarding
+// against. Two spellings of the same rule — a RegExp for Express's cors,
+// a glob for better-auth's trustedOrigins.
+export const LOCALHOST_ORIGIN = /^http:\/\/localhost(:\d+)?$/;
+export const LOCALHOST_ORIGIN_PATTERN = 'http://localhost:*';
 export const RESEND_API_KEY = required('RESEND_API_KEY');
 export const AUTH_SECRET = required('AUTH_SECRET');
 export const UI_URL = process.env.UI_URL ?? 'http://localhost:5173';

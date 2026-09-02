@@ -6,7 +6,7 @@ import {
 } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { EMPTY, Subject, catchError, firstValueFrom, switchMap, tap } from 'rxjs';
-import { environment } from '../../../environments/environment';
+import { APP_CONFIG } from '../config/app-config';
 
 export type ChatMessage = { role: 'user' | 'assistant'; text: string };
 
@@ -21,6 +21,7 @@ function errorMessage(err: unknown, fallback: string): string {
 @Injectable({ providedIn: 'root' })
 export class ChatService {
   private readonly http = inject(HttpClient);
+  private readonly apiUrl = inject(APP_CONFIG).apiUrl;
 
   readonly messages = signal<ChatMessage[]>([]);
   readonly sending = signal(false);
@@ -38,7 +39,7 @@ export class ChatService {
   async loadHistory(): Promise<void> {
     try {
       const history = await firstValueFrom(
-        this.http.get<ChatMessage[]>(`${environment.apiUrl}/chat/history`),
+        this.http.get<ChatMessage[]>(`${this.apiUrl}/chat/history`),
       );
       // Only apply if nothing has been sent yet — a send() that started
       // while this request was in flight already owns `messages`, and
@@ -66,7 +67,7 @@ export class ChatService {
 
     return this.http
       .post(
-        `${environment.apiUrl}/chat`,
+        `${this.apiUrl}/chat`,
         { message: text },
         { observe: 'events', responseType: 'text', reportProgress: true },
       )
