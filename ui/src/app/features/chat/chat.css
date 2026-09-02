@@ -76,6 +76,9 @@
 
 #chat-input input {
   flex: 1;
+  /* Blend with the page instead of the white surface inputs get globally —
+     a filled box reads heavy next to the bordered bubbles above it. */
+  background: transparent;
 }
 
 .send {

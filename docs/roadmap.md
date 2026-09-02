@@ -6,12 +6,6 @@ See [`docs/architecture.md`](architecture.md) for design/reasoning; this file is
 
 Nothing currently in flight.
 
-## UI bugs (post-brutalist pass)
-
-Reported after PR #21 merged. Listed in priority order.
-
-1. [#23](https://github.com/bystrek/bystrek/issues/23) — **Chat input field background.** The input's background feels heavy against the surrounding surface — try it with no background (transparent, blended with the container) instead.
-
 ## Infra follow-ups
 
 - [#29](https://github.com/bystrek/bystrek/issues/29) — **Self-hosted tool-call logging: Vector + Dozzle on the droplet.** Adds ~45 MB resident (Vector shipper + Dozzle browser view, loopback-only, SSH-tunnel access). Plaintext bodies to a private volume, filesystem perms as the auth boundary. Design/threat-model/rejected alternatives captured on the issue. Reach for it when chat debugging starts costing more than the ~1 evening of setup.
