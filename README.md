@@ -6,7 +6,7 @@ A self-hosted personal data platform: calendar, notes, research, medical records
 
 ## Status
 
-Backend and frontend scaffolds are live on the droplet, chat included. See [`docs/roadmap.md`](docs/roadmap.md) for the current punch list and [`devlog/`](devlog/) for how we got here, session by session.
+Backend and frontend scaffolds are live on the droplet, chat included. See [`docs/roadmap.md`](docs/roadmap.md) for the current punch list and the [wiki](https://github.com/bystrek/bystrek/wiki) for how we got here, session by session.
 
 **Working today:**
 - A DigitalOcean droplet, locked down to SSH-only on its public IP, reachable everywhere else only over a private Tailscale mesh.
@@ -30,7 +30,7 @@ Backend and frontend scaffolds are live on the droplet, chat included. See [`doc
 - **TLS**: Caddy, built with the Cloudflare DNS plugin (`xcaddy`), gets certs via DNS-01 so no inbound port 80/443 is ever needed.
 - **Domain**: `bystrek.dev` is an invented, non-identifying name (deliberately not the user's surname — Certificate Transparency logs are public, so a personal domain on an assistant with calendar access would be a phishing gift).
 
-Raw infra facts from early setup (IPs, firewall rules, initial droplet spec) are in [`devlog/2026-08-04-day-01.md`](devlog/2026-08-04-day-01.md); for current infra config see `infra/` below.
+Raw infra facts from early setup (IPs, firewall rules, initial droplet spec) are in the [wiki: Day 01](https://github.com/bystrek/bystrek/wiki/2026-08-04-day-01); for current infra config see `infra/` below.
 
 ## Repo layout
 
@@ -39,7 +39,6 @@ Raw infra facts from early setup (IPs, firewall rules, initial droplet spec) are
 api/           NestJS + Drizzle + Bun backend — Postgres, push subscribe/send, chat
 ui/            Angular frontend — subscribe UI, service worker, chat
 brand/         Logo, icon, and favicon assets (SVG sources + rendered exports)
-devlog/        Session-by-session build log — what was decided, what was built, what broke
 docs/          architecture.md (direction) and roadmap.md (live punch list)
 infra/         Manually-synced copies of what's actually running on the droplet
 ```
