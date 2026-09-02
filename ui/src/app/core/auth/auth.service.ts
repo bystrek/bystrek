@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { environment } from '../../../environments/environment';
+import { APP_CONFIG } from '../config/app-config';
 
 const TOKEN_KEY = 'bystrek_token';
 
@@ -27,6 +27,7 @@ function errorMessage(err: unknown, fallback: string): string {
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
+  private readonly apiUrl = inject(APP_CONFIG).apiUrl;
 
   readonly session = signal<Session | null>(null);
   readonly isAuthenticated = computed(() => this.session() !== null);
@@ -53,7 +54,7 @@ export class AuthService {
     }
     try {
       const session = await firstValueFrom(
-        this.http.get<Session | null>(`${environment.apiUrl}/api/auth/get-session`),
+        this.http.get<Session | null>(`${this.apiUrl}/api/auth/get-session`),
       );
       this.session.set(session);
     } catch {
@@ -66,7 +67,7 @@ export class AuthService {
     try {
       res = await firstValueFrom(
         this.http.post(
-          `${environment.apiUrl}/api/auth/sign-in/email`,
+          `${this.apiUrl}/api/auth/sign-in/email`,
           { email, password },
           { observe: 'response' },
         ),
@@ -81,7 +82,7 @@ export class AuthService {
 
   async signOut(): Promise<void> {
     try {
-      await firstValueFrom(this.http.post(`${environment.apiUrl}/api/auth/sign-out`, {}));
+      await firstValueFrom(this.http.post(`${this.apiUrl}/api/auth/sign-out`, {}));
     } catch {
       // Clear the local token regardless of whether the request succeeded.
     }
@@ -93,7 +94,7 @@ export class AuthService {
     const redirectTo = `${window.location.origin}/auth/reset-password`;
     try {
       await firstValueFrom(
-        this.http.post(`${environment.apiUrl}/api/auth/request-password-reset`, {
+        this.http.post(`${this.apiUrl}/api/auth/request-password-reset`, {
           email,
           redirectTo,
         }),
@@ -112,7 +113,7 @@ export class AuthService {
     const name = `${trimmedFirst} ${trimmedLast}`;
     try {
       await firstValueFrom(
-        this.http.post(`${environment.apiUrl}/api/auth/update-user`, {
+        this.http.post(`${this.apiUrl}/api/auth/update-user`, {
           name,
           firstName: trimmedFirst,
           lastName: trimmedLast,
@@ -128,7 +129,7 @@ export class AuthService {
   async resetPassword(newPassword: string, token: string): Promise<void> {
     try {
       await firstValueFrom(
-        this.http.post(`${environment.apiUrl}/api/auth/reset-password`, { newPassword, token }),
+        this.http.post(`${this.apiUrl}/api/auth/reset-password`, { newPassword, token }),
       );
     } catch (err) {
       throw new Error(errorMessage(err, 'Could not reset the password.'));

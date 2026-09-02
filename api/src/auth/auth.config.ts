@@ -2,7 +2,7 @@ import { APIError, betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { admin, bearer } from 'better-auth/plugins';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { API_URL, AUTH_SECRET, CORS_ORIGINS } from '../env';
+import { API_URL, AUTH_SECRET, CORS_ORIGINS, LOCALHOST_ORIGIN_PATTERN } from '../env';
 import type * as schema from '../db/schema';
 import { sendEmail } from './resend';
 
@@ -20,7 +20,7 @@ export function createAuth(db: PostgresJsDatabase<typeof schema>) {
     secret: AUTH_SECRET,
     baseURL: API_URL,
     basePath: '/api/auth',
-    trustedOrigins: CORS_ORIGINS,
+    trustedOrigins: [...CORS_ORIGINS, LOCALHOST_ORIGIN_PATTERN],
     database: drizzleAdapter(db, { provider: 'pg', usePlural: true }),
     advanced: {
       database: { generateId: false },

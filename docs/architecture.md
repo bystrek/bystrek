@@ -44,7 +44,7 @@ Caddy routes by domain to the frontend and the backend API. No separate gateway 
 
 ## CORS (decided)
 
-Tailscale gates who can reach the server; CORS gates which sites' JS can use an already-open browser session — different protections. Explicit origin allowlist, never a wildcard: `https://bystrek.dev` always, `http://localhost:5173` only in dev, via env var.
+Tailscale gates who can reach the server; CORS gates which sites' JS can use an already-open browser session — different protections. Explicit origin allowlist, never a wildcard: `https://bystrek.dev` (via `CORS_ORIGINS`) plus any `http://localhost:*` origin, hardcoded — a page served from localhost is a process already on that machine, which CORS never guarded against. Lets a local UI talk to any instance of the API, including the deployed one, with no per-deploy config.
 
 ## Auth (decided direction)
 

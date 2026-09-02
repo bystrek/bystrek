@@ -1,0 +1,7 @@
+{
+  "/api": {
+    "target": "https://api.bystrek.dev",
+    "changeOrigin": true,
+    "pathRewrite": { "^/api": "" }
+  }
+}

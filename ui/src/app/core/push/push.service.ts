@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { environment } from '../../../environments/environment';
+import { APP_CONFIG } from '../config/app-config';
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -13,6 +13,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 @Injectable({ providedIn: 'root' })
 export class PushService {
   private readonly http = inject(HttpClient);
+  private readonly apiUrl = inject(APP_CONFIG).apiUrl;
 
   readonly status = signal('');
   readonly subscribed = signal(false);
@@ -50,16 +51,14 @@ export class PushService {
       await navigator.serviceWorker.ready;
 
       const { publicKey } = await firstValueFrom(
-        this.http.get<{ publicKey: string }>(`${environment.apiUrl}/push/vapid-public-key`),
+        this.http.get<{ publicKey: string }>(`${this.apiUrl}/push/vapid-public-key`),
       );
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
       });
 
-      await firstValueFrom(
-        this.http.post(`${environment.apiUrl}/push/subscribe`, subscription.toJSON()),
-      );
+      await firstValueFrom(this.http.post(`${this.apiUrl}/push/subscribe`, subscription.toJSON()));
 
       this.status.set('Subscribed.');
       this.subscribed.set(true);
@@ -76,7 +75,7 @@ export class PushService {
     try {
       const result = await firstValueFrom(
         this.http.post<{ sent: number; removed: number; failed: number }>(
-          `${environment.apiUrl}/push/send`,
+          `${this.apiUrl}/push/send`,
           { title: 'bystrek', message: 'Test notification — this is working.' },
         ),
       );

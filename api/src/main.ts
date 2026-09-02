@@ -4,11 +4,14 @@ import { toNodeHandler } from 'better-auth/node';
 import express from 'express';
 import { AppModule } from './app.module';
 import { AUTH } from './auth/auth.provider';
-import { CORS_ORIGINS } from './env';
+import { CORS_ORIGINS, LOCALHOST_ORIGIN } from './env';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
-  app.enableCors({ origin: CORS_ORIGINS, exposedHeaders: ['set-auth-token'] });
+  app.enableCors({
+    origin: [...CORS_ORIGINS, LOCALHOST_ORIGIN],
+    exposedHeaders: ['set-auth-token'],
+  });
 
   // better-auth needs the raw (unparsed) request body, so it's mounted
   // ahead of Nest's own JSON body parser, which every other route relies on.

@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { environment } from '../../../environments/environment';
+import { APP_CONFIG } from '../config/app-config';
 
 export type CalendarCredentialsSummary = {
   configured: boolean;
@@ -27,6 +27,7 @@ function errorMessage(err: unknown, fallback: string): string {
 @Injectable({ providedIn: 'root' })
 export class CalendarService {
   private readonly http = inject(HttpClient);
+  private readonly apiUrl = inject(APP_CONFIG).apiUrl;
 
   readonly credentials = signal<CalendarCredentialsSummary | null>(null);
   readonly busy = signal(false);
@@ -34,7 +35,7 @@ export class CalendarService {
   async load(): Promise<void> {
     try {
       const result = await firstValueFrom(
-        this.http.get<CalendarCredentialsSummary>(`${environment.apiUrl}/calendar/credentials`),
+        this.http.get<CalendarCredentialsSummary>(`${this.apiUrl}/calendar/credentials`),
       );
       this.credentials.set(result);
     } catch {
@@ -53,7 +54,7 @@ export class CalendarService {
     try {
       const result = await firstValueFrom(
         this.http.post<{ calendars: CalendarOption[] }>(
-          `${environment.apiUrl}/calendar/credentials/preview-calendars`,
+          `${this.apiUrl}/calendar/credentials/preview-calendars`,
           input,
         ),
       );
@@ -73,7 +74,7 @@ export class CalendarService {
     this.busy.set(true);
     try {
       await firstValueFrom(
-        this.http.put(`${environment.apiUrl}/calendar/credentials`, {
+        this.http.put(`${this.apiUrl}/calendar/credentials`, {
           caldavUrl: input.caldavUrl,
           username: input.username,
           password: input.password,
@@ -92,7 +93,7 @@ export class CalendarService {
   async disconnect(): Promise<void> {
     this.busy.set(true);
     try {
-      await firstValueFrom(this.http.delete(`${environment.apiUrl}/calendar/credentials`));
+      await firstValueFrom(this.http.delete(`${this.apiUrl}/calendar/credentials`));
       await this.load();
     } catch (err) {
       throw new Error(errorMessage(err, 'Could not disconnect the calendar.'));

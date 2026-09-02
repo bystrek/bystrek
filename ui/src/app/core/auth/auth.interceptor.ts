@@ -1,6 +1,6 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { environment } from '../../../environments/environment';
+import { APP_CONFIG } from '../config/app-config';
 import { AuthService } from './auth.service';
 
 /** Attaches the stored bearer token, if any, to requests against the API.
@@ -9,7 +9,7 @@ import { AuthService } from './auth.service';
  * inert rather than something worth special-casing. */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const token = inject(AuthService).getToken();
-  if (token && req.url.startsWith(environment.apiUrl)) {
+  if (token && req.url.startsWith(inject(APP_CONFIG).apiUrl)) {
     req = req.clone({ setHeaders: { Authorization: `Bearer ${token}` } });
   }
   return next(req);

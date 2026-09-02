@@ -11,6 +11,7 @@ FROM caddy:2-alpine
 
 WORKDIR /srv
 COPY --from=builder /app/dist/ui/browser ./
+COPY config.prod.json ./config.json
 COPY Caddyfile /etc/caddy/Caddyfile
 
 EXPOSE 3000
