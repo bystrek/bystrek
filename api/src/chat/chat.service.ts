@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { Inject, Injectable } from '@nestjs/common';
 import { desc, eq } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import { weekBoundsAround } from '../calendar/zoned-time';
 import { decryptField, encryptField } from '../crypto/field-encryption';
 import { DRIZZLE } from '../db/drizzle.provider';
 import * as schema from '../db/schema';
@@ -39,15 +40,19 @@ function buildSystemPrompt(timezone: string, locale: string): string {
     minute: '2-digit',
     hour12: false,
   }).format(now);
+  const week = weekBoundsAround(now, timezone);
 
   return (
     'You are the personal assistant built into bystrek, a household data platform. ' +
     'Be direct and concise. ' +
     `The current date and time is ${formatted} (${timezone}), machine-readable as ${now.toISOString()}. ` +
     `Use this as "now" for any relative date/time reference — never guess it from training data. ` +
+    'Weeks run Monday to Sunday. ' +
+    `This week: ${week.thisWeekStart} through ${week.thisWeekEnd}. ` +
+    `Next week: ${week.nextWeekStart} through ${week.nextWeekEnd}. ` +
     `When calling a tool with date/time inputs, use ISO 8601 in ${timezone}. ` +
-    `Calendar tool results are already formatted in ${timezone} (with an explicit UTC offset) — ` +
-    `never convert or reinterpret them, just relay the times as given.`
+    `Calendar tool results are already formatted in ${timezone} (with an explicit UTC offset) and ` +
+    `carry a startWeekday/endWeekday label — relay times and weekdays as given, never re-derive them.`
   );
 }
 

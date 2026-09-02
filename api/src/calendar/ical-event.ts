@@ -1,5 +1,5 @@
 import ICAL from 'ical.js';
-import { formatZonedIso } from './zoned-time';
+import { formatZonedIso, weekdayName } from './zoned-time';
 
 // Builds/reads the standard iCalendar (RFC 5545) event bodies CalDAV
 // servers store — see devlog day 12: CalDAV/iCalendar are vendor-neutral
@@ -26,6 +26,11 @@ export interface ParsedEvent {
   // see devlog day 12.
   start: string;
   end: string;
+  // English weekday for start/end in the requested timezone, attached so
+  // the model never has to derive the day-of-week from the ISO date
+  // itself (that arithmetic is where it went wrong in issue #18).
+  startWeekday: string;
+  endWeekday: string;
   description: string | null;
   location: string | null;
   rrule: string | null;
@@ -85,11 +90,15 @@ export function parseEventIcs(ics: string, timeZone: string): ParsedEvent {
   const event = new ICAL.Event(vevent);
   const rrule = vevent.getFirstPropertyValue('rrule') as ICAL.Recur | null;
 
+  const startJs = event.startDate.toJSDate();
+  const endJs = event.endDate.toJSDate();
   return {
     uid: event.uid,
     summary: event.summary,
-    start: formatZonedIso(event.startDate.toJSDate(), timeZone),
-    end: formatZonedIso(event.endDate.toJSDate(), timeZone),
+    start: formatZonedIso(startJs, timeZone),
+    end: formatZonedIso(endJs, timeZone),
+    startWeekday: weekdayName(startJs, timeZone),
+    endWeekday: weekdayName(endJs, timeZone),
     description: event.description || null,
     location: event.location || null,
     rrule: rrule ? rrule.toString() : null,

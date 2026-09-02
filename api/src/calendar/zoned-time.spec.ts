@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'bun:test';
-import { assertValidTimeZone, formatZonedIso, parseZonedIso } from './zoned-time';
+import {
+  assertValidTimeZone,
+  formatZonedIso,
+  parseZonedIso,
+  weekBoundsAround,
+  weekdayName,
+} from './zoned-time';
 
 describe('formatZonedIso', () => {
   it('formats UTC as +00:00', () => {
@@ -75,6 +81,51 @@ describe('parseZonedIso', () => {
     expect(() => parseZonedIso('2026-08-26T19:00:00', 'Not/A_Real_Zone')).toThrow(
       'invalid IANA timezone: "Not/A_Real_Zone"',
     );
+  });
+});
+
+describe('weekdayName', () => {
+  it('returns the English weekday for a date in the given timezone', () => {
+    // 2026-09-06 is a Sunday. The instant chosen falls on the same day in
+    // Europe/Warsaw despite being late UTC.
+    expect(weekdayName(new Date('2026-09-06T20:00:00Z'), 'Europe/Warsaw')).toBe('Sunday');
+    expect(weekdayName(new Date('2026-09-07T00:00:00Z'), 'Europe/Warsaw')).toBe('Monday');
+  });
+
+  it('respects timezone when a UTC instant crosses midnight', () => {
+    // 2026-09-06T23:30Z is still 2026-09-06 (Sunday) in UTC but is already
+    // 2026-09-07T01:30 (Monday) in Europe/Warsaw — regression guard
+    // against deriving the weekday from raw UTC instead of the zoned wall
+    // clock.
+    const instant = new Date('2026-09-06T23:30:00Z');
+    expect(weekdayName(instant, 'UTC')).toBe('Sunday');
+    expect(weekdayName(instant, 'Europe/Warsaw')).toBe('Monday');
+  });
+});
+
+describe('weekBoundsAround', () => {
+  it('returns the Mon-Sun bounds of the ISO week containing the date', () => {
+    // 2026-09-02 is a Wednesday, so this week runs 08-31 (Mon) — 09-06 (Sun).
+    const bounds = weekBoundsAround(new Date('2026-09-02T10:00:00+02:00'), 'Europe/Warsaw');
+    expect(bounds.thisWeekStart).toBe('2026-08-31 (Monday)');
+    expect(bounds.thisWeekEnd).toBe('2026-09-06 (Sunday)');
+    expect(bounds.nextWeekStart).toBe('2026-09-07 (Monday)');
+    expect(bounds.nextWeekEnd).toBe('2026-09-13 (Sunday)');
+  });
+
+  it('treats a Sunday as the last day of "this week", not the first of "next"', () => {
+    // 2026-09-06 is Sunday — "next week" must start tomorrow (Mon 09-07),
+    // not later. Regression for the Mon-Sun convention.
+    const bounds = weekBoundsAround(new Date('2026-09-06T12:00:00+02:00'), 'Europe/Warsaw');
+    expect(bounds.thisWeekStart).toBe('2026-08-31 (Monday)');
+    expect(bounds.thisWeekEnd).toBe('2026-09-06 (Sunday)');
+    expect(bounds.nextWeekStart).toBe('2026-09-07 (Monday)');
+  });
+
+  it('treats a Monday as the first day of "this week"', () => {
+    const bounds = weekBoundsAround(new Date('2026-08-31T09:00:00+02:00'), 'Europe/Warsaw');
+    expect(bounds.thisWeekStart).toBe('2026-08-31 (Monday)');
+    expect(bounds.thisWeekEnd).toBe('2026-09-06 (Sunday)');
   });
 });
 
