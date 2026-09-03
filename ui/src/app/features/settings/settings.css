@@ -19,7 +19,7 @@
 
 .settings-section h2 {
   font-family: var(--font-text);
-  font-size: 15px;
+  font-size: 24px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--color-ink-muted);
@@ -39,7 +39,7 @@ input[type='file'] {
   margin: 0 auto 20px;
   border: none;
   background: none;
-  font-size: 13px;
+  font-size: 21px;
 }
 
 #profile,
@@ -71,12 +71,12 @@ input[type='file'] {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: 22px;
 }
 
 .badge {
   font-family: var(--font-text);
-  font-size: 11px;
+  font-size: 18px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 2px 8px;

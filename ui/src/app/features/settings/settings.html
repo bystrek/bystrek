@@ -23,9 +23,7 @@
       </button>
     </form>
 
-    @if (status()) {
-      <div class="status" [class.error]="statusError()">{{ status() }}</div>
-    }
+    <app-status-banner [message]="status()" [error]="statusError()" />
   </section>
 
   <section class="settings-section">
@@ -38,7 +36,7 @@
     <button (click)="push.sendTest()" [disabled]="push.busy() || !push.subscribed()">
       Send test notification
     </button>
-    <div id="status" [class.error]="push.statusError()">{{ push.status() }}</div>
+    <app-status-banner elementId="status" [message]="push.status()" [error]="push.statusError()" />
   </section>
 
   <section class="settings-section">
@@ -109,9 +107,7 @@
       }
     </form>
 
-    @if (calendarStatus()) {
-      <div class="status" [class.error]="calendarStatusError()">{{ calendarStatus() }}</div>
-    }
+    <app-status-banner [message]="calendarStatus()" [error]="calendarStatusError()" />
   </section>
 
   @if (users.members(); as members) {
@@ -139,9 +135,7 @@
             {{ invitingUser() ? 'Inviting…' : 'Invite' }}
           </button>
         </form>
-        @if (inviteStatus()) {
-          <div class="status" [class.error]="inviteStatusError()">{{ inviteStatus() }}</div>
-        }
+        <app-status-banner [message]="inviteStatus()" [error]="inviteStatusError()" />
       }
     </section>
   }

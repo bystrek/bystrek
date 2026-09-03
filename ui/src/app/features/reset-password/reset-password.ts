@@ -2,10 +2,11 @@ import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/cor
 import { FormField, FormRoot, form, minLength, required } from '@angular/forms/signals';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
+import { StatusBanner } from '../../shared/status-banner/status-banner';
 
 @Component({
   selector: 'app-reset-password',
-  imports: [FormField, FormRoot],
+  imports: [FormField, FormRoot, StatusBanner],
   templateUrl: './reset-password.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './reset-password.css',

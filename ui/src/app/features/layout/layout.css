@@ -21,8 +21,8 @@
 }
 
 .brand {
-  font-family: var(--font-sidebar);
-  font-size: 20px;
+  font-family: var(--font-text);
+  font-size: 32px;
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -40,7 +40,7 @@
   color: inherit;
   font-family: var(--font-text);
   font-weight: 700;
-  font-size: 15px;
+  font-size: 24px;
   padding: 10px 12px;
   text-decoration: none;
   text-transform: uppercase;
@@ -59,7 +59,7 @@
   font: inherit;
   font-family: var(--font-text);
   font-weight: 400;
-  font-size: 14px;
+  font-size: 22px;
   padding: 10px 12px;
 }
 
