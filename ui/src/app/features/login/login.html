@@ -18,7 +18,5 @@
     </button>
   </form>
 
-  @if (status()) {
-    <div class="status" [class.error]="statusError()">{{ status() }}</div>
-  }
+  <app-status-banner [message]="status()" [error]="statusError()" />
 </main>

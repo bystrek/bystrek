@@ -11,7 +11,7 @@ body {
   background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-text);
-  font-size: 16px;
+  font-size: 26px;
 }
 
 .auth-shell {
@@ -35,7 +35,7 @@ h3 {
 }
 
 h1 {
-  font-size: 28px;
+  font-size: 45px;
   letter-spacing: 0.01em;
   margin: 0 0 8px;
   text-transform: uppercase;
@@ -50,7 +50,7 @@ p {
 button {
   font: inherit;
   font-family: var(--font-text);
-  font-size: 15px;
+  font-size: 24px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -81,7 +81,7 @@ button:disabled {
   font-weight: 400;
   padding: 4px;
   margin: 0;
-  font-size: 13px;
+  font-size: 21px;
   display: inline-block;
 }
 
@@ -94,11 +94,11 @@ input,
 select {
   font: inherit;
   font-family: var(--font-text);
-  /* 16px, not the 15px the other body copy uses, so iOS Safari doesn't
-     auto-zoom on focus — anything below 16px trips the built-in zoom, and
-     disabling it via `maximum-scale`/`user-scalable=no` would also block
-     legitimate pinch-zoom (accessibility regression). */
-  font-size: 16px;
+  /* Comfortably above the 16px iOS Safari auto-zoom-on-focus threshold —
+     anything below that trips the built-in zoom, and disabling it via
+     `maximum-scale`/`user-scalable=no` would also block legitimate
+     pinch-zoom (accessibility regression). */
+  font-size: 26px;
   padding: 10px 14px;
   border: var(--border-width) solid var(--color-border);
   background: var(--color-surface);
@@ -108,13 +108,43 @@ select {
 #status,
 .status {
   margin-top: 20px;
-  font-size: 14px;
+  font-size: 22px;
   color: var(--color-ink-muted);
   min-height: 1.2em;
 }
 
 #status.error,
 .status.error {
-  color: var(--color-danger);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 20px;
+  padding: 10px 12px;
+  color: var(--color-ink);
   font-weight: 700;
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-left-width: 9px;
+  border-left-color: var(--color-danger);
+}
+
+#status.error .app-icon,
+.status.error .app-icon {
+  flex-shrink: 0;
+  width: 29px;
+  height: 29px;
+  color: var(--color-danger);
+}
+
+.app-icon {
+  display: inline-flex;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.15em;
+}
+
+.app-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
 }

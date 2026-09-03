@@ -4,11 +4,12 @@ import { AuthService } from '../../core/auth/auth.service';
 import { CalendarOption, CalendarService } from '../../core/calendar/calendar.service';
 import { PushService } from '../../core/push/push.service';
 import { UsersService, type Member } from '../../core/users/users.service';
+import { StatusBanner } from '../../shared/status-banner/status-banner';
 import { downscaleImage } from './downscale-image';
 
 @Component({
   selector: 'app-settings',
-  imports: [FormField, FormRoot],
+  imports: [FormField, FormRoot, StatusBanner],
   templateUrl: './settings.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './settings.css',

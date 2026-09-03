@@ -11,9 +11,7 @@
     <div #scrollAnchor></div>
   </div>
 
-  @if (chat.error()) {
-    <div class="status error">{{ chat.error() }}</div>
-  }
+  <app-status-banner [message]="chat.error()" [error]="true" />
 
   <form id="chat-input" [formRoot]="draftForm" (submit)="send()">
     <input type="text" [formField]="draftForm.draft" placeholder="Message" />

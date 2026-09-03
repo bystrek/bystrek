@@ -14,10 +14,11 @@ import {
 import { FormField, FormRoot, disabled, form, required } from '@angular/forms/signals';
 import { ChatService } from '../../core/chat/chat.service';
 import { MarkdownPipe } from '../../core/chat/markdown.pipe';
+import { StatusBanner } from '../../shared/status-banner/status-banner';
 
 @Component({
   selector: 'app-chat',
-  imports: [FormField, FormRoot, MarkdownPipe],
+  imports: [FormField, FormRoot, MarkdownPipe, StatusBanner],
   templateUrl: './chat.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './chat.css',

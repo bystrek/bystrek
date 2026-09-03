@@ -2,10 +2,11 @@ import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@a
 import { FormField, FormRoot, email, form, required } from '@angular/forms/signals';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
+import { StatusBanner } from '../../shared/status-banner/status-banner';
 
 @Component({
   selector: 'app-login',
-  imports: [FormField, FormRoot],
+  imports: [FormField, FormRoot, StatusBanner],
   templateUrl: './login.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './login.css',
