@@ -3,12 +3,7 @@
   <p>Sign in to reach the assistant.</p>
 
   <form id="login" [formRoot]="loginForm" (submit)="submit()">
-    <input
-      type="email"
-      [formField]="loginForm.email"
-      placeholder="Email"
-      autocomplete="email"
-    />
+    <input type="email" [formField]="loginForm.email" placeholder="Email" autocomplete="email" />
     <input
       type="password"
       [formField]="loginForm.password"

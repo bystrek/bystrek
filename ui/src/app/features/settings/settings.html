@@ -78,7 +78,9 @@
         type="button"
         class="link"
         [disabled]="
-          loadingCalendars() || !calendarForm.caldavUrl().value() || !calendarForm.caldavUsername().value()
+          loadingCalendars() ||
+          !calendarForm.caldavUrl().value() ||
+          !calendarForm.caldavUsername().value()
         "
         (click)="loadCalendars()"
       >
