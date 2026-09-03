@@ -27,6 +27,7 @@ export class Settings implements OnInit {
 
   readonly image = signal<string | null>(null);
   readonly status = signal('');
+  readonly statusError = signal(false);
   readonly busy = signal(false);
   readonly converting = signal(false);
 
@@ -43,6 +44,9 @@ export class Settings implements OnInit {
     required(path.caldavPassword, { when: () => !this.calendar.credentials()?.configured });
   });
   readonly calendarStatus = signal('');
+  readonly calendarStatusError = signal(false);
+  readonly savingCalendar = signal(false);
+  readonly disconnectingCalendar = signal(false);
 
   readonly calendarOptions = signal<CalendarOption[]>([]);
   readonly loadingCalendars = signal(false);
@@ -54,6 +58,8 @@ export class Settings implements OnInit {
     email(path.inviteEmail);
   });
   readonly inviteStatus = signal('');
+  readonly inviteStatusError = signal(false);
+  readonly invitingUser = signal(false);
 
   ngOnInit(): void {
     void this.push.checkExistingSubscription();
@@ -83,6 +89,7 @@ export class Settings implements OnInit {
 
   async loadCalendars(): Promise<void> {
     this.calendarStatus.set('');
+    this.calendarStatusError.set(false);
     this.loadingCalendars.set(true);
     try {
       const options = await this.calendar.previewCalendars({
@@ -96,6 +103,7 @@ export class Settings implements OnInit {
       }
     } catch (err) {
       this.calendarStatus.set((err as Error).message);
+      this.calendarStatusError.set(true);
     } finally {
       this.loadingCalendars.set(false);
     }
@@ -107,6 +115,8 @@ export class Settings implements OnInit {
       return;
     }
     this.calendarStatus.set('');
+    this.calendarStatusError.set(false);
+    this.savingCalendar.set(true);
     try {
       const selected = this.calendarOptions().find(
         (o) => o.url === this.calendarModel().selectedCalendarUrl,
@@ -122,11 +132,16 @@ export class Settings implements OnInit {
       this.calendarStatus.set('Saved.');
     } catch (err) {
       this.calendarStatus.set((err as Error).message);
+      this.calendarStatusError.set(true);
+    } finally {
+      this.savingCalendar.set(false);
     }
   }
 
   async disconnectCalendar(): Promise<void> {
     this.calendarStatus.set('');
+    this.calendarStatusError.set(false);
+    this.disconnectingCalendar.set(true);
     try {
       await this.calendar.disconnect();
       this.calendarModel.update((m) => ({ ...m, caldavUsername: '', selectedCalendarUrl: '' }));
@@ -134,6 +149,9 @@ export class Settings implements OnInit {
       this.calendarStatus.set('Disconnected.');
     } catch (err) {
       this.calendarStatus.set((err as Error).message);
+      this.calendarStatusError.set(true);
+    } finally {
+      this.disconnectingCalendar.set(false);
     }
   }
 
@@ -145,6 +163,7 @@ export class Settings implements OnInit {
       this.image.set(await downscaleImage(file));
     } catch (err) {
       this.status.set((err as Error).message);
+      this.statusError.set(true);
     } finally {
       this.converting.set(false);
     }
@@ -157,12 +176,14 @@ export class Settings implements OnInit {
     }
     this.busy.set(true);
     this.status.set('');
+    this.statusError.set(false);
     try {
       const { firstName, lastName } = this.profileModel();
       await this.auth.updateProfile(firstName, lastName, this.image());
       this.status.set('Saved.');
     } catch (err) {
       this.status.set((err as Error).message);
+      this.statusError.set(true);
     } finally {
       this.busy.set(false);
     }
@@ -174,6 +195,8 @@ export class Settings implements OnInit {
       return;
     }
     this.inviteStatus.set('');
+    this.inviteStatusError.set(false);
+    this.invitingUser.set(true);
     try {
       const { inviteName, inviteEmail } = this.inviteModel();
       await this.users.invite(inviteName, inviteEmail);
@@ -181,6 +204,9 @@ export class Settings implements OnInit {
       this.inviteStatus.set('Invited — they’ll get an email to set a password.');
     } catch (err) {
       this.inviteStatus.set((err as Error).message);
+      this.inviteStatusError.set(true);
+    } finally {
+      this.invitingUser.set(false);
     }
   }
 

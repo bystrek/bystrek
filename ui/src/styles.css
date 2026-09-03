@@ -112,3 +112,9 @@ select {
   color: var(--color-ink-muted);
   min-height: 1.2em;
 }
+
+#status.error,
+.status.error {
+  color: var(--color-danger);
+  font-weight: 700;
+}

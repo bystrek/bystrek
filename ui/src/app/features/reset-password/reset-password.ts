@@ -25,6 +25,7 @@ export class ResetPassword {
   });
 
   readonly status = signal('');
+  readonly statusError = signal(false);
   readonly busy = signal(false);
   readonly done = signal(false);
 
@@ -36,6 +37,7 @@ export class ResetPassword {
     }
     this.busy.set(true);
     this.status.set('');
+    this.statusError.set(false);
     try {
       await this.auth.resetPassword(this.model().newPassword, this.token);
       this.done.set(true);
@@ -43,6 +45,7 @@ export class ResetPassword {
       setTimeout(() => this.router.navigateByUrl('/'), 1500);
     } catch (err) {
       this.status.set((err as Error).message);
+      this.statusError.set(true);
     } finally {
       this.busy.set(false);
     }

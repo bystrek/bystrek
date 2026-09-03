@@ -16,6 +16,7 @@ export class PushService {
   private readonly apiUrl = inject(APP_CONFIG).apiUrl;
 
   readonly status = signal('');
+  readonly statusError = signal(false);
   readonly subscribed = signal(false);
   readonly busy = signal(false);
 
@@ -31,11 +32,13 @@ export class PushService {
 
   async subscribe(): Promise<void> {
     this.busy.set(true);
+    this.statusError.set(false);
     try {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
         this.status.set(
           "Push isn't available here — on iPhone, add this page to your Home Screen and open it from there first.",
         );
+        this.statusError.set(true);
         return;
       }
 
@@ -43,6 +46,7 @@ export class PushService {
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
         this.status.set('Permission denied.');
+        this.statusError.set(true);
         return;
       }
 
@@ -64,6 +68,7 @@ export class PushService {
       this.subscribed.set(true);
     } catch (err) {
       this.status.set('Something went wrong: ' + (err as Error).message);
+      this.statusError.set(true);
     } finally {
       this.busy.set(false);
     }
@@ -71,6 +76,7 @@ export class PushService {
 
   async sendTest(): Promise<void> {
     this.busy.set(true);
+    this.statusError.set(false);
     this.status.set('Sending…');
     try {
       const result = await firstValueFrom(
@@ -84,6 +90,7 @@ export class PushService {
       );
     } catch (err) {
       this.status.set('Something went wrong: ' + (err as Error).message);
+      this.statusError.set(true);
     } finally {
       this.busy.set(false);
     }

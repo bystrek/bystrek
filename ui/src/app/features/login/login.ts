@@ -1,4 +1,4 @@
-import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormField, FormRoot, email, form, required } from '@angular/forms/signals';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
@@ -22,15 +22,18 @@ export class Login {
   });
 
   readonly status = signal('');
-  readonly busy = signal(false);
+  readonly statusError = signal(false);
+  readonly pendingAction = signal<'signin' | 'reset' | null>(null);
+  readonly busy = computed(() => this.pendingAction() !== null);
 
   async submit(): Promise<void> {
     if (this.loginForm().invalid()) {
       this.loginForm().markAsTouched();
       return;
     }
-    this.busy.set(true);
+    this.pendingAction.set('signin');
     this.status.set('');
+    this.statusError.set(false);
     try {
       await this.auth.signIn(this.model().email, this.model().password);
       this.model.update((m) => ({ ...m, password: '' }));
@@ -38,25 +41,29 @@ export class Login {
       await this.router.navigateByUrl('/');
     } catch (err) {
       this.status.set((err as Error).message);
+      this.statusError.set(true);
     } finally {
-      this.busy.set(false);
+      this.pendingAction.set(null);
     }
   }
 
   async forgotPassword(): Promise<void> {
     if (!this.model().email) {
       this.status.set('Enter your email above first, then click this again.');
+      this.statusError.set(true);
       return;
     }
-    this.busy.set(true);
+    this.pendingAction.set('reset');
     this.status.set('');
+    this.statusError.set(false);
     try {
       await this.auth.requestPasswordReset(this.model().email);
       this.status.set('If that email exists, a reset link is on its way.');
     } catch (err) {
       this.status.set((err as Error).message);
+      this.statusError.set(true);
     } finally {
-      this.busy.set(false);
+      this.pendingAction.set(null);
     }
   }
 }

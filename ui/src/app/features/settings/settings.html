@@ -18,11 +18,13 @@
     <form id="profile" [formRoot]="profileForm" (submit)="save()">
       <input type="text" [formField]="profileForm.firstName" placeholder="First name" />
       <input type="text" [formField]="profileForm.lastName" placeholder="Last name" />
-      <button type="submit" [disabled]="busy() || converting()">Save</button>
+      <button type="submit" [disabled]="busy() || converting()">
+        {{ busy() ? 'Saving…' : converting() ? 'Processing image…' : 'Save' }}
+      </button>
     </form>
 
     @if (status()) {
-      <div class="status">{{ status() }}</div>
+      <div class="status" [class.error]="statusError()">{{ status() }}</div>
     }
   </section>
 
@@ -36,7 +38,7 @@
     <button (click)="push.sendTest()" [disabled]="push.busy() || !push.subscribed()">
       Send test notification
     </button>
-    <div id="status">{{ push.status() }}</div>
+    <div id="status" [class.error]="push.statusError()">{{ push.status() }}</div>
   </section>
 
   <section class="settings-section">
@@ -90,14 +92,23 @@
           }
         </select>
       }
-      <button type="submit" [disabled]="calendar.busy()">Save</button>
+      <button type="submit" [disabled]="calendar.busy()">
+        {{ savingCalendar() ? 'Saving…' : 'Save' }}
+      </button>
       @if (calendar.credentials()?.configured) {
-        <button type="button" class="link" (click)="disconnectCalendar()">Disconnect</button>
+        <button
+          type="button"
+          class="link"
+          [disabled]="calendar.busy()"
+          (click)="disconnectCalendar()"
+        >
+          {{ disconnectingCalendar() ? 'Disconnecting…' : 'Disconnect' }}
+        </button>
       }
     </form>
 
     @if (calendarStatus()) {
-      <div class="status">{{ calendarStatus() }}</div>
+      <div class="status" [class.error]="calendarStatusError()">{{ calendarStatus() }}</div>
     }
   </section>
 
@@ -122,10 +133,12 @@
         <form id="invite" [formRoot]="inviteForm" (submit)="invite()">
           <input type="text" [formField]="inviteForm.inviteName" placeholder="Name" />
           <input type="email" [formField]="inviteForm.inviteEmail" placeholder="Email" />
-          <button type="submit" [disabled]="users.busy()">Invite</button>
+          <button type="submit" [disabled]="users.busy()">
+            {{ invitingUser() ? 'Inviting…' : 'Invite' }}
+          </button>
         </form>
         @if (inviteStatus()) {
-          <div class="status">{{ inviteStatus() }}</div>
+          <div class="status" [class.error]="inviteStatusError()">{{ inviteStatus() }}</div>
         }
       }
     </section>

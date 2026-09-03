@@ -15,13 +15,15 @@
       placeholder="Password"
       autocomplete="current-password"
     />
-    <button type="submit" [disabled]="busy()">Sign in</button>
+    <button type="submit" [disabled]="busy()">
+      {{ pendingAction() === 'signin' ? 'Signing in…' : 'Sign in' }}
+    </button>
     <button type="button" class="link" (click)="forgotPassword()" [disabled]="busy()">
-      Forgot password?
+      {{ pendingAction() === 'reset' ? 'Sending…' : 'Forgot password?' }}
     </button>
   </form>
 
   @if (status()) {
-    <div class="status">{{ status() }}</div>
+    <div class="status" [class.error]="statusError()">{{ status() }}</div>
   }
 </main>

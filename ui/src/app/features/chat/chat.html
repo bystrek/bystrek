@@ -12,7 +12,7 @@
   </div>
 
   @if (chat.error()) {
-    <div class="status">{{ chat.error() }}</div>
+    <div class="status error">{{ chat.error() }}</div>
   }
 
   <form id="chat-input" [formRoot]="draftForm" (submit)="send()">
