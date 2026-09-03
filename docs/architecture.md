@@ -1,6 +1,6 @@
 # Architecture direction — bystrek
 
-Target shape for where this project is heading, as of 2026-08-23. Not a snapshot of what's built — see `docs/roadmap.md` for that. Update when the direction changes, not on every feature shipped.
+Target shape for where this project is heading, as of 2026-08-23. Not a snapshot of what's built — see [GitHub Issues](https://github.com/bystrek/bystrek/issues) for that. Update when the direction changes, not on every feature shipped.
 
 ## Vision
 
