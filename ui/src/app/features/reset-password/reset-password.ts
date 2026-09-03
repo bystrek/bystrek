@@ -1,11 +1,11 @@
 import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormField, FormRoot, form, minLength, required } from '@angular/forms/signals';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 
 @Component({
   selector: 'app-reset-password',
-  imports: [FormsModule],
+  imports: [FormField, FormRoot],
   templateUrl: './reset-password.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './reset-password.css',
@@ -18,17 +18,26 @@ export class ResetPassword {
   readonly token = this.route.snapshot.queryParamMap.get('token');
   readonly error = this.route.snapshot.queryParamMap.get('error');
 
-  readonly newPassword = signal('');
+  private readonly model = signal({ newPassword: '' });
+  protected readonly resetForm = form(this.model, (path) => {
+    required(path.newPassword);
+    minLength(path.newPassword, 8);
+  });
+
   readonly status = signal('');
   readonly busy = signal(false);
   readonly done = signal(false);
 
   async submit(): Promise<void> {
     if (!this.token) return;
+    if (this.resetForm().invalid()) {
+      this.resetForm().markAsTouched();
+      return;
+    }
     this.busy.set(true);
     this.status.set('');
     try {
-      await this.auth.resetPassword(this.newPassword(), this.token);
+      await this.auth.resetPassword(this.model().newPassword, this.token);
       this.done.set(true);
       this.status.set('Password updated. Redirecting to sign in…');
       setTimeout(() => this.router.navigateByUrl('/'), 1500);
