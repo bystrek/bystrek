@@ -1,5 +1,5 @@
 import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormField, FormRoot, email, form, required } from '@angular/forms/signals';
 import { AuthService } from '../../core/auth/auth.service';
 import { CalendarOption, CalendarService } from '../../core/calendar/calendar.service';
 import { PushService } from '../../core/push/push.service';
@@ -8,7 +8,7 @@ import { downscaleImage } from './downscale-image';
 
 @Component({
   selector: 'app-settings',
-  imports: [FormsModule],
+  imports: [FormField, FormRoot],
   templateUrl: './settings.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './settings.css',
@@ -19,26 +19,47 @@ export class Settings implements OnInit {
   protected readonly push = inject(PushService);
   protected readonly users = inject(UsersService);
 
-  readonly firstName = signal('');
-  readonly lastName = signal('');
+  private readonly profileModel = signal({ firstName: '', lastName: '' });
+  protected readonly profileForm = form(this.profileModel, (path) => {
+    required(path.firstName);
+    required(path.lastName);
+  });
+
   readonly image = signal<string | null>(null);
   readonly status = signal('');
+  readonly statusError = signal(false);
   readonly busy = signal(false);
   readonly converting = signal(false);
 
-  readonly caldavUrl = signal('');
-  readonly caldavUsername = signal('');
-  readonly caldavPassword = signal('');
-  readonly calendarStatus = signal('');
-
   // '' means "use the account's first calendar" (calendarUrl: null).
+  private readonly calendarModel = signal({
+    caldavUrl: '',
+    caldavUsername: '',
+    caldavPassword: '',
+    selectedCalendarUrl: '',
+  });
+  protected readonly calendarForm = form(this.calendarModel, (path) => {
+    required(path.caldavUrl);
+    required(path.caldavUsername);
+    required(path.caldavPassword, { when: () => !this.calendar.credentials()?.configured });
+  });
+  readonly calendarStatus = signal('');
+  readonly calendarStatusError = signal(false);
+  readonly savingCalendar = signal(false);
+  readonly disconnectingCalendar = signal(false);
+
   readonly calendarOptions = signal<CalendarOption[]>([]);
-  readonly selectedCalendarUrl = signal('');
   readonly loadingCalendars = signal(false);
 
-  readonly inviteName = signal('');
-  readonly inviteEmail = signal('');
+  private readonly inviteModel = signal({ inviteName: '', inviteEmail: '' });
+  protected readonly inviteForm = form(this.inviteModel, (path) => {
+    required(path.inviteName);
+    required(path.inviteEmail);
+    email(path.inviteEmail);
+  });
   readonly inviteStatus = signal('');
+  readonly inviteStatusError = signal(false);
+  readonly invitingUser = signal(false);
 
   ngOnInit(): void {
     void this.push.checkExistingSubscription();
@@ -46,16 +67,18 @@ export class Settings implements OnInit {
 
     const user = this.auth.session()?.user;
     if (!user) return;
-    this.firstName.set(user.firstName ?? '');
-    this.lastName.set(user.lastName ?? '');
+    this.profileModel.set({ firstName: user.firstName ?? '', lastName: user.lastName ?? '' });
     this.image.set(user.image);
 
     void this.calendar.load().then(() => {
       const creds = this.calendar.credentials();
       if (!creds?.configured) return;
-      this.caldavUrl.set(creds.caldavUrl ?? this.caldavUrl());
-      this.caldavUsername.set(creds.username ?? '');
-      this.selectedCalendarUrl.set(creds.calendarUrl ?? '');
+      this.calendarModel.update((m) => ({
+        ...m,
+        caldavUrl: creds.caldavUrl ?? m.caldavUrl,
+        caldavUsername: creds.username ?? '',
+        selectedCalendarUrl: creds.calendarUrl ?? '',
+      }));
       if (creds.calendarUrl && creds.calendarDisplayName) {
         this.calendarOptions.set([
           { url: creds.calendarUrl, displayName: creds.calendarDisplayName },
@@ -66,52 +89,69 @@ export class Settings implements OnInit {
 
   async loadCalendars(): Promise<void> {
     this.calendarStatus.set('');
+    this.calendarStatusError.set(false);
     this.loadingCalendars.set(true);
     try {
       const options = await this.calendar.previewCalendars({
-        caldavUrl: this.caldavUrl(),
-        username: this.caldavUsername(),
-        password: this.caldavPassword(),
+        caldavUrl: this.calendarModel().caldavUrl,
+        username: this.calendarModel().caldavUsername,
+        password: this.calendarModel().caldavPassword,
       });
       this.calendarOptions.set(options);
-      if (!options.some((o) => o.url === this.selectedCalendarUrl())) {
-        this.selectedCalendarUrl.set('');
+      if (!options.some((o) => o.url === this.calendarModel().selectedCalendarUrl)) {
+        this.calendarModel.update((m) => ({ ...m, selectedCalendarUrl: '' }));
       }
     } catch (err) {
       this.calendarStatus.set((err as Error).message);
+      this.calendarStatusError.set(true);
     } finally {
       this.loadingCalendars.set(false);
     }
   }
 
   async saveCalendar(): Promise<void> {
+    if (this.calendarForm().invalid()) {
+      this.calendarForm().markAsTouched();
+      return;
+    }
     this.calendarStatus.set('');
+    this.calendarStatusError.set(false);
+    this.savingCalendar.set(true);
     try {
-      const selected = this.calendarOptions().find((o) => o.url === this.selectedCalendarUrl());
+      const selected = this.calendarOptions().find(
+        (o) => o.url === this.calendarModel().selectedCalendarUrl,
+      );
       await this.calendar.save({
-        caldavUrl: this.caldavUrl(),
-        username: this.caldavUsername(),
-        password: this.caldavPassword(),
+        caldavUrl: this.calendarModel().caldavUrl,
+        username: this.calendarModel().caldavUsername,
+        password: this.calendarModel().caldavPassword,
         calendarUrl: selected?.url ?? null,
         calendarDisplayName: selected?.displayName ?? null,
       });
-      this.caldavPassword.set('');
+      this.calendarModel.update((m) => ({ ...m, caldavPassword: '' }));
       this.calendarStatus.set('Saved.');
     } catch (err) {
       this.calendarStatus.set((err as Error).message);
+      this.calendarStatusError.set(true);
+    } finally {
+      this.savingCalendar.set(false);
     }
   }
 
   async disconnectCalendar(): Promise<void> {
     this.calendarStatus.set('');
+    this.calendarStatusError.set(false);
+    this.disconnectingCalendar.set(true);
     try {
       await this.calendar.disconnect();
-      this.caldavUsername.set('');
+      this.calendarModel.update((m) => ({ ...m, caldavUsername: '', selectedCalendarUrl: '' }));
       this.calendarOptions.set([]);
-      this.selectedCalendarUrl.set('');
       this.calendarStatus.set('Disconnected.');
     } catch (err) {
       this.calendarStatus.set((err as Error).message);
+      this.calendarStatusError.set(true);
+    } finally {
+      this.disconnectingCalendar.set(false);
     }
   }
 
@@ -123,33 +163,50 @@ export class Settings implements OnInit {
       this.image.set(await downscaleImage(file));
     } catch (err) {
       this.status.set((err as Error).message);
+      this.statusError.set(true);
     } finally {
       this.converting.set(false);
     }
   }
 
   async save(): Promise<void> {
+    if (this.profileForm().invalid()) {
+      this.profileForm().markAsTouched();
+      return;
+    }
     this.busy.set(true);
     this.status.set('');
+    this.statusError.set(false);
     try {
-      await this.auth.updateProfile(this.firstName(), this.lastName(), this.image());
+      const { firstName, lastName } = this.profileModel();
+      await this.auth.updateProfile(firstName, lastName, this.image());
       this.status.set('Saved.');
     } catch (err) {
       this.status.set((err as Error).message);
+      this.statusError.set(true);
     } finally {
       this.busy.set(false);
     }
   }
 
   async invite(): Promise<void> {
+    if (this.inviteForm().invalid()) {
+      this.inviteForm().markAsTouched();
+      return;
+    }
     this.inviteStatus.set('');
+    this.inviteStatusError.set(false);
+    this.invitingUser.set(true);
     try {
-      await this.users.invite(this.inviteName(), this.inviteEmail());
-      this.inviteName.set('');
-      this.inviteEmail.set('');
+      const { inviteName, inviteEmail } = this.inviteModel();
+      await this.users.invite(inviteName, inviteEmail);
+      this.inviteModel.set({ inviteName: '', inviteEmail: '' });
       this.inviteStatus.set('Invited — they’ll get an email to set a password.');
     } catch (err) {
       this.inviteStatus.set((err as Error).message);
+      this.inviteStatusError.set(true);
+    } finally {
+      this.invitingUser.set(false);
     }
   }
 

@@ -11,13 +11,13 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormField, FormRoot, disabled, form, required } from '@angular/forms/signals';
 import { ChatService } from '../../core/chat/chat.service';
 import { MarkdownPipe } from '../../core/chat/markdown.pipe';
 
 @Component({
   selector: 'app-chat',
-  imports: [FormsModule, MarkdownPipe],
+  imports: [FormField, FormRoot, MarkdownPipe],
   templateUrl: './chat.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './chat.css',
@@ -32,7 +32,11 @@ export class Chat implements OnInit {
 
   @ViewChild('scrollAnchor') private scrollAnchor?: ElementRef<HTMLElement>;
 
-  readonly draft = signal('');
+  private readonly model = signal({ draft: '' });
+  protected readonly draftForm = form(this.model, (path) => {
+    required(path.draft);
+    disabled(path.draft, { when: () => this.chat.sending() });
+  });
 
   // Tracks the last message content actually rendered, so the render effect
   // (which fires on every render whose reactive dependencies change,
@@ -120,9 +124,9 @@ export class Chat implements OnInit {
   }
 
   send(): void {
-    const text = this.draft().trim();
+    const text = this.model().draft.trim();
     if (!text) return;
     this.chat.send(text);
-    this.draft.set('');
+    this.model.set({ draft: '' });
   }
 }

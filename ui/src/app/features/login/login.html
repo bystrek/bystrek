@@ -2,32 +2,23 @@
   <h1>bystrek</h1>
   <p>Sign in to reach the assistant.</p>
 
-  <form id="login" (ngSubmit)="submit()">
-    <input
-      type="email"
-      name="email"
-      [ngModel]="email()"
-      (ngModelChange)="email.set($event)"
-      placeholder="Email"
-      autocomplete="email"
-      required
-    />
+  <form id="login" [formRoot]="loginForm" (submit)="submit()">
+    <input type="email" [formField]="loginForm.email" placeholder="Email" autocomplete="email" />
     <input
       type="password"
-      name="password"
-      [ngModel]="password()"
-      (ngModelChange)="password.set($event)"
+      [formField]="loginForm.password"
       placeholder="Password"
       autocomplete="current-password"
-      required
     />
-    <button type="submit" [disabled]="busy()">Sign in</button>
+    <button type="submit" [disabled]="busy()">
+      {{ pendingAction() === 'signin' ? 'Signing in…' : 'Sign in' }}
+    </button>
     <button type="button" class="link" (click)="forgotPassword()" [disabled]="busy()">
-      Forgot password?
+      {{ pendingAction() === 'reset' ? 'Sending…' : 'Forgot password?' }}
     </button>
   </form>
 
   @if (status()) {
-    <div class="status">{{ status() }}</div>
+    <div class="status" [class.error]="statusError()">{{ status() }}</div>
   }
 </main>
