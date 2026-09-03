@@ -6,7 +6,7 @@ import { Icon } from '../icon/icon';
   imports: [Icon],
   template: `
     @if (message()) {
-      <div class="status" [class.error]="error()">
+      <div class="status" [id]="elementId()" [class.error]="error()">
         @if (error()) {
           <app-icon name="square-alert" />
         }
@@ -19,4 +19,5 @@ import { Icon } from '../icon/icon';
 export class StatusBanner {
   readonly message = input.required<string>();
   readonly error = input(false);
+  readonly elementId = input<string>();
 }

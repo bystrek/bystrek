@@ -36,7 +36,7 @@
     <button (click)="push.sendTest()" [disabled]="push.busy() || !push.subscribed()">
       Send test notification
     </button>
-    <app-status-banner [message]="push.status()" [error]="push.statusError()" />
+    <app-status-banner elementId="status" [message]="push.status()" [error]="push.statusError()" />
   </section>
 
   <section class="settings-section">
