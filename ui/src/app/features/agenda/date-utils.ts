@@ -1,3 +1,5 @@
+import { Temporal } from '@js-temporal/polyfill';
+
 const DAY_ABBR = new Intl.DateTimeFormat(undefined, { weekday: 'short' });
 const HEADER_FORMAT = new Intl.DateTimeFormat(undefined, {
   weekday: 'short',
@@ -60,7 +62,13 @@ export function hourFraction(date: Date): number {
   return date.getHours() + date.getMinutes() / 60;
 }
 
+// `iso` always carries an explicit UTC offset (see api/src/calendar/
+// ical-event.ts) — Temporal.Instant.from requires exactly that, and
+// toZonedDateTimeISO makes the conversion to the viewer's own local time
+// zone explicit rather than relying on a plain Date's implicit one.
 export function formatTime(iso: string): string {
-  const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return Temporal.Instant.from(iso)
+    .toZonedDateTimeISO(Temporal.Now.timeZoneId())
+    .toPlainTime()
+    .toString({ smallestUnit: 'minute' });
 }
