@@ -1,8 +1,4 @@
-import {
-  HttpClient,
-  HttpEventType,
-  type HttpDownloadProgressEvent,
-} from '@angular/common/http';
+import { HttpClient, HttpEventType, type HttpDownloadProgressEvent } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { EMPTY, Subject, catchError, firstValueFrom, switchMap, tap } from 'rxjs';
 import { APP_CONFIG } from '../config/app-config';

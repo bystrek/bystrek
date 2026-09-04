@@ -111,7 +111,11 @@
           </div>
           <div class="day-col-body" [style.height.px]="gridHeight()">
             @for (event of day.events; track event.uid) {
-              <a class="chip" [style.top.px]="event.top" [routerLink]="['/agenda/event', event.uid]">
+              <a
+                class="chip"
+                [style.top.px]="event.top"
+                [routerLink]="['/agenda/event', event.uid]"
+              >
                 <div class="t">{{ formatTime(event.start) }}</div>
                 <div class="l">{{ event.summary }}</div>
               </a>

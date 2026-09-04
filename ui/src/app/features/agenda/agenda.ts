@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CalendarEvent, CalendarEventsService } from '../../core/calendar/calendar-events.service';
 import { Icon } from '../../shared/icon/icon';

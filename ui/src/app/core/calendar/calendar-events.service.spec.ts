@@ -42,9 +42,7 @@ describe('CalendarEventsService', () => {
       end: new Date(2026, 8, 7, 23, 59, 59),
     });
 
-    const req = httpMock.expectOne(
-      (r) => r.url === '/api/calendar/events' && r.method === 'GET',
-    );
+    const req = httpMock.expectOne((r) => r.url === '/api/calendar/events' && r.method === 'GET');
     expect(req.request.params.get('start')).toBe('2026-09-01T00:00:00');
     expect(req.request.params.get('end')).toBe('2026-09-07T23:59:59');
 

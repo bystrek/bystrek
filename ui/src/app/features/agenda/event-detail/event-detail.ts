@@ -1,7 +1,10 @@
 import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { CalendarEvent, CalendarEventsService } from '../../../core/calendar/calendar-events.service';
+import {
+  CalendarEvent,
+  CalendarEventsService,
+} from '../../../core/calendar/calendar-events.service';
 import { Icon } from '../../../shared/icon/icon';
 import { StatusBanner } from '../../../shared/status-banner/status-banner';
 import { formatTime } from '../date-utils';
