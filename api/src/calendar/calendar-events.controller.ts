@@ -52,11 +52,16 @@ export class CalendarEventsController {
     if (!start || !end) {
       throw new BadRequestException('both "start" and "end" query params are required');
     }
+    let range: { start: Date; end: Date };
     try {
-      return { start: parseZonedIso(start, timezone), end: parseZonedIso(end, timezone) };
+      range = { start: parseZonedIso(start, timezone), end: parseZonedIso(end, timezone) };
     } catch (err) {
       throw new BadRequestException(err instanceof Error ? err.message : String(err));
     }
+    if (range.end <= range.start) {
+      throw new BadRequestException('"end" must be after "start"');
+    }
+    return range;
   }
 
   private async loadTimezone(userId: string): Promise<string> {
