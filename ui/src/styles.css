@@ -107,7 +107,7 @@ select {
 
 #status,
 .status {
-  margin-top: 20px;
+  margin: 20px 0;
   font-size: 22px;
   color: var(--color-ink-muted);
   min-height: 1.2em;
@@ -118,7 +118,7 @@ select {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  margin-top: 20px;
+  margin: 20px 0;
   padding: 10px 12px;
   color: var(--color-ink);
   font-weight: 700;

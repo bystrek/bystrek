@@ -1,0 +1,128 @@
+<main class="page">
+  <div class="view-tabs">
+    <button
+      type="button"
+      class="view-tab"
+      [class.active]="viewMode() === ViewMode.Day"
+      (click)="viewMode.set(ViewMode.Day)"
+    >
+      Day
+    </button>
+    <button
+      type="button"
+      class="view-tab"
+      [class.active]="viewMode() === ViewMode.Week"
+      (click)="viewMode.set(ViewMode.Week)"
+    >
+      Week
+    </button>
+  </div>
+
+  <div class="day-strip">
+    @for (day of weekDays(); track day.date.getTime()) {
+      <button
+        type="button"
+        class="day-pill"
+        [class.selected]="day.isSelected"
+        (click)="selectDay(day.date)"
+      >
+        <span class="abbr">{{ day.abbr }}</span>
+        <span class="num">{{ day.num }}</span>
+        <span class="dot" [class.hidden]="!day.hasEvents"></span>
+      </button>
+    }
+  </div>
+
+  <app-status-banner [message]="error()" [error]="true" />
+
+  @if (viewMode() === ViewMode.Day) {
+    <div class="day-header">
+      <button type="button" class="day-nav-btn" aria-label="Previous day" (click)="stepDay(-1)">
+        <app-icon name="chevron-left" />
+      </button>
+      <div class="day-title">{{ dayHeader() }}</div>
+      <button type="button" class="day-nav-btn" aria-label="Next day" (click)="stepDay(1)">
+        <app-icon name="chevron-right" />
+      </button>
+    </div>
+    <div class="day-sub">
+      @if (isSelectedToday()) {
+        <span class="today-pill">Today</span>
+      } @else {
+        <button type="button" class="today-pill" (click)="goToday()">Today</button>
+      }
+    </div>
+
+    @if (loading()) {
+      <p class="loading">Loading…</p>
+    } @else if (todaysEvents().length === 0) {
+      <div class="empty-state">
+        <app-icon name="calendar" />
+        <div class="empty-title">No events today</div>
+        <div class="empty-sub">Enjoy the quiet.</div>
+      </div>
+    } @else {
+      <div class="event-list">
+        @for (event of todaysEvents(); track event.uid) {
+          <a class="event-card" [routerLink]="['/agenda/event', event.uid]">
+            <div class="event-time">
+              <div class="start">{{ formatTime(event.start) }}</div>
+              <div class="end">{{ formatTime(event.end) }}</div>
+            </div>
+            <div class="event-body">
+              <div class="event-title">{{ event.summary }}</div>
+              @if (event.location; as location) {
+                <div class="event-loc">
+                  <app-icon name="map-pin" />
+                  <span>{{ location }}</span>
+                </div>
+              }
+            </div>
+            <div class="event-arrow"><app-icon name="chevron-right" /></div>
+          </a>
+        }
+      </div>
+    }
+  } @else {
+    <div class="week-header">
+      <button type="button" class="week-nav-btn" aria-label="Previous week" (click)="stepWeek(-1)">
+        <app-icon name="chevron-left" />
+      </button>
+      <div class="week-title">{{ weekHeader() }}</div>
+      <button type="button" class="week-nav-btn" aria-label="Next week" (click)="stepWeek(1)">
+        <app-icon name="chevron-right" />
+      </button>
+    </div>
+
+    <div class="week-grid">
+      <div class="time-gutter">
+        <div class="time-gutter-head"></div>
+        <div class="time-gutter-body" [style.height.px]="gridHeight()">
+          @for (hour of hourLabels(); track hour.label) {
+            <div class="time-label" [style.top.px]="hour.top">{{ hour.label }}</div>
+          }
+        </div>
+      </div>
+      @for (day of weekDays(); track day.date.getTime()) {
+        <div class="day-col">
+          <div class="day-col-head" [class.today]="day.isToday">
+            <div class="day-abbr">{{ day.abbr }}</div>
+            <div class="day-num">{{ day.num }}</div>
+          </div>
+          <div class="day-col-body" [style.height.px]="gridHeight()">
+            @for (event of day.events; track event.uid) {
+              <a
+                class="chip"
+                [style.top.px]="event.top"
+                [routerLink]="['/agenda/event', event.uid]"
+              >
+                <div class="t">{{ formatTime(event.start) }}</div>
+                <div class="l">{{ event.summary }}</div>
+              </a>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+</main>

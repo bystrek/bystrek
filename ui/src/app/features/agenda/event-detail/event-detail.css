@@ -1,0 +1,94 @@
+.page {
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 32px 24px;
+  box-sizing: border-box;
+}
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  color: var(--color-ink);
+  text-decoration: none;
+  font-family: var(--font-text);
+  font-size: 18px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  margin-bottom: 24px;
+}
+
+.back-btn app-icon {
+  font-size: 18px;
+}
+
+.loading {
+  color: var(--color-ink-muted);
+}
+
+.detail-card {
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  padding: 32px;
+}
+
+.detail-time {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-ink-muted);
+  margin-bottom: 8px;
+}
+
+.detail-time app-icon {
+  font-size: 20px;
+}
+
+.detail-title {
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1.1;
+  margin-bottom: 20px;
+}
+
+.detail-loc {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 20px;
+  color: var(--color-ink);
+  margin-bottom: 24px;
+}
+
+.detail-loc app-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.detail-notes {
+  display: flex;
+  gap: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  padding: 16px;
+}
+
+.detail-notes app-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--color-ink-muted);
+}
+
+.detail-notes p {
+  margin: 0;
+  font-size: 18px;
+  color: var(--color-ink-muted);
+  white-space: pre-line;
+}

@@ -1,22 +1,10 @@
-import {
-  HttpClient,
-  HttpErrorResponse,
-  HttpEventType,
-  type HttpDownloadProgressEvent,
-} from '@angular/common/http';
+import { HttpClient, HttpEventType, type HttpDownloadProgressEvent } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { EMPTY, Subject, catchError, firstValueFrom, switchMap, tap } from 'rxjs';
 import { APP_CONFIG } from '../config/app-config';
+import { errorMessage } from '../http/error-message';
 
 export type ChatMessage = { role: 'user' | 'assistant'; text: string };
-
-function errorMessage(err: unknown, fallback: string): string {
-  if (err instanceof HttpErrorResponse) {
-    const body = err.error as { message?: string } | null;
-    return body?.message ?? fallback;
-  }
-  return fallback;
-}
 
 @Injectable({ providedIn: 'root' })
 export class ChatService {
