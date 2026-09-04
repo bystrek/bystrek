@@ -67,6 +67,27 @@ describe('/calendar/events (integration)', () => {
     });
   });
 
+  it('rejects a range where "end" is not after "start"', async () => {
+    await withRollback(testDb, async (tx) => {
+      const { token } = await signUpTestUser(tx, { email: 'me@example.com', name: 'Me' });
+
+      const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+        .overrideProvider(DRIZZLE)
+        .useValue(tx)
+        .compile();
+      const app: INestApplication = moduleRef.createNestApplication();
+      await app.init();
+
+      const res = await request(app.getHttpServer())
+        .get('/calendar/events?start=2026-09-02T00:00:00&end=2026-09-01T00:00:00')
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(400);
+      expect((res.body as { message: string }).message).toContain('must be after');
+
+      await app.close();
+    });
+  });
+
   it('reports "not configured" (400) when the user has no calendar connected', async () => {
     await withRollback(testDb, async (tx) => {
       const { token } = await signUpTestUser(tx, { email: 'me@example.com', name: 'Me' });
@@ -83,6 +104,9 @@ describe('/calendar/events (integration)', () => {
         .get('/calendar/events?start=2026-09-01T00:00:00&end=2026-09-02T00:00:00')
         .set(auth);
       expect(listRes.status).toBe(400);
+
+      const getRes = await request(app.getHttpServer()).get('/calendar/events/some-uid').set(auth);
+      expect(getRes.status).toBe(400);
 
       await app.close();
     });
