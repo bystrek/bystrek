@@ -37,7 +37,7 @@ Don't invent or guess URLs (docs links, dashboard links, package pages) in commi
 
 ## Current architecture
 
-`bystrek.dev` serves `ui` (SvelteKit: subscribe UI, service worker) and `api.bystrek.dev` serves `api` (NestJS + Drizzle + Bun: Postgres, push subscribe/send) — both real services, verified with a real push notification through the deployed stack. Chat, auth, and the data model beyond push subscriptions are still not built.
+`bystrek.dev` serves `ui` (Angular: chat, settings, auth, service worker, push subscribe) and `api.bystrek.dev` serves `api` (NestJS + Drizzle + Bun: Postgres, push subscribe/send) — both real services, verified with a real push notification through the deployed stack.
 
 `docker-compose.yml`/`Caddyfile` (`~/bystrek/`) and Dockge's own compose file (`~/dockge/docker-compose.yml`) are managed by hand on the droplet and scp'd down to `infra/` as a reference copy only. Deploy is CI-triggered: GitHub Actions (`.github/workflows/deploy.yml`) builds `api`/`ui` to GHCR, then a `deploy` job — gated by a GitHub Environment (required reviewer) — SSHes in with a key restricted via a forced command (`authorized_keys`, can only run `infra/deploy.sh`) to `docker compose pull && up -d --remove-orphans`. Dockge stays for visibility and manual overrides.
 
