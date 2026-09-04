@@ -1,4 +1,5 @@
-import { Temporal } from '@js-temporal/polyfill';
+// Not included by default even at target: esnext — opt-in only.
+/// <reference lib="esnext.temporal" />
 
 // Formats as a plain (no UTC offset) ISO date-time — the API interprets
 // this as wall-clock time in the requesting user's own stored timezone

@@ -1,4 +1,5 @@
-import { Temporal } from '@js-temporal/polyfill';
+// Not included by default even at target: esnext — opt-in only.
+/// <reference lib="esnext.temporal" />
 
 const DAY_ABBR = new Intl.DateTimeFormat(undefined, { weekday: 'short' });
 const HEADER_FORMAT = new Intl.DateTimeFormat(undefined, {
