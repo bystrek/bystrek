@@ -9,8 +9,9 @@ import {
   formatDayHeader,
   formatTime,
   formatWeekHeader,
-  hourFraction,
+  hourFractionFromIso,
   isSameDay,
+  isSameDayAsIso,
   isToday,
   startOfDay,
   startOfWeek,
@@ -65,7 +66,7 @@ export class Agenda {
   readonly todaysEvents = computed(() => {
     const day = this.selectedDate();
     return this.events()
-      .filter((e) => isSameDay(new Date(e.start), day))
+      .filter((e) => isSameDayAsIso(e.start, day))
       .sort((a, b) => a.start.localeCompare(b.start));
   });
 
@@ -73,8 +74,8 @@ export class Agenda {
     let startHour = DEFAULT_RANGE_START_HOUR;
     let endHour = DEFAULT_RANGE_END_HOUR;
     for (const event of this.events()) {
-      startHour = Math.min(startHour, Math.floor(hourFraction(new Date(event.start))));
-      endHour = Math.max(endHour, Math.ceil(hourFraction(new Date(event.end))));
+      startHour = Math.min(startHour, Math.floor(hourFractionFromIso(event.start)));
+      endHour = Math.max(endHour, Math.ceil(hourFractionFromIso(event.end)));
     }
     return { startHour, endHour };
   });
@@ -99,11 +100,11 @@ export class Agenda {
     return Array.from({ length: 7 }, (_, i) => {
       const date = addDays(weekStart, i);
       const dayEvents = this.events()
-        .filter((e) => isSameDay(new Date(e.start), date))
+        .filter((e) => isSameDayAsIso(e.start, date))
         .sort((a, b) => a.start.localeCompare(b.start))
         .map((e) => ({
           ...e,
-          top: Math.round((hourFraction(new Date(e.start)) - startHour) * PX_PER_HOUR),
+          top: Math.round((hourFractionFromIso(e.start) - startHour) * PX_PER_HOUR),
         }));
       return {
         date,

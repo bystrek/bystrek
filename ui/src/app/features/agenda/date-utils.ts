@@ -42,6 +42,22 @@ export function isSameDay(a: Date, b: Date): boolean {
   );
 }
 
+// `iso` always carries an explicit UTC offset (see ical-event.ts) that
+// already reflects the account's own configured timezone — read via
+// Temporal.PlainDateTime, which takes the wall-clock fields as written and
+// ignores the offset, rather than `new Date(iso)`, whose getters
+// (getHours/getDate/...) reinterpret it in the *viewer's device* timezone.
+// Those two can disagree, silently shifting an event onto the wrong hour
+// or even the wrong day near midnight.
+export function isSameDayAsIso(iso: string, date: Date): boolean {
+  const event = Temporal.PlainDateTime.from(iso);
+  return (
+    event.year === date.getFullYear() &&
+    event.month === date.getMonth() + 1 &&
+    event.day === date.getDate()
+  );
+}
+
 export function isToday(date: Date): boolean {
   return isSameDay(date, new Date());
 }
@@ -59,14 +75,13 @@ export function weekdayAbbr(date: Date): string {
   return DAY_ABBR.format(date);
 }
 
-export function hourFraction(date: Date): number {
-  return date.getHours() + date.getMinutes() / 60;
+// Wall-clock hour, as written in `iso` — see isSameDayAsIso's note on why
+// this doesn't go through `new Date(iso).getHours()`.
+export function hourFractionFromIso(iso: string): number {
+  const t = Temporal.PlainDateTime.from(iso);
+  return t.hour + t.minute / 60;
 }
 
-// `iso` always carries an explicit UTC offset — see ical-event.ts.
 export function formatTime(iso: string): string {
-  return Temporal.Instant.from(iso)
-    .toZonedDateTimeISO(Temporal.Now.timeZoneId())
-    .toPlainTime()
-    .toString({ smallestUnit: 'minute' });
+  return Temporal.PlainDateTime.from(iso).toPlainTime().toString({ smallestUnit: 'minute' });
 }
