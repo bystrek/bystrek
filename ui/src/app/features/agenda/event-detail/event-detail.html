@@ -1,0 +1,34 @@
+<main class="page">
+  <a routerLink="/agenda" class="back-btn">
+    <app-icon name="arrow-left" />
+    Agenda
+  </a>
+
+  <app-status-banner [message]="error()" [error]="true" />
+
+  @if (loading()) {
+    <p class="loading">Loading…</p>
+  } @else if (event(); as ev) {
+    <div class="detail-card">
+      <div class="detail-time">
+        <app-icon name="clock" />
+        {{ formatTime(ev.start) }} - {{ formatTime(ev.end) }}
+      </div>
+      <div class="detail-title">{{ ev.summary }}</div>
+
+      @if (ev.location; as location) {
+        <div class="detail-loc">
+          <app-icon name="map-pin" />
+          {{ location }}
+        </div>
+      }
+
+      @if (ev.description; as description) {
+        <div class="detail-notes">
+          <app-icon name="note" />
+          <p>{{ description }}</p>
+        </div>
+      }
+    </div>
+  }
+</main>
