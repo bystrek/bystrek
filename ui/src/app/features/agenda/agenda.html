@@ -1,9 +1,9 @@
 <main class="page">
   <div class="view-tabs">
-    <button type="button" class="view-tab" [class.active]="viewMode() === 'day'" (click)="setView('day')">
+    <button type="button" class="view-tab" [class.active]="viewMode() === DAY" (click)="viewMode.set(DAY)">
       Day
     </button>
-    <button type="button" class="view-tab" [class.active]="viewMode() === 'week'" (click)="setView('week')">
+    <button type="button" class="view-tab" [class.active]="viewMode() === WEEK" (click)="viewMode.set(WEEK)">
       Week
     </button>
   </div>
@@ -25,7 +25,7 @@
 
   <app-status-banner [message]="error()" [error]="true" />
 
-  @if (viewMode() === 'day') {
+  @if (viewMode() === DAY) {
     <div class="day-header">
       <button type="button" class="day-nav-btn" aria-label="Previous day" (click)="stepDay(-1)">
         <app-icon name="chevron-left" />

@@ -10,16 +10,15 @@
   margin-bottom: 24px;
 }
 
+/* font-family/font-weight/text-transform/border/cursor come from the
+   global `button` rule in styles.css — only what actually differs
+   (size, spacing, color) needs restating here. */
 .view-tab {
-  font-family: var(--font-text);
   font-size: 20px;
-  font-weight: 700;
-  text-transform: uppercase;
   padding: 8px 18px;
-  border: var(--border-width) solid var(--color-border);
+  margin: 0;
   background: var(--color-surface);
   color: var(--color-ink);
-  cursor: pointer;
 }
 
 .view-tab.active {
@@ -47,10 +46,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  margin: 0;
   background: var(--color-surface);
-  border: var(--border-width) solid var(--color-border);
   color: var(--color-ink);
-  cursor: pointer;
 }
 
 .day-nav-btn app-icon {
@@ -85,7 +83,7 @@
 }
 
 button.today-pill {
-  cursor: pointer;
+  margin: 0;
 }
 
 .loading {
@@ -210,10 +208,9 @@ button.today-pill {
   display: flex;
   align-items: center;
   justify-content: center;
+  margin: 0;
   background: var(--color-surface);
-  border: var(--border-width) solid var(--color-border);
   color: var(--color-ink);
-  cursor: pointer;
 }
 
 .week-nav-btn app-icon {
@@ -353,11 +350,10 @@ button.today-pill {
     flex-direction: column;
     align-items: center;
     gap: 2px;
-    border: var(--border-width) solid var(--color-border);
+    margin: 0;
     background: var(--color-surface);
     color: inherit;
     padding: 6px 0;
-    cursor: pointer;
     font: inherit;
   }
 

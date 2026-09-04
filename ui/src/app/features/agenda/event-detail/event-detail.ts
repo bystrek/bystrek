@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CalendarEvent, CalendarEventsService } from '../../../core/calendar/calendar-events.service';
 import { Icon } from '../../../shared/icon/icon';
@@ -12,27 +13,39 @@ import { formatTime } from '../date-utils';
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './event-detail.css',
 })
-export class EventDetail implements OnInit {
+export class EventDetail {
   private readonly route = inject(ActivatedRoute);
   private readonly calendarEvents = inject(CalendarEventsService);
 
   protected readonly formatTime = formatTime;
 
+  // A signal (not a one-shot snapshot read in ngOnInit) because Angular's
+  // default route-reuse strategy can reuse this component instance across
+  // navigations that only change `:uid` — ngOnInit wouldn't re-fire then,
+  // leaving a stale event on screen.
+  private readonly paramMap = toSignal(this.route.paramMap, {
+    initialValue: this.route.snapshot.paramMap,
+  });
+
   readonly event = signal<CalendarEvent | null>(null);
   readonly loading = signal(true);
   readonly error = signal('');
 
-  ngOnInit(): void {
-    const uid = this.route.snapshot.paramMap.get('uid');
+  constructor() {
+    effect(() => {
+      void this.load(this.paramMap().get('uid'));
+    });
+  }
+
+  private async load(uid: string | null): Promise<void> {
     if (!uid) {
+      this.event.set(null);
       this.error.set('No event specified.');
       this.loading.set(false);
       return;
     }
-    void this.load(uid);
-  }
-
-  private async load(uid: string): Promise<void> {
+    this.loading.set(true);
+    this.error.set('');
     try {
       this.event.set(await this.calendarEvents.getEvent(uid));
     } catch (err) {

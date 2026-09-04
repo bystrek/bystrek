@@ -47,6 +47,8 @@ export class Agenda {
   private readonly calendarEvents = inject(CalendarEventsService);
 
   protected readonly formatTime = formatTime;
+  protected readonly DAY: ViewMode = 'day';
+  protected readonly WEEK: ViewMode = 'week';
 
   readonly viewMode = signal<ViewMode>('day');
   readonly selectedDate = signal(startOfDay(new Date()));
@@ -124,10 +126,6 @@ export class Agenda {
     });
   }
 
-  setView(mode: ViewMode): void {
-    this.viewMode.set(mode);
-  }
-
   selectDay(date: Date): void {
     this.selectedDate.set(startOfDay(date));
   }
@@ -145,16 +143,25 @@ export class Agenda {
   }
 
   private async refresh(): Promise<void> {
+    // Guards against fast week navigation: if the visible week has moved on
+    // by the time this resolves, a slower earlier request must not clobber
+    // the newer one's events/error/loading state.
+    const requestedWeekStart = this.weekStart();
+    const isStale = () => this.weekStart().getTime() !== requestedWeekStart.getTime();
+
     this.loading.set(true);
     this.error.set('');
     try {
-      const start = this.weekStart();
+      const start = requestedWeekStart;
       const end = endOfDay(addDays(start, 6));
-      this.events.set(await this.calendarEvents.listEvents({ start, end }));
+      const events = await this.calendarEvents.listEvents({ start, end });
+      if (isStale()) return;
+      this.events.set(events);
     } catch (err) {
+      if (isStale()) return;
       this.error.set((err as Error).message);
     } finally {
-      this.loading.set(false);
+      if (!isStale()) this.loading.set(false);
     }
   }
 }
