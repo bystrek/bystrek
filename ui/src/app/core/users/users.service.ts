@@ -1,17 +1,10 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { APP_CONFIG } from '../config/app-config';
+import { errorMessage } from '../http/error-message';
 
 export type Member = { id: string; name: string | null; status: string; banned: boolean };
-
-function errorMessage(err: unknown, fallback: string): string {
-  if (err instanceof HttpErrorResponse) {
-    const body = err.error as { message?: string } | null;
-    return body?.message ?? fallback;
-  }
-  return fallback;
-}
 
 @Injectable({ providedIn: 'root' })
 export class UsersService {

@@ -1,7 +1,8 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { APP_CONFIG } from '../config/app-config';
+import { errorMessage } from '../http/error-message';
 import { toLocalIso } from './local-iso';
 
 export type CalendarEvent = {
@@ -16,14 +17,6 @@ export type CalendarEvent = {
   location: string | null;
   rrule: string | null;
 };
-
-function errorMessage(err: unknown, fallback: string): string {
-  if (err instanceof HttpErrorResponse) {
-    const body = err.error as { message?: string } | null;
-    return body?.message ?? fallback;
-  }
-  return fallback;
-}
 
 @Injectable({ providedIn: 'root' })
 export class CalendarEventsService {

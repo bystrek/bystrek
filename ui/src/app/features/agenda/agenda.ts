@@ -17,7 +17,11 @@ import {
   weekdayAbbr,
 } from './date-utils';
 
-type ViewMode = 'day' | 'week';
+const ViewMode = {
+  Day: 'day',
+  Week: 'week',
+} as const;
+type ViewMode = (typeof ViewMode)[keyof typeof ViewMode];
 
 type WeekDay = {
   date: Date;
@@ -29,9 +33,7 @@ type WeekDay = {
   events: (CalendarEvent & { top: number })[];
 };
 
-// The week grid's visible hour window always covers at least this range
-// (matching the design mockup); it only widens further to fit an event
-// that starts earlier or ends later than that.
+// Widens to fit any event outside this default 07:00-19:00 window.
 const DEFAULT_RANGE_START_HOUR = 7;
 const DEFAULT_RANGE_END_HOUR = 19;
 const PX_PER_HOUR = 40;
@@ -47,10 +49,9 @@ export class Agenda {
   private readonly calendarEvents = inject(CalendarEventsService);
 
   protected readonly formatTime = formatTime;
-  protected readonly DAY: ViewMode = 'day';
-  protected readonly WEEK: ViewMode = 'week';
+  protected readonly ViewMode = ViewMode;
 
-  readonly viewMode = signal<ViewMode>('day');
+  readonly viewMode = signal<ViewMode>(ViewMode.Day);
   readonly selectedDate = signal(startOfDay(new Date()));
   readonly events = signal<CalendarEvent[]>([]);
   readonly loading = signal(false);
@@ -118,9 +119,7 @@ export class Agenda {
 
   constructor() {
     effect(() => {
-      // Reading weekStart() (not selectedDate()) means this only refetches
-      // when the visible week actually changes, not on every same-week
-      // day-to-day navigation.
+      // weekStart(), not selectedDate() — refetch only on week change.
       void this.weekStart();
       void this.refresh();
     });
@@ -143,9 +142,7 @@ export class Agenda {
   }
 
   private async refresh(): Promise<void> {
-    // Guards against fast week navigation: if the visible week has moved on
-    // by the time this resolves, a slower earlier request must not clobber
-    // the newer one's events/error/loading state.
+    // Guards a stale response from a slower, superseded request.
     const requestedWeekStart = this.weekStart();
     const isStale = () => this.weekStart().getTime() !== requestedWeekStart.getTime();
 

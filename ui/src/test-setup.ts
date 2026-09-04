@@ -1,6 +1,4 @@
-// The real app's bootstrap (main.ts) ensures Temporal is present before
-// anything else runs; the test runner has no equivalent bootstrap, so
-// unit tests need the same step here.
+// Mirrors main.ts's bootstrap — tests don't go through it otherwise.
 import { ensureTemporal } from './app/core/calendar/ensure-temporal';
 
 await ensureTemporal();

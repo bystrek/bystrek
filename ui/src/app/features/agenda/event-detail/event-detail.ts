@@ -19,10 +19,8 @@ export class EventDetail {
 
   protected readonly formatTime = formatTime;
 
-  // A signal (not a one-shot snapshot read in ngOnInit) because Angular's
-  // default route-reuse strategy can reuse this component instance across
-  // navigations that only change `:uid` — ngOnInit wouldn't re-fire then,
-  // leaving a stale event on screen.
+  // Reactive, not an ngOnInit snapshot — route reuse can keep this instance
+  // alive across a uid-only navigation.
   private readonly paramMap = toSignal(this.route.paramMap, {
     initialValue: this.route.snapshot.paramMap,
   });

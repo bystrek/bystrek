@@ -63,10 +63,7 @@ export function hourFraction(date: Date): number {
   return date.getHours() + date.getMinutes() / 60;
 }
 
-// `iso` always carries an explicit UTC offset (see api/src/calendar/
-// ical-event.ts) — Temporal.Instant.from requires exactly that, and
-// toZonedDateTimeISO makes the conversion to the viewer's own local time
-// zone explicit rather than relying on a plain Date's implicit one.
+// `iso` always carries an explicit UTC offset — see ical-event.ts.
 export function formatTime(iso: string): string {
   return Temporal.Instant.from(iso)
     .toZonedDateTimeISO(Temporal.Now.timeZoneId())

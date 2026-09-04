@@ -1,10 +1,8 @@
 // Not included by default even at target: esnext — opt-in only.
 /// <reference lib="esnext.temporal" />
 
-// Formats as a plain (no UTC offset) ISO date-time — the API interprets
-// this as wall-clock time in the requesting user's own stored timezone
-// (see api/src/calendar/zoned-time.ts:parseZonedIso), same convention
-// chat's calendar tool calls already use.
+// No UTC offset — the API reads this as wall-clock time in the user's own
+// stored timezone (see zoned-time.ts:parseZonedIso).
 export function toLocalIso(date: Date): string {
   return Temporal.PlainDateTime.from({
     year: date.getFullYear(),
