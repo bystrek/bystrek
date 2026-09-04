@@ -3,22 +3,34 @@ name: build and deploy
 on:
   push:
     branches: [main]
-    paths:
-      - "api/**"
-      - "ui/**"
-      - ".prettierrc"
-      - ".github/workflows/deploy.yml"
   pull_request:
     branches: [main]
-    paths:
-      - "api/**"
-      - "ui/**"
-      - ".prettierrc"
-      - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
 jobs:
+  # Required status checks must run (even as a no-op) or GitHub leaves them
+  # pending forever on doc-only PRs. This job always runs; the rest skip
+  # their real work via `needs.changes.outputs.code` — a skipped conclusion
+  # still satisfies a required check, unlike a job that never ran at all.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - "api/**"
+              - "ui/**"
+              - ".prettierrc"
+              - ".github/workflows/deploy.yml"
+
   test-api:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -70,7 +82,8 @@ jobs:
       - run: bun run test:integration
 
   build-api:
-    needs: test-api
+    needs: [changes, test-api]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -95,6 +108,8 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/api:${{ github.sha }}
 
   test-ui:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     # Ships WebKit plus its system libraries, so no apt-get on every run.
     # Tag must match the locked `playwright` version in ui/bun.lock, or
@@ -123,7 +138,8 @@ jobs:
       - run: bun run test:e2e
 
   build-ui:
-    needs: test-ui
+    needs: [changes, test-ui]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -148,8 +164,8 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/ui:${{ github.sha }}
 
   deploy:
-    needs: [build-api, build-ui]
-    if: github.event_name == 'push'
+    needs: [changes, build-api, build-ui]
+    if: github.event_name == 'push' && needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     environment: production
