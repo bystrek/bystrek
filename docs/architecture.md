@@ -88,6 +88,16 @@ Key management: same `.env`-on-droplet pattern as other secrets.
 - No real third-party calls (Resend, CalDAV, FCM/APNs) in any test — stub at the boundary.
 - CI gate: tests run before image build/push; `timeout-minutes: 10` enforces the budget.
 
+## Future shape: connectors, multi-user, multi-LLM (not decided)
+
+Three separable axes, each optional independently — none block building the next domain today:
+
+- **Domain connectors** — per-domain backend choice (bystrek-owned store, or an external service). A shared connector interface is only worth building once a domain has 2+ interchangeable backends; a domain with a single implementation (e.g. calendar → CalDAV) doesn't need the abstraction yet.
+- **Per-user enablement** — which domains/connectors a given user has active. An extension of the existing per-user model, not a new subsystem.
+- **LLM provider** — chat's tool-calling interface should stay provider-agnostic so a local model can sit alongside or replace Claude later. Independent of domain connectors — this is about the inference backend, not data sources.
+
+Each gets designed when a second real case (second backend, second user, second provider) actually shows up, not ahead of time.
+
 ## Open questions
 
 - Which columns need encryption vs. plain — pass needed per domain once schemas are drafted.
