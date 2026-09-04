@@ -86,7 +86,7 @@ app-chat #chat-input {
   border-top: var(--border-width) solid var(--color-border);
   bottom: 0;
   display: flex;
-  padding: 16px 24px 20px;
+  padding: 16px 24px max(20px, env(safe-area-inset-bottom));
   position: sticky;
 }
 
