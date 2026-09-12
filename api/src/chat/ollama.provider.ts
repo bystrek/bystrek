@@ -3,6 +3,7 @@ import { LLM_BASE_URL, LLM_MODEL } from '../env';
 import {
   CHAT_MODEL,
   type ChatCompletion,
+  type ChatMetrics,
   type ChatMessage,
   type ChatModel,
   type ChatToolCall,
@@ -12,6 +13,10 @@ import {
 interface OllamaStreamPart {
   done?: boolean;
   error?: string;
+  eval_count?: number;
+  eval_duration?: number;
+  prompt_eval_count?: number;
+  prompt_eval_duration?: number;
   message?: {
     content?: string;
     tool_calls?: Array<{
@@ -86,11 +91,23 @@ export class OllamaChatModel implements ChatModel {
     let buffer = '';
     let content = '';
     const toolCalls: ChatToolCall[] = [];
+    let metrics: ChatMetrics | undefined;
 
     const processLine = (line: string) => {
       if (!line) return;
       const part = JSON.parse(line) as OllamaStreamPart;
       if (part.error) throw new Error(`Ollama chat request failed: ${part.error}`);
+      if (part.done) {
+        const reportedMetrics: ChatMetrics = {
+          evalCount: part.eval_count,
+          evalDurationNs: part.eval_duration,
+          promptEvalCount: part.prompt_eval_count,
+          promptEvalDurationNs: part.prompt_eval_duration,
+        };
+        if (Object.values(reportedMetrics).some((value) => value !== undefined)) {
+          metrics = reportedMetrics;
+        }
+      }
       const delta = part.message?.content ?? '';
       if (delta) {
         content += delta;
@@ -117,6 +134,7 @@ export class OllamaChatModel implements ChatModel {
         content,
         ...(toolCalls.length > 0 ? { toolCalls } : {}),
       },
+      ...(metrics ? { metrics } : {}),
     };
   }
 }

@@ -87,8 +87,8 @@ export class ChatService {
     for (let i = framesApplied; i < completeCount; i++) {
       const frame = frames[i];
       if (!frame.startsWith('data: ')) continue;
-      const { delta } = JSON.parse(frame.slice('data: '.length)) as { delta: string };
-      this.appendDelta(delta);
+      const { delta } = JSON.parse(frame.slice('data: '.length)) as { delta?: string };
+      if (delta !== undefined) this.appendDelta(delta);
     }
     return completeCount;
   }

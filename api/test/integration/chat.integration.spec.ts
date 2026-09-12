@@ -12,7 +12,7 @@ import {
 } from '../../src/chat/chat.model';
 import { MAX_TOOL_ITERATIONS } from '../../src/chat/chat.service';
 import { CHAT_TOOLS, type ChatTool } from '../../src/chat/chat.tools';
-import { decryptField } from '../../src/crypto/field-encryption';
+import { decryptField, encryptField } from '../../src/crypto/field-encryption';
 import { DRIZZLE } from '../../src/db/drizzle.provider';
 import { messages } from '../../src/db/schema';
 import { signUpTestUser } from './support/auth';
@@ -31,13 +31,18 @@ function fakeModel(responses: ChatCompletion[]): ChatModel {
   };
 }
 
-function fakeMessage(content: string, toolCalls?: ChatToolCall[]): ChatCompletion {
+function fakeMessage(
+  content: string,
+  toolCalls?: ChatToolCall[],
+  metrics?: ChatCompletion['metrics'],
+): ChatCompletion {
   return {
     message: {
       role: 'assistant',
       content,
       ...(toolCalls ? { toolCalls } : {}),
     },
+    ...(metrics ? { metrics } : {}),
   };
 }
 
@@ -66,7 +71,12 @@ describe('POST /chat (integration)', () => {
         name: 'Me',
       });
 
-      const model = fakeModel([fakeMessage('Hello there')]);
+      const model = fakeModel([
+        fakeMessage('Hello there', undefined, {
+          evalCount: 12,
+          evalDurationNs: 100_000_000,
+        }),
+      ]);
 
       const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
         .overrideProvider(DRIZZLE)
@@ -85,6 +95,13 @@ describe('POST /chat (integration)', () => {
       expect(res.status).toBe(200);
       expect(res.headers['content-type']).toContain('text/event-stream');
       expect(res.text).toContain('Hello there');
+      expect(res.text).toContain(
+        JSON.stringify({
+          done: true,
+          metrics: { evalCount: 12, evalDurationNs: 100_000_000 },
+          toolCalls: [],
+        }),
+      );
 
       const rows = await tx
         .select()
@@ -313,6 +330,54 @@ describe('GET /chat/history (integration)', () => {
         { role: 'user', text: 'run the tool' },
         { role: 'assistant', text: 'done' },
       ]);
+
+      await app.close();
+    });
+  });
+});
+
+describe('DELETE /chat/history (integration)', () => {
+  it('clears only the authenticated user history', async () => {
+    await withRollback(testDb, async (tx) => {
+      const { user, token } = await signUpTestUser(tx, {
+        email: 'me@example.com',
+        name: 'Me',
+      });
+      const { user: otherUser } = await signUpTestUser(tx, {
+        email: 'other@example.com',
+        name: 'Other',
+      });
+      await tx.insert(messages).values([
+        {
+          userId: user.id,
+          role: 'user',
+          content: encryptField(JSON.stringify({ role: 'user', content: 'remove me' })),
+          contentFormat: 'ollama',
+        },
+        {
+          userId: otherUser.id,
+          role: 'user',
+          content: encryptField(JSON.stringify({ role: 'user', content: 'keep me' })),
+          contentFormat: 'ollama',
+        },
+      ]);
+
+      const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+        .overrideProvider(DRIZZLE)
+        .useValue(tx)
+        .compile();
+      const app: INestApplication = moduleRef.createNestApplication();
+      await app.init();
+
+      const res = await request(app.getHttpServer())
+        .delete('/chat/history')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(await tx.select().from(messages).where(eq(messages.userId, user.id))).toEqual([]);
+      expect(
+        await tx.select().from(messages).where(eq(messages.userId, otherUser.id)),
+      ).toHaveLength(1);
 
       await app.close();
     });
