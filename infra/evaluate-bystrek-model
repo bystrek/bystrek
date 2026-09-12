@@ -66,6 +66,13 @@ compose() {
   )
 }
 
+recreate_api() {
+  (
+    cd "$STACK_DIR"
+    API_IMAGE="$api_image" docker compose up -d --force-recreate api
+  )
+}
+
 write_active_model() {
   local model="$1"
   local temporary_file="${ENV_FILE}.evaluator.$$"
@@ -132,6 +139,7 @@ result_file=''
 success_message=''
 had_original_model=false
 original_model_line=''
+api_image=''
 
 cleanup() {
   local status=$?
@@ -142,7 +150,7 @@ cleanup() {
     if ! restore_active_model; then
       echo "Failed to restore LLM_MODEL in $ENV_FILE." >&2
       status=1
-    elif ! compose up -d --force-recreate api; then
+    elif ! recreate_api; then
       echo "Restored LLM_MODEL but failed to recreate api." >&2
       status=1
     fi
@@ -186,6 +194,10 @@ if ! docker exec ollama ollama show "$model" >/dev/null; then
   die "Ollama model is not available: $model"
 fi
 
+api_image="$(docker inspect --format '{{.Config.Image}}' bystrek-api-1)"
+[[ "$api_image" == ghcr.io/bystrek/api:* ]] ||
+  die "Bystrek API container is not using an expected GHCR image: $api_image"
+
 install -d -m 700 "$EVALUATIONS_DIR"
 lock_dir="${EVALUATIONS_DIR}/.evaluate-bystrek-model.lock"
 if ! mkdir "$lock_dir" 2>/dev/null; then
@@ -210,7 +222,7 @@ fi
 
 model_changed=true
 write_active_model "$model"
-compose up -d --force-recreate api
+recreate_api
 
 if ! wait_for_api; then
   die "API did not become available after $((API_WAIT_ATTEMPTS * API_WAIT_SECONDS)) seconds."
