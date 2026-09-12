@@ -12,7 +12,7 @@ services:
     restart: unless-stopped
 
   api:
-    image: ghcr.io/bystrek/api:latest
+    image: ${API_IMAGE:-ghcr.io/bystrek/api:latest}
     env_file: .env
     depends_on:
       postgres:
@@ -20,7 +20,7 @@ services:
     restart: unless-stopped
 
   ui:
-    image: ghcr.io/bystrek/ui:latest
+    image: ${UI_IMAGE:-ghcr.io/bystrek/ui:latest}
     restart: unless-stopped
 
   gateway-caddy:

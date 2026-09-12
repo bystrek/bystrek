@@ -2,9 +2,9 @@
 
 Reference copies of the files running on the home server (`~/bystrek/`). Manually synced — the home server is the source of truth, this directory mirrors it.
 
-- `docker-compose.yml` — postgres, api, ui, gateway-caddy. Gateway-caddy joins `homelab_gateway` to receive traffic from main-caddy in the gateway stack.
+- `docker-compose.yml` — postgres, api, ui, gateway-caddy. Gateway-caddy joins `homelab_gateway` to receive traffic from main-caddy in the gateway stack. `API_IMAGE` and `UI_IMAGE` optionally select immutable image references.
 - `Caddyfile` — gateway-caddy routes `bystrek.dev` → ui, `api.bystrek.dev` → api. No TLS (terminated at Cloudflare edge via tunnel).
-- `deploy.sh` — `docker compose pull && up -d --remove-orphans`. Called by the webhook container in the gateway stack when CI curls `deploy.bystrek.dev`.
+- `deploy.sh` — `docker compose pull && up -d --remove-orphans`. Called by the webhook container in the gateway stack when CI curls `deploy.bystrek.dev`; accepts one immutable image tag for a manual staging deployment.
 
 `backup/` mirrors the systemd units for daily `pg_dump` to `~/bystrek-backups/`.
 
