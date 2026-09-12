@@ -1,4 +1,4 @@
-# CLAUDE.md
+# Copilot instructions
 
 Working conventions for this repo. See `README.md` for what the project is and `docs/architecture.md` for the target design and reasoning. What's currently in flight lives in GitHub Issues (grouped by the `MVP`/`Post-MVP` milestones), not a docs file.
 
