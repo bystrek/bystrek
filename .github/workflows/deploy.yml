@@ -170,9 +170,9 @@ jobs:
     timeout-minutes: 5
     environment: production
     steps:
-      - name: Trigger deploy over SSH
+      - name: Trigger deploy via webhook
         run: |
-          mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/deploy_key root@${{ secrets.DEPLOY_HOST }} deploy
+          curl -fsS -X POST \
+            -H "CF-Access-Client-Id: ${{ secrets.CF_ACCESS_CLIENT_ID }}" \
+            -H "CF-Access-Client-Secret: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}" \
+            https://deploy.bystrek.dev/hooks/deploy-bystrek

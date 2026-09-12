@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-STACK_DIR="/root/bystrek"
+STACK_DIR="$HOME/bystrek"
 
 cd "$STACK_DIR"
 docker compose pull

@@ -21,11 +21,11 @@ Also update `Home.md` (the wiki's index) when adding a new day. No `[[Page Name]
 ## Docs upkeep
 
 - `docs/architecture.md` is a living direction doc — the target shape, not a snapshot of what's built. Update it when the direction actually changes (like the Open WebUI → custom app pivot), not on every feature that ships.
-- `infra/` holds actual copies of the droplet's `docker-compose.yml`, `Caddyfile`, `Dockerfile`, and `deploy.sh` — manually synced via `scp`. `docker-compose.yml`/`Caddyfile`/`Dockerfile` are reference copies only, not deployed from this repo; `deploy.sh` is the exception — CI triggers it directly over SSH on every push to `main`, though updating the script itself still requires a manual `scp`. `infra/` is the source of truth for current infra config. Re-sync it (ask the user to `scp` fresh copies) whenever the droplet's config changes materially, and check new copies for literal secrets before committing (established pattern: secrets are referenced by env var name only, e.g. `env_file: .env`, `{env.CF_API_TOKEN}` — never by value).
+- `infra/` holds reference copies of the home server's `docker-compose.yml`, `Caddyfile`, and `deploy.sh` — manually synced via `scp`. All are reference copies only, not deployed from this repo. `infra/` is the source of truth for current infra config. Re-sync it (ask the user to `scp` fresh copies) whenever the home server's config changes materially, and check new copies for literal secrets before committing (established pattern: secrets are referenced by env var name only, e.g. `env_file: .env` — never by value).
 
 ## Secrets
 
-Never commit secrets, `.env` files, API keys, or tokens to this repo. The established pattern is a `.env` file on the droplet itself (`~/bystrek/.env`, `chmod 600`) — API keys, VAPID keys, and similar all follow that pattern, referenced by name in docs/compose files but never by value.
+Never commit secrets, `.env` files, API keys, or tokens to this repo. The established pattern is a `.env` file on the home server (`~/bystrek/.env`, `chmod 600`) — API keys, VAPID keys, and similar all follow that pattern, referenced by name in docs/compose files but never by value.
 
 ## Identity and domain
 
@@ -39,7 +39,7 @@ Don't invent or guess URLs (docs links, dashboard links, package pages) in commi
 
 `bystrek.dev` serves `ui` (Angular: chat, settings, auth, service worker, push subscribe) and `api.bystrek.dev` serves `api` (NestJS + Drizzle + Bun: Postgres, push subscribe/send) — both real services, verified with a real push notification through the deployed stack.
 
-`docker-compose.yml`/`Caddyfile` (`~/bystrek/`) and Dockge's own compose file (`~/dockge/docker-compose.yml`) are managed by hand on the droplet and scp'd down to `infra/` as a reference copy only. Deploy is CI-triggered: GitHub Actions (`.github/workflows/deploy.yml`) builds `api`/`ui` to GHCR, then a `deploy` job — gated by a GitHub Environment (required reviewer) — SSHes in with a key restricted via a forced command (`authorized_keys`, can only run `infra/deploy.sh`) to `docker compose pull && up -d --remove-orphans`. Dockge stays for visibility and manual overrides.
+Runs on the home server behind a Cloudflare Tunnel. `docker-compose.yml`/`Caddyfile` (`~/bystrek/`) are managed by hand on the home server and scp'd down to `infra/` as a reference copy only. Deploy is CI-triggered: GitHub Actions (`.github/workflows/deploy.yml`) builds `api`/`ui` to GHCR, then a `deploy` job — gated by a GitHub Environment (required reviewer) — curls `deploy.bystrek.dev` (webhook behind Cloudflare Access, service token auth) to `docker compose pull && up -d --remove-orphans`.
 
 Open WebUI and `push-service` are not part of this stack; check the wiki devlog before reintroducing either.
 

@@ -1,13 +1,18 @@
-bystrek.dev {
-	tls {
-		dns cloudflare {env.CF_API_TOKEN}
-	}
-	reverse_proxy ui:3000
+{
+	auto_https off
 }
 
-api.bystrek.dev {
-	tls {
-		dns cloudflare {env.CF_API_TOKEN}
+:80 {
+	@bystrek host bystrek.dev
+	@api host api.bystrek.dev
+
+	handle @bystrek {
+		reverse_proxy ui:3000
 	}
-	reverse_proxy api:3000
+	handle @api {
+		reverse_proxy api:3000
+	}
+	handle {
+		respond 404
+	}
 }
