@@ -2,19 +2,19 @@
 
 A self-hosted personal data platform: calendar, notes, research, medical records, nutrition, gym — centralized storage with an LLM (Claude) that can read and write into it, plus a custom app for browsing, visualization, and summaries. See [`docs/architecture.md`](docs/architecture.md) for the target design and the reasoning behind it.
 
-`https://bystrek.dev` — reachable only over Tailscale, not the public internet.
+`https://bystrek.dev`
 
 ## Status
 
-Backend and frontend scaffolds are live on the droplet, chat included. See [Issues](https://github.com/bystrek/bystrek/issues) (grouped by `MVP`/`Post-MVP` milestones) for the current punch list and the [wiki](https://github.com/bystrek/bystrek/wiki) for how we got here, session by session.
+The app runs on the home server. See [Issues](https://github.com/bystrek/bystrek/issues) (grouped by `MVP`/`Post-MVP` milestones) for the current punch list and the [wiki](https://github.com/bystrek/bystrek/wiki) for the devlog.
 
 **Working today:**
-- A DigitalOcean droplet, locked down to SSH-only on its public IP, reachable everywhere else only over a private Tailscale mesh.
-- `bystrek.dev` and `api.bystrek.dev` both resolve to the droplet's Tailscale IP (Cloudflare DNS, not proxied) with real Let's Encrypt certs issued via DNS-01 — no ports 80/443 exposed publicly, ever.
+- A home server behind a Cloudflare Tunnel.
+- `bystrek.dev` and `api.bystrek.dev` route through Cloudflare to Caddy on the home server.
 - `ui/` (Angular, zoneless) at `bystrek.dev`: subscribe UI + service worker, login/user admin, profile, and chat pages.
 - `api/` (NestJS + Drizzle + Bun) at `api.bystrek.dev`: Postgres-backed subscriptions table, push subscribe/send endpoints, `better-auth`-backed login/invite/ban, `POST /chat` streaming Claude replies over SSE, and a calendar tool (CalDAV against Infomaniak kCalendar) with mutating actions gated behind explicit user confirmation. Verified end to end — a real push landed on a device via the deployed stack, and calendar read/write was verified against a real Infomaniak account.
 - Auth: email/password via `better-auth`, invite-gated (admin creates the row, no public signup), bearer tokens, admin plugin for invite/list/ban. Passkey deferred past v1.
-- Deploy pipeline: GitHub Actions builds `api`/`ui` images to GHCR, then redeploys over SSH with a key restricted to a single forced command, gated by a GitHub Environment (required reviewer). **Dockge** (dashboard, loopback-only, SSH-tunnel access) stays for visibility and manual overrides.
+- Deploy pipeline: GitHub Actions builds `api`/`ui` images to GHCR, then calls a Cloudflare Access-protected deployment webhook with a service token. The deployment remains gated by a GitHub Environment requiring review.
 
 **Not built yet:**
 - `owner_id`/`visibility` on domain tables — deferred until more domains exist (tier-2 field encryption is live, used by chat and calendar credentials).
@@ -24,13 +24,13 @@ Backend and frontend scaffolds are live on the droplet, chat included. See [Issu
 
 ## Architecture
 
-`bystrek.dev` → Caddy → `ui` (Angular: subscribe UI + service worker, login/user admin, profile, chat); `api.bystrek.dev` → Caddy → `api` (NestJS: Postgres, push send/subscribe, `better-auth`, chat via `@anthropic-ai/sdk`). Full design in [`docs/architecture.md`](docs/architecture.md).
+Cloudflare Tunnel → Caddy → `ui` (Angular: subscribe UI + service worker, login/user admin, profile, chat); `api.bystrek.dev` → Caddy → `api` (NestJS: Postgres, push send/subscribe, `better-auth`, chat via `@anthropic-ai/sdk`). Full design in [`docs/architecture.md`](docs/architecture.md).
 
-- **Access**: Tailscale only. The droplet's public IP allows inbound SSH and nothing else — no public HTTP/HTTPS surface at all.
-- **TLS**: Caddy, built with the Cloudflare DNS plugin (`xcaddy`), gets certs via DNS-01 so no inbound port 80/443 is ever needed.
-- **Domain**: `bystrek.dev` is an invented, non-identifying name (deliberately not the user's surname — Certificate Transparency logs are public, so a personal domain on an assistant with calendar access would be a phishing gift).
+- **Access**: Cloudflare Tunnel exposes the application; the deployment webhook is protected by Cloudflare Access service-token authentication.
+- **TLS**: Cloudflare terminates TLS at the tunnel edge.
+- **Domain**: `bystrek.dev` is a non-identifying domain.
 
-Raw infra facts from early setup (IPs, firewall rules, initial droplet spec) are in the [wiki: Day 01](https://github.com/bystrek/bystrek/wiki/2026-08-04-day-01); for current infra config see `infra/` below.
+For current infrastructure configuration, see `infra/` below.
 
 ## Repo layout
 
@@ -40,7 +40,7 @@ api/           NestJS + Drizzle + Bun backend — Postgres, push subscribe/send,
 ui/            Angular frontend — subscribe UI, service worker, chat
 brand/         Logo, icon, and favicon assets (SVG sources + rendered exports)
 docs/          architecture.md (direction) — live punch list is in GitHub Issues
-infra/         Manually-synced copies of what's actually running on the droplet
+infra/         Manually-synced copies of the home-server configuration
 ```
 
 ## Local development
@@ -51,8 +51,8 @@ Windows: run it under WSL2, not Git Bash — Docker Desktop already requires WSL
 
 ## Infra snapshot
 
-[`infra/`](infra/) holds the actual `docker-compose.yml`, `Caddyfile`, and `Dockerfile` running on the droplet — pulled down periodically for reference. See [`infra/README.md`](infra/README.md) for the sync model.
+[`infra/`](infra/) holds reference copies of the home server's `docker-compose.yml`, `Caddyfile`, and `deploy.sh`. See [`infra/README.md`](infra/README.md) for the sync model.
 
 ## Secrets
 
-Nothing here. `CF_API_TOKEN`, `GHCR_PULL_TOKEN`/`GHCR_USERNAME` (private GHCR package pull auth), `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT`, `AUTH_SECRET`, `RESEND_API_KEY`, and `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB`/`DATABASE_URL` all live in `~/bystrek/.env` on the droplet (chmod 600), never in git.
+Nothing here. Application and infrastructure secrets live in `~/bystrek/.env` on the home server (chmod 600), never in git.

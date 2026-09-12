@@ -44,11 +44,11 @@ Caddy routes by domain to the frontend and the backend API. No separate gateway 
 
 ## CORS (decided)
 
-Tailscale gates who can reach the server; CORS gates which sites' JS can use an already-open browser session — different protections. Explicit origin allowlist, never a wildcard: `https://bystrek.dev` (via `CORS_ORIGINS`) plus any `http://localhost:*` origin, hardcoded — a page served from localhost is a process already on that machine, which CORS never guarded against. Lets a local UI talk to any instance of the API, including the deployed one, with no per-deploy config.
+CORS scopes which sites' JavaScript can use an already-open browser session. Use an explicit origin allowlist, never a wildcard: `https://bystrek.dev` (via `CORS_ORIGINS`) plus any `http://localhost:*` origin, hardcoded. This lets a local UI talk to any API instance without per-deploy configuration.
 
 ## Auth (decided direction)
 
-- Multi-user directly on `users`, no household grouping layer: every row has `owner_id` + `visibility` (`private`/`shared`), sensible per-domain default, overridable per record. No per-item ACLs. A second family wanting bystrek gets its own instance/droplet/DB, not a second tenant on this one — the sensitive data here (medical records, private chat) is only tier-2 encrypted (see below), so instance-level separation is the actual isolation boundary, not an app-level tenant id.
+- Multi-user directly on `users`, no household grouping layer: every row has `owner_id` + `visibility` (`private`/`shared`), sensible per-domain default, overridable per record. No per-item ACLs. A second family gets its own instance and database; instance-level separation is the isolation boundary.
 - **better-auth**, self-hosted, embedded in the API — keeps auth data owned rather than routed through a third-party identity provider. Mounted directly via `better-auth/node`'s `toNodeHandler`, ahead of Nest's own JSON body parser (`bodyParser: false` + a manual `express.json()` after the mount) — no third-party NestJS wrapper package, to avoid stacking a second unofficial-Bun-compat dependency on top of the accepted Nest-on-Bun risk below.
 - Bearer tokens, not cookies — sidesteps cross-origin-cookie/CSRF complexity. Sessions use a 90-day rolling TTL, refreshed if used within the last day.
 - **Email/password only for v1** — no magic-link, no passkey. No public signup: an admin creates the user row directly (`status: invited`); `disableSignUp: true` means only an email with an existing row can sign in. Inviting a member and a forgotten password are the same mechanism — both send a Resend-delivered "set your password" link through the admin plugin's password-reset flow, rather than a separate invite-token system.
@@ -60,7 +60,7 @@ Tailscale gates who can reach the server; CORS gates which sites' JS can use an 
 
 Tier 2 for everything: app-level field encryption (AES-256-GCM, not `pgcrypto`) on sensitive columns. Protects against DB-only exposure while staying LLM-usable — the backend decrypts before calling Claude. No tier-3 zero-knowledge vault; nothing is meant to be opaque to the assistant.
 
-Key management: same `.env`-on-droplet pattern as other secrets.
+Key management: `.env` on the home server, alongside other secrets.
 
 ## Backend framework + ORM (decided)
 
@@ -74,11 +74,10 @@ Key management: same `.env`-on-droplet pattern as other secrets.
 
 ## Deployment (decided)
 
-- CI (GitHub Actions) builds each service's Docker image, pushes to GHCR, then redeploys over SSH — gated by a GitHub Environment requiring manual approval.
-- The deploy credential is restricted via a forced command in the droplet's `authorized_keys`: it can only run one fixed script (`docker compose pull && up -d --remove-orphans`), nothing else.
+- CI (GitHub Actions) builds each service's Docker image, pushes to GHCR, then calls the deployment webhook — gated by a GitHub Environment requiring manual approval.
+- Cloudflare Access protects the deployment webhook with a service token. The webhook runs `docker compose pull && up -d --remove-orphans` on the home server.
 - Migrations run automatically at container boot (entrypoint runs `drizzle-kit migrate`, then starts the app). Safe here specifically because it's a single instance, no rolling/concurrent deploys.
 - No rollback tooling.
-- **Dockge** on the droplet: dashboard for running containers/logs, manual pull-and-redeploy per stack. Reachable only via Tailscale, same trust boundary as everything else. Needs Docker socket access, accepted as inherent to what it does.
 
 ## Testing (decided)
 
