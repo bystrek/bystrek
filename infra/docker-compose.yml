@@ -32,8 +32,10 @@ services:
       - ui
     restart: unless-stopped
     networks:
-      - default
-      - homelab_gateway
+      default:
+      homelab_gateway:
+        aliases:
+          - bystrek-gateway
 
 volumes:
   postgres_data:
