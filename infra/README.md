@@ -1,11 +1,11 @@
 # infra/
 
-A manually-synced snapshot of the files running on the droplet: `docker-compose.yml`, `Caddyfile`, `Dockerfile` (builds Caddy with the Cloudflare DNS plugin via `xcaddy`, for DNS-01 cert issuance), `deploy.sh` from `~/bystrek/`, and `dockge-docker-compose.yml` from the separate `~/dockge/` stack (Dockge, kept outside `~/bystrek/` so redeploying that stack never risks restarting the tool managing it).
+Reference copies of the files running on the home server (`~/bystrek/`). Manually synced — the home server is the source of truth, this directory mirrors it.
 
-`deploy.sh` (`docker compose pull && up -d --remove-orphans`) is what CI actually triggers on every push, over SSH with a key restricted to running only this one script — but CI only *runs* the copy already on the droplet, it never pushes a new one. Changing it here still means `scp`-ing the update over by hand, same as everything else in this directory.
+- `docker-compose.yml` — postgres, api, ui, gateway-caddy. Gateway-caddy joins `homelab_gateway` to receive traffic from main-caddy in the gateway stack.
+- `Caddyfile` — gateway-caddy routes `bystrek.dev` → ui, `api.bystrek.dev` → api. No TLS (terminated at Cloudflare edge via tunnel).
+- `deploy.sh` — `docker compose pull && up -d --remove-orphans`. Called by the webhook container in the gateway stack when CI curls `deploy.bystrek.dev`.
 
-`backup/` mirrors `/root/bystrek/backup/` and the two systemd units in `/etc/systemd/system/` on the droplet: `pg-backup.sh` runs `pg_dump` daily (via `pg-backup.timer`), gzips it to `/root/bystrek-backups/` (deliberately outside `~/bystrek/`, so wiping the stack directory can't also wipe the backups), and prunes anything older than 14 days. Logical/local-only — no off-droplet copy and no encryption at rest. Accepted for two reasons: if the droplet itself is compromised, an unencrypted local dump adds no additional exposure beyond what's already lost; and once tier-2 field encryption (see `docs/architecture.md`) is wired in, sensitive columns are already ciphertext at the app level, so the dump never contains plaintext medical data to begin with. Protects against bad migrations/accidental deletes, not droplet loss.
+`backup/` mirrors the systemd units for daily `pg_dump` to `~/bystrek-backups/`.
 
-**Config still isn't deployed from here.** `docker-compose.yml`, `Caddyfile`, and `dockge-docker-compose.yml` are still edited by hand over SSH and scp'd down for reference — the droplet is the source of truth, this directory just mirrors it. `deploy.sh` is the one exception: CI does actively reach the droplet through it (see above), but only to run the script, not to update it.
-
-No secrets live in these files — `.env` (holding `CF_API_TOKEN`) stays on the droplet only, referenced here by name (`env_file: .env`, `{env.CF_API_TOKEN}`), never by value. Re-sync manually with `scp` when the droplet's config changes; there's no automation keeping this current.
+No secrets live in these files — `.env` stays on the home server only, referenced by name (`env_file: .env`), never by value.

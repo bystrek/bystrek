@@ -23,22 +23,21 @@ services:
     image: ghcr.io/bystrek/ui:latest
     restart: unless-stopped
 
-  caddy:
-    build: .
-    ports:
-      - "80:80"
-      - "443:443"
-    env_file: .env
-    dns:
-      - 1.1.1.1
-      - 8.8.8.8
+  gateway-caddy:
+    image: caddy:2-alpine
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - api
+      - ui
     restart: unless-stopped
+    networks:
+      - default
+      - homelab_gateway
 
 volumes:
-  caddy_data:
-  caddy_config:
   postgres_data:
+
+networks:
+  homelab_gateway:
+    external: true
