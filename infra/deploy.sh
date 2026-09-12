@@ -8,7 +8,7 @@ if [ "$#" -gt 1 ]; then
   exit 2
 fi
 
-if [ "$#" -eq 1 ]; then
+if [ "$#" -eq 1 ] && [ -n "$1" ]; then
   IMAGE_TAG="$1"
   case "$IMAGE_TAG" in
     *[!A-Za-z0-9._-]* | '') echo "invalid image tag: $IMAGE_TAG" >&2; exit 2 ;;
