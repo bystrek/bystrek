@@ -1,33 +1,19 @@
 # Chat model evaluation
 
-Run inside the deployed API container. Use a dedicated evaluation user with a
-calendar containing only synthetic events. The runner never confirms a calendar
-mutation.
+Use a dedicated evaluation user with a calendar containing only synthetic
+events. The runner never confirms a calendar mutation.
 
-Set the deployed model in `~/bystrek/.env`, then recreate the API:
-
-```sh
-LLM_MODEL=smollm2:1.7b
-docker compose up -d api
-```
-
-Run on the home server. `EVAL_RESET_HISTORY=true` deletes only the evaluation
-user's chat history before every independent scenario.
+On the home server, use the `evaluate-bystrek-model` wrapper documented in
+`infra/README.md`:
 
 ```sh
-read -s EVAL_AUTH_TOKEN
-export EVAL_AUTH_TOKEN
-cd ~/bystrek
-docker compose exec -T -e EVAL_AUTH_TOKEN -e EVAL_RESET_HISTORY=true api \
-  bun /app/scripts/evaluate-chat.ts > evaluation-smollm2.json
-unset EVAL_AUTH_TOKEN
+evaluate-bystrek-model qwen3:1.7b
 ```
 
-Optional settings:
+It passes `EVAL_AUTH_TOKEN` only to the runner process and sets
+`EVAL_RESET_HISTORY=true`, which deletes only the evaluation user's history
+before every independent scenario. The runner reads the API container's active
+`LLM_MODEL`; its JSON results are saved under `~/bystrek/evaluations/`.
 
-- `EVAL_RUNS` defaults to `3`
-- `EVAL_API_URL` defaults to `http://localhost:3000`
-
-Run the same command for each candidate. The runner reads the container's
-active `LLM_MODEL`. Compare `toolMatch`, `elapsedMs`, `metrics`, and captured
-replies.
+Compare `toolMatch`, `elapsedMs`, `metrics`, and captured replies for each
+candidate.
