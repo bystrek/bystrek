@@ -169,6 +169,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     environment: production
+    concurrency:
+      group: bystrek-home-server-deploy
+      cancel-in-progress: false
     steps:
       - name: Trigger deploy via webhook
         run: |
