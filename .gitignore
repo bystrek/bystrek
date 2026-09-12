@@ -1,4 +1,7 @@
 .claude/settings.local.json
+api/scripts/*.d.ts
+api/scripts/*.js
+api/scripts/*.js.map
 .DS_Store
 
 api/node_modules
