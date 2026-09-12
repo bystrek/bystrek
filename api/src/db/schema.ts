@@ -134,11 +134,10 @@ export const verifications = pgTable(
 export const visibility = pgEnum('visibility', ['private', 'shared']);
 
 export const messageRole = pgEnum('message_role', ['user', 'assistant']);
+export const messageContentFormat = pgEnum('message_content_format', ['ollama']);
 
 // One continuous thread per user, not per-conversation — see devlog day 9.
-// `content` holds an encrypted, JSON-serialized Anthropic `MessageParam`
-// content value (a string or a content-block array, e.g. tool_use/tool_result),
-// so the raw sequence sent to/from Claude can be replayed exactly.
+// `content` holds an encrypted, JSON-serialized provider-neutral message.
 export const messages = pgTable(
   'messages',
   {
@@ -148,6 +147,7 @@ export const messages = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     visibility: visibility('visibility').notNull().default('private'),
     role: messageRole('role').notNull(),
+    contentFormat: messageContentFormat('content_format').notNull().default('ollama'),
     content: text('content').notNull(),
     // clock_timestamp(), not defaultNow() (= now(), frozen for a whole
     // transaction): a single reply persists several rows in quick

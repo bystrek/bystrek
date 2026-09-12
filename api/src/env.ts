@@ -24,8 +24,8 @@ export const RESEND_API_KEY = required('RESEND_API_KEY');
 export const AUTH_SECRET = required('AUTH_SECRET');
 export const UI_URL = process.env.UI_URL ?? 'http://localhost:5173';
 export const API_URL = process.env.API_URL ?? 'http://localhost:3000';
-export const ANTHROPIC_API_KEY = required('ANTHROPIC_API_KEY');
-export const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL ?? 'claude-haiku-4-5-20251001';
+export const LLM_BASE_URL = process.env.LLM_BASE_URL ?? 'http://localhost:11434';
+export const LLM_MODEL = process.env.LLM_MODEL ?? 'smollm2:1.7b';
 
 function requiredEncryptionKey(): Buffer {
   const key = Buffer.from(required('ENCRYPTION_KEY'), 'base64');

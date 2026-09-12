@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import Anthropic from '@anthropic-ai/sdk';
 import { Inject, Injectable } from '@nestjs/common';
 import { desc, eq } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
@@ -8,16 +7,14 @@ import { decryptField, encryptField } from '../crypto/field-encryption';
 import { DRIZZLE } from '../db/drizzle.provider';
 import * as schema from '../db/schema';
 import { messages, users } from '../db/schema';
-import { ANTHROPIC_MODEL } from '../env';
-import { ANTHROPIC } from './anthropic.provider';
+import { CHAT_MODEL, type ChatMessage, type ChatModel } from './chat.model';
 import { CHAT_TOOLS, type ChatTool } from './chat.tools';
 
-// Context sent to Claude per request is a bounded recency window, not the
+// Context sent to the model per request is a bounded recency window, not the
 // full stored thread — see devlog day 9. Retrieval over older messages via
 // pgvector is a later addition if this ever proves insufficient.
 const RECENCY_WINDOW = 40;
-const MAX_TOKENS = 1024;
-// Caps a single reply to this many Claude round-trips, so a tool that keeps
+// Caps a single reply to this many model round-trips, so a tool that keeps
 // triggering another tool_use (or a model stuck in a loop) can't hold the
 // request open forever.
 export const MAX_TOOL_ITERATIONS = 8;
@@ -67,24 +64,16 @@ export interface ChatHistoryTurn {
 // /chat/history` — text-only for v1 (see devlog day 9), so a turn with no
 // text block (pure tool_use/tool_result) has nothing to show and is dropped
 // by the caller.
-export function collapseTurnText(content: Anthropic.MessageParam['content']): string | null {
-  if (typeof content === 'string') {
-    return content.length > 0 ? content : null;
-  }
-  const text = content
-    .filter((block): block is Anthropic.TextBlockParam => block.type === 'text')
-    .map((block) => block.text)
-    .join('');
-  return text.length > 0 ? text : null;
+export function collapseTurnText(message: ChatMessage): string | null {
+  return message.content.length > 0 ? message.content : null;
 }
 
-// `Anthropic.MessageParam['role']` also allows `'system'`, which this app
-// never persists (`persist()` only ever writes the `Role` above) — narrowed
-// back to `Role` here rather than widening `ChatHistoryTurn` to match.
-export function toHistoryTurns(messages: Anthropic.MessageParam[]): ChatHistoryTurn[] {
+export function toHistoryTurns(messages: ChatMessage[]): ChatHistoryTurn[] {
   return messages.flatMap((message) => {
-    const text = collapseTurnText(message.content);
-    return text === null ? [] : [{ role: message.role as Role, text }];
+    const text = collapseTurnText(message);
+    return text === null || message.role === 'system' || message.role === 'tool'
+      ? []
+      : [{ role: message.role, text }];
   });
 }
 
@@ -92,7 +81,7 @@ export function toHistoryTurns(messages: Anthropic.MessageParam[]): ChatHistoryT
 export class ChatService {
   constructor(
     @Inject(DRIZZLE) private readonly db: PostgresJsDatabase<typeof schema>,
-    @Inject(ANTHROPIC) private readonly anthropic: Anthropic,
+    @Inject(CHAT_MODEL) private readonly model: ChatModel,
     @Inject(CHAT_TOOLS) private readonly tools: ChatTool[],
   ) {}
 
@@ -104,55 +93,48 @@ export class ChatService {
     const requestId = randomUUID();
     const { timezone, locale } = await this.loadUserContext(userId);
     const history = await this.loadRecentMessages(userId);
-    const conversation: Anthropic.MessageParam[] = [
+    const conversation: ChatMessage[] = [
+      { role: 'system', content: buildSystemPrompt(timezone, locale) },
       ...history,
       { role: 'user', content: userText },
     ];
-    await this.persist(userId, 'user', userText);
+    await this.persist(userId, { role: 'user', content: userText });
 
     const toolDefinitions = this.tools.map((tool) => tool.definition);
 
     for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
-      const stream = this.anthropic.messages.stream({
-        model: ANTHROPIC_MODEL,
-        system: buildSystemPrompt(timezone, locale),
-        max_tokens: MAX_TOKENS,
-        messages: conversation,
-        tools: toolDefinitions,
-      });
-      stream.on('text', onDelta);
-      const response = await stream.finalMessage();
+      const response = await this.model.complete(conversation, toolDefinitions, onDelta);
 
-      conversation.push({ role: 'assistant', content: response.content });
-      await this.persist(userId, 'assistant', response.content);
+      conversation.push(response.message);
+      await this.persist(userId, response.message);
 
-      if (response.stop_reason !== 'tool_use') {
+      if (!response.message.toolCalls?.length) {
         return;
       }
 
-      const toolResults: Anthropic.ToolResultBlockParam[] = [];
-      for (const block of response.content) {
-        if (block.type !== 'tool_use') continue;
-        const tool = this.tools.find((t) => t.definition.name === block.name);
+      const toolResults: ChatMessage[] = [];
+      for (const toolCall of response.message.toolCalls) {
+        const tool = this.tools.find((t) => t.definition.name === toolCall.name);
         const output = tool
-          ? await tool.handler(block.input, { userId, requestId, timezone })
-          : { error: `no handler registered for tool "${block.name}"` };
+          ? await tool.handler(toolCall.arguments, { userId, requestId, timezone })
+          : { error: `no handler registered for tool "${toolCall.name}"` };
         toolResults.push({
-          type: 'tool_result',
-          tool_use_id: block.id,
+          role: 'tool',
           content: JSON.stringify(output),
         });
       }
 
-      conversation.push({ role: 'user', content: toolResults });
-      await this.persist(userId, 'user', toolResults);
+      conversation.push(...toolResults);
+      for (const toolResult of toolResults) {
+        await this.persist(userId, toolResult);
+      }
     }
 
     onDelta('\n\n(Stopped after too many tool calls — try rephrasing.)');
   }
 
   // Deliberately bounded to the same RECENCY_WINDOW as the context sent to
-  // Claude, not the full persisted thread — see devlog day 9. Pagination
+  // the model, not the full persisted thread — see devlog day 9. Pagination
   // over older messages is a later addition if that ever proves
   // insufficient, same call as pgvector retrieval.
   async getHistory(userId: string): Promise<ChatHistoryTurn[]> {
@@ -169,7 +151,7 @@ export class ChatService {
     return row;
   }
 
-  private async loadRecentMessages(userId: string): Promise<Anthropic.MessageParam[]> {
+  private async loadRecentMessages(userId: string): Promise<ChatMessage[]> {
     const rows = await this.db
       .select()
       .from(messages)
@@ -177,17 +159,19 @@ export class ChatService {
       .orderBy(desc(messages.createdAt))
       .limit(RECENCY_WINDOW);
 
-    return rows.reverse().map((row) => ({
-      role: row.role,
-      content: JSON.parse(decryptField(row.content)) as Anthropic.MessageParam['content'],
-    }));
+    return rows.reverse().map((row) => JSON.parse(decryptField(row.content)) as ChatMessage);
   }
 
-  private async persist(userId: string, role: Role, content: unknown): Promise<void> {
+  private async persist(userId: string, message: ChatMessage): Promise<void> {
+    if (message.role === 'system') throw new Error('Cannot persist a system message');
     await this.db.insert(messages).values({
       userId,
-      role,
-      content: encryptField(JSON.stringify(content)),
+      // The database's user/assistant roles intentionally remain UI-facing.
+      // Ollama tool result messages are persisted as user rows but retain their
+      // real role inside encrypted provider-neutral content for replay.
+      role: message.role === 'tool' ? 'user' : message.role,
+      content: encryptField(JSON.stringify(message)),
+      contentFormat: 'ollama',
     });
   }
 }

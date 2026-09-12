@@ -54,7 +54,7 @@ export function buildCalendarTools(
         name: 'list_calendar_events',
         description:
           "List the user's calendar events in a date/time range. Recurring events are already expanded into individual occurrences by the calendar server.",
-        input_schema: {
+        inputSchema: {
           type: 'object',
           properties: {
             start: { type: 'string', description: 'ISO 8601 start of the range' },
@@ -79,7 +79,7 @@ export function buildCalendarTools(
         name: 'propose_create_calendar_event',
         description:
           'Stage creating a calendar event for the user to confirm — does not create anything yet. Returns a confirmationId to pass to confirm_calendar_action once the user explicitly agrees. For a recurring event, pass `rrule` as a raw RFC 5545 RRULE value, e.g. "FREQ=WEEKLY;BYDAY=TU".',
-        input_schema: {
+        inputSchema: {
           type: 'object',
           properties: {
             summary: { type: 'string' },
@@ -120,7 +120,7 @@ export function buildCalendarTools(
         name: 'propose_update_calendar_event',
         description:
           'Stage an update to an existing calendar event (identified by uid, from list_calendar_events) for the user to confirm — does not change anything yet. Only the fields provided are changed.',
-        input_schema: {
+        inputSchema: {
           type: 'object',
           properties: {
             uid: { type: 'string' },
@@ -172,7 +172,7 @@ export function buildCalendarTools(
         name: 'propose_delete_calendar_event',
         description:
           'Stage deleting a calendar event (identified by uid, from list_calendar_events) for the user to confirm — does not delete anything yet.',
-        input_schema: {
+        inputSchema: {
           type: 'object',
           properties: { uid: { type: 'string' } },
           required: ['uid'],
@@ -197,7 +197,7 @@ export function buildCalendarTools(
         name: 'confirm_calendar_action',
         description:
           "Executes a previously staged calendar change (from propose_create_calendar_event / propose_update_calendar_event / propose_delete_calendar_event) after the user has explicitly confirmed it in their own words. Only call this after the user's next message affirms the action — never in the same reply as the proposal.",
-        input_schema: {
+        inputSchema: {
           type: 'object',
           properties: { confirmationId: { type: 'string' } },
           required: ['confirmationId'],

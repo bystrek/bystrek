@@ -18,6 +18,9 @@ services:
       postgres:
         condition: service_healthy
     restart: unless-stopped
+    networks:
+      - default
+      - homelab_llm
 
   ui:
     image: ${UI_IMAGE:-ghcr.io/bystrek/ui:latest}
@@ -42,4 +45,6 @@ volumes:
 
 networks:
   homelab_gateway:
+    external: true
+  homelab_llm:
     external: true
