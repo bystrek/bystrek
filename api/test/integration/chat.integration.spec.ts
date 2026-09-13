@@ -184,6 +184,7 @@ describe('POST /chat (integration)', () => {
         content: string;
       };
       expect(toolResultContent.role).toBe('tool');
+      expect(toolResultContent.toolName).toBe('test_tool');
       expect(JSON.parse(toolResultContent.content)).toEqual({
         ok: true,
         input: { foo: 'bar' },

@@ -197,6 +197,9 @@ fi
 api_image="$(docker inspect --format '{{.Config.Image}}' bystrek-api-1)"
 [[ "$api_image" == ghcr.io/bystrek/api:* ]] ||
   die "Bystrek API container is not using an expected GHCR image: $api_image"
+commit_sha="$(docker inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' bystrek-api-1)"
+[[ "$commit_sha" =~ ^[0-9a-f]{40}$ ]] ||
+  die "Bystrek API image has no valid commit revision label: $commit_sha"
 
 install -d -m 700 "$EVALUATIONS_DIR"
 lock_dir="${EVALUATIONS_DIR}/.evaluate-bystrek-model.lock"
@@ -237,6 +240,7 @@ result_temporary="${EVALUATIONS_DIR}/.${timestamp}-${safe_model}.$$.json"
 EVAL_AUTH_TOKEN="$eval_auth_token" compose exec -T \
   -e EVAL_AUTH_TOKEN \
   -e EVAL_RESET_HISTORY=true \
+  -e EVAL_COMMIT_SHA="$commit_sha" \
   api bun /app/scripts/evaluate-chat.ts > "$result_temporary"
 mv -f "$result_temporary" "$result_file"
 result_temporary=''

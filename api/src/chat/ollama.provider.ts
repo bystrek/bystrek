@@ -1,5 +1,5 @@
 import { Provider } from '@nestjs/common';
-import { LLM_BASE_URL, LLM_MODEL } from '../env';
+import { LLM_BASE_URL, LLM_MODEL, LLM_TIMEOUT_MS } from '../env';
 import {
   CHAT_MODEL,
   type ChatCompletion,
@@ -43,6 +43,7 @@ function toOllamaMessage(message: ChatMessage) {
   return {
     role: message.role,
     content: message.content,
+    ...(message.toolName ? { tool_name: message.toolName } : {}),
     ...(message.toolCalls
       ? {
           tool_calls: message.toolCalls.map((toolCall) => ({
@@ -68,6 +69,7 @@ export class OllamaChatModel implements ChatModel {
       body: JSON.stringify({
         model: LLM_MODEL,
         stream: true,
+        signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
         messages: messages.map(toOllamaMessage),
         tools: tools.map((tool) => ({
           type: 'function',
@@ -92,12 +94,14 @@ export class OllamaChatModel implements ChatModel {
     let content = '';
     const toolCalls: ChatToolCall[] = [];
     let metrics: ChatMetrics | undefined;
+    let receivedDone = false;
 
     const processLine = (line: string) => {
       if (!line) return;
       const part = JSON.parse(line) as OllamaStreamPart;
       if (part.error) throw new Error(`Ollama chat request failed: ${part.error}`);
       if (part.done) {
+        receivedDone = true;
         const reportedMetrics: ChatMetrics = {
           evalCount: part.eval_count,
           evalDurationNs: part.eval_duration,
@@ -127,6 +131,9 @@ export class OllamaChatModel implements ChatModel {
       if (done) break;
     }
     processLine(buffer);
+    if (!receivedDone) {
+      throw new Error('Ollama chat stream ended before its completion frame');
+    }
 
     return {
       message: {

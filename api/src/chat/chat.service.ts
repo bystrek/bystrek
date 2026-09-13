@@ -7,7 +7,13 @@ import { decryptField, encryptField } from '../crypto/field-encryption';
 import { DRIZZLE } from '../db/drizzle.provider';
 import * as schema from '../db/schema';
 import { messages, users } from '../db/schema';
-import { CHAT_MODEL, type ChatMessage, type ChatMetrics, type ChatModel } from './chat.model';
+import {
+  CHAT_MODEL,
+  type ChatMessage,
+  type ChatMetrics,
+  type ChatModel,
+  type ChatToolCall,
+} from './chat.model';
 import { CHAT_TOOLS, type ChatTool } from './chat.tools';
 
 // Context sent to the model per request is a bounded recency window, not the
@@ -114,7 +120,12 @@ export class ChatService {
     userId: string,
     userText: string,
     onDelta: (text: string) => void,
-    onComplete: (metrics: ChatMetrics | undefined, toolCalls: string[]) => void,
+    onComplete: (
+      metrics: ChatMetrics | undefined,
+      toolCalls: string[],
+      toolCallDetails: ChatToolCall[],
+      toolRoundTrips: number,
+    ) => void,
   ): Promise<void> {
     // One id per user message, shared across every tool-call iteration
     // below — lets a tool (e.g. calendar's confirm_calendar_action) refuse
@@ -132,7 +143,9 @@ export class ChatService {
 
     const toolDefinitions = this.tools.map((tool) => tool.definition);
     const calledTools: string[] = [];
+    const toolCallDetails: ChatToolCall[] = [];
     let metrics: ChatMetrics | undefined;
+    let toolRoundTrips = 0;
 
     for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
       const response = await this.model.complete(conversation, toolDefinitions, onDelta);
@@ -142,13 +155,15 @@ export class ChatService {
       await this.persist(userId, response.message);
 
       if (!response.message.toolCalls?.length) {
-        onComplete(metrics, calledTools);
+        onComplete(metrics, calledTools, toolCallDetails, toolRoundTrips);
         return;
       }
 
+      toolRoundTrips++;
       const toolResults: ChatMessage[] = [];
       for (const toolCall of response.message.toolCalls) {
         calledTools.push(toolCall.name);
+        toolCallDetails.push(toolCall);
         const tool = this.tools.find((t) => t.definition.name === toolCall.name);
         const output = tool
           ? await tool.handler(toolCall.arguments, { userId, requestId, timezone })
@@ -156,6 +171,7 @@ export class ChatService {
         toolResults.push({
           role: 'tool',
           content: JSON.stringify(output),
+          toolName: toolCall.name,
         });
       }
 
@@ -166,7 +182,7 @@ export class ChatService {
     }
 
     onDelta('\n\n(Stopped after too many tool calls — try rephrasing.)');
-    onComplete(metrics, calledTools);
+    onComplete(metrics, calledTools, toolCallDetails, toolRoundTrips);
   }
 
   // Deliberately bounded to the same RECENCY_WINDOW as the context sent to

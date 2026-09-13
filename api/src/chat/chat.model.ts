@@ -14,6 +14,7 @@ export interface ChatToolCall {
 export interface ChatMessage {
   role: ChatRole;
   content: string;
+  toolName?: string;
   toolCalls?: ChatToolCall[];
 }
 

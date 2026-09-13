@@ -77,7 +77,7 @@ describe('OllamaChatModel', () => {
           content: '',
           toolCalls: [{ name: 'list_calendar_events', arguments: { start: '2026-09-12' } }],
         },
-        { role: 'tool', content: '{"events":[]}' },
+        { role: 'tool', content: '{"events":[]}', toolName: 'list_calendar_events' },
       ],
       [],
       () => {},
@@ -96,7 +96,7 @@ describe('OllamaChatModel', () => {
           },
         ],
       },
-      { role: 'tool', content: '{"events":[]}' },
+      { role: 'tool', content: '{"events":[]}', tool_name: 'list_calendar_events' },
     ]);
   });
 
@@ -110,5 +110,15 @@ describe('OllamaChatModel', () => {
         throw new Error('must not stream');
       }),
     ).rejects.toThrow('Ollama chat request failed with HTTP 503');
+  });
+
+  it('rejects a stream that ends without Ollama completion metadata', async () => {
+    globalThis.fetch = mock(() =>
+      Promise.resolve(new Response('{"message":{"content":"partial"}}\n')),
+    ) as typeof fetch;
+
+    await expect(new OllamaChatModel().complete([], [], () => {})).rejects.toThrow(
+      'Ollama chat stream ended before its completion frame',
+    );
   });
 });

@@ -103,6 +103,8 @@ jobs:
         with:
           context: ./api
           push: ${{ github.event_name == 'push' }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/api:latest
             ghcr.io/${{ github.repository_owner }}/api:${{ github.sha }}
@@ -159,6 +161,8 @@ jobs:
         with:
           context: ./ui
           push: ${{ github.event_name == 'push' }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/ui:latest
             ghcr.io/${{ github.repository_owner }}/ui:${{ github.sha }}

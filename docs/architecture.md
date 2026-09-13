@@ -27,7 +27,7 @@ Scheduler ──▶ RabbitMQ ──▶ Worker ──▶ Backend API / push
 ## Frontend & chat (decided)
 
 - **Angular** (zoneless — standalone components, signals-based change detection, no Zone.js). Dependency injection, hierarchical service scoping, and enforced separation of concerns matter more here than framework popularity or minimal bundle size — Angular is the only mainstream frontend framework with those as first-class, compiler-backed patterns rather than convention. Zoneless removes the historical bundle/runtime cost that used to be the main counter-argument.
-- **No Vercel AI SDK.** Talk to Ollama's local HTTP API directly and stream raw SSE to the UI. A small application-owned chat contract separates the tool loop from the inference provider.
+- Talk to Ollama's local HTTP API directly and stream raw SSE to the UI. A small application-owned chat contract separates the tool loop from the inference provider.
 
 ## Write safety
 
@@ -93,7 +93,7 @@ Three separable axes, each optional independently — none block building the ne
 
 - **Domain connectors** — per-domain backend choice (bystrek-owned store, or an external service). A shared connector interface is only worth building once a domain has 2+ interchangeable backends; a domain with a single implementation (e.g. calendar → CalDAV) doesn't need the abstraction yet.
 - **Per-user enablement** — which domains/connectors a given user has active. An extension of the existing per-user model, not a new subsystem.
-- **LLM provider** — chat's tool-calling interface should stay provider-agnostic so a local model can sit alongside or replace Claude later. Independent of domain connectors — this is about the inference backend, not data sources.
+- **LLM provider** — chat's tool-calling interface stays provider-agnostic so the inference backend can change without coupling it to domain connectors.
 
 Each gets designed when a second real case (second backend, second user, second provider) actually shows up, not ahead of time.
 

@@ -101,12 +101,12 @@ describe('ChatService', () => {
       type: HttpEventType.DownloadProgress,
       loaded: 10,
       partialText:
-        'data: {"delta":"Hello"}\n\ndata: {"done":true,"metrics":{"evalCount":5},"toolCalls":[]}\n\n',
+        'data: {"delta":"Hello"}\n\ndata: {"done":true,"metrics":{"evalCount":5},"toolCalls":[],"toolCallDetails":[],"toolRoundTrips":0}\n\n',
     });
 
     expect(service.messages()[1].text).toBe('Hello');
     req.flush(
-      'data: {"delta":"Hello"}\n\ndata: {"done":true,"metrics":{"evalCount":5},"toolCalls":[]}\n\n',
+      'data: {"delta":"Hello"}\n\ndata: {"done":true,"metrics":{"evalCount":5},"toolCalls":[],"toolCallDetails":[],"toolRoundTrips":0}\n\n',
     );
   });
 

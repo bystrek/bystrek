@@ -151,7 +151,7 @@ export const messages = pgTable(
     content: text('content').notNull(),
     // clock_timestamp(), not defaultNow() (= now(), frozen for a whole
     // transaction): a single reply persists several rows in quick
-    // succession, and their relative order (fed back to Claude as
+    // succession, and their relative order (fed back to the local model as
     // conversation history, and returned by GET /chat/history) must reflect
     // real insertion order even when those inserts share one transaction.
     createdAt: timestamp('created_at', { withTimezone: true })

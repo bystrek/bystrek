@@ -17,7 +17,7 @@ const CONFIRM_INSTRUCTION =
   'This only stages the change — nothing has happened yet. Show this summary to the user in your reply and wait for their next message to explicitly confirm before calling confirm_calendar_action. Never call confirm_calendar_action in the same reply as this proposal.';
 
 // Tool handlers never throw — a failure (no calendar connected, event not
-// found, upstream CalDAV error) becomes a `{ error }` tool_result so Claude
+// found, upstream CalDAV error) becomes a `{ error }` tool_result so the model
 // can explain it or ask the user to fix it, rather than the whole chat
 // request failing.
 async function safely<T>(fn: () => T | Promise<T>): Promise<T | { error: string }> {

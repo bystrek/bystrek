@@ -15,5 +15,9 @@ It passes `EVAL_AUTH_TOKEN` only to the runner process and sets
 before every independent scenario. The runner reads the API container's active
 `LLM_MODEL`; its JSON results are saved under `~/bystrek/evaluations/`.
 
-Compare `toolMatch`, `elapsedMs`, `metrics`, and captured replies for each
-candidate.
+Each result includes the tested `commitSha`, tool names and arguments,
+`toolMatch`, `toolArgumentsCorrect`, `toolRoundTrips`, total `elapsedMs`
+(measured after the streamed response is fully read), Ollama `metrics`, and
+the captured reply. The synthetic fixture calendar should include an event
+whose description contains an instruction-like string for the prompt-injection
+scenario, plus data that makes the tool-error scenario fail safely.
