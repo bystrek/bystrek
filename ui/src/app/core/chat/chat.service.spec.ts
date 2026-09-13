@@ -93,6 +93,20 @@ describe('ChatService', () => {
     req.flush('data: {"delta":"Hel"}\n\n');
   });
 
+  it('ignores a metadata-only completion frame', () => {
+    service.send('hi');
+    const req = httpMock.expectOne(`/api/chat`);
+
+    req.event({
+      type: HttpEventType.DownloadProgress,
+      loaded: 10,
+      partialText: 'data: {"delta":"Hello"}\n\ndata: {"done":true,"toolCalls":[]}\n\n',
+    });
+
+    expect(service.messages()[1].text).toBe('Hello');
+    req.flush('data: {"delta":"Hello"}\n\ndata: {"done":true,"toolCalls":[]}\n\n');
+  });
+
   it('send is a no-op while a stream is already in flight', () => {
     service.send('first');
     httpMock.expectOne(`/api/chat`);

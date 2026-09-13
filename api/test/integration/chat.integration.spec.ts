@@ -1,66 +1,43 @@
 import { describe, expect, it, mock } from 'bun:test';
-import type Anthropic from '@anthropic-ai/sdk';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { asc, eq } from 'drizzle-orm';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
-import { ANTHROPIC } from '../../src/chat/anthropic.provider';
+import {
+  CHAT_MODEL,
+  type ChatCompletion,
+  type ChatModel,
+  type ChatToolCall,
+} from '../../src/chat/chat.model';
 import { MAX_TOOL_ITERATIONS } from '../../src/chat/chat.service';
 import { CHAT_TOOLS, type ChatTool } from '../../src/chat/chat.tools';
-import { decryptField } from '../../src/crypto/field-encryption';
+import { decryptField, encryptField } from '../../src/crypto/field-encryption';
 import { DRIZZLE } from '../../src/db/drizzle.provider';
 import { messages } from '../../src/db/schema';
 import { signUpTestUser } from './support/auth';
 import { withRollback } from './support/rollback';
 import { testDb } from './support/test-db';
 
-// Never hit the real Anthropic API in tests — this fake stands in for
-// `client.messages.stream()`, replaying one fixed Message per call.
-function fakeAnthropic(responses: Anthropic.Message[]): Anthropic {
+// Never hit the real model in tests — this fake replays one completion per call.
+function fakeModel(responses: ChatCompletion[]): ChatModel {
   let call = 0;
   return {
-    messages: {
-      stream: () => {
-        const response = responses[call++];
-        return {
-          on: (event: string, listener: (...args: unknown[]) => void) => {
-            if (event === 'text') {
-              for (const block of response.content) {
-                if (block.type === 'text') listener(block.text, block.text);
-              }
-            }
-          },
-          finalMessage: () => Promise.resolve(response),
-        };
-      },
+    complete: (_, __, onDelta) => {
+      const response = responses[call++];
+      if (response.message.content) onDelta(response.message.content);
+      return Promise.resolve(response);
     },
-  } as unknown as Anthropic;
+  };
 }
 
-function fakeMessage(
-  content: Anthropic.Message['content'],
-  stopReason: Anthropic.Message['stop_reason'],
-): Anthropic.Message {
+function fakeMessage(content: string, toolCalls?: ChatToolCall[]): ChatCompletion {
   return {
-    id: 'msg_test',
-    container: null,
-    content,
-    model: 'claude-sonnet-5',
-    role: 'assistant',
-    stop_reason: stopReason,
-    stop_details: null,
-    stop_sequence: null,
-    type: 'message',
-    usage: {
-      input_tokens: 1,
-      output_tokens: 1,
-      cache_creation_input_tokens: null,
-      cache_read_input_tokens: null,
-      server_tool_use: null,
-      service_tier: null,
-      cache_creation: null,
-    } as Anthropic.Usage,
+    message: {
+      role: 'assistant',
+      content,
+      ...(toolCalls ? { toolCalls } : {}),
+    },
   };
 }
 
@@ -89,15 +66,13 @@ describe('POST /chat (integration)', () => {
         name: 'Me',
       });
 
-      const anthropic = fakeAnthropic([
-        fakeMessage([{ type: 'text', text: 'Hello there', citations: [] }], 'end_turn'),
-      ]);
+      const model = fakeModel([fakeMessage('Hello there')]);
 
       const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
         .overrideProvider(DRIZZLE)
         .useValue(tx)
-        .overrideProvider(ANTHROPIC)
-        .useValue(anthropic)
+        .overrideProvider(CHAT_MODEL)
+        .useValue(model)
         .compile();
       const app: INestApplication = moduleRef.createNestApplication();
       await app.init();
@@ -110,6 +85,12 @@ describe('POST /chat (integration)', () => {
       expect(res.status).toBe(200);
       expect(res.headers['content-type']).toContain('text/event-stream');
       expect(res.text).toContain('Hello there');
+      expect(res.text).toContain(
+        JSON.stringify({
+          done: true,
+          toolCalls: [],
+        }),
+      );
 
       const rows = await tx
         .select()
@@ -121,11 +102,15 @@ describe('POST /chat (integration)', () => {
       expect(rows[0].role).toBe('user');
       expect(rows[0].visibility).toBe('private');
       expect(rows[0].content).not.toContain('what is my week');
-      expect(JSON.parse(decryptField(rows[0].content))).toBe('what is my week look like?');
+      expect(JSON.parse(decryptField(rows[0].content))).toEqual({
+        role: 'user',
+        content: 'what is my week look like?',
+      });
       expect(rows[1].role).toBe('assistant');
-      expect(JSON.parse(decryptField(rows[1].content))).toEqual([
-        { type: 'text', text: 'Hello there', citations: [] },
-      ]);
+      expect(JSON.parse(decryptField(rows[1].content))).toEqual({
+        role: 'assistant',
+        content: 'Hello there',
+      });
 
       await app.close();
     });
@@ -138,20 +123,9 @@ describe('POST /chat (integration)', () => {
         name: 'Me',
       });
 
-      const anthropic = fakeAnthropic([
-        fakeMessage(
-          [
-            {
-              type: 'tool_use',
-              id: 'toolu_1',
-              name: 'test_tool',
-              input: { foo: 'bar' },
-              caller: { type: 'direct' },
-            },
-          ],
-          'tool_use',
-        ),
-        fakeMessage([{ type: 'text', text: 'done', citations: [] }], 'end_turn'),
+      const model = fakeModel([
+        fakeMessage('', [{ name: 'test_tool', arguments: { foo: 'bar' } }]),
+        fakeMessage('done'),
       ]);
 
       const handler = mock((input: unknown) => Promise.resolve({ ok: true, input }));
@@ -160,7 +134,7 @@ describe('POST /chat (integration)', () => {
           definition: {
             name: 'test_tool',
             description: 'a fake tool for tests',
-            input_schema: { type: 'object' },
+            inputSchema: { type: 'object' },
           },
           handler,
         },
@@ -169,8 +143,8 @@ describe('POST /chat (integration)', () => {
       const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
         .overrideProvider(DRIZZLE)
         .useValue(tx)
-        .overrideProvider(ANTHROPIC)
-        .useValue(anthropic)
+        .overrideProvider(CHAT_MODEL)
+        .useValue(model)
         .overrideProvider(CHAT_TOOLS)
         .useValue(tools)
         .compile();
@@ -194,14 +168,13 @@ describe('POST /chat (integration)', () => {
 
       expect(rows.map((r) => r.role)).toEqual(['user', 'assistant', 'user', 'assistant']);
 
-      const toolResultContent = JSON.parse(decryptField(rows[2].content)) as Array<{
-        type: string;
-        tool_use_id: string;
+      const toolResultContent = JSON.parse(decryptField(rows[2].content)) as {
+        role: string;
         content: string;
-      }>;
-      expect(toolResultContent[0].type).toBe('tool_result');
-      expect(toolResultContent[0].tool_use_id).toBe('toolu_1');
-      expect(JSON.parse(toolResultContent[0].content)).toEqual({
+      };
+      expect(toolResultContent.role).toBe('tool');
+      expect(toolResultContent.toolName).toBe('test_tool');
+      expect(JSON.parse(toolResultContent.content)).toEqual({
         ok: true,
         input: { foo: 'bar' },
       });
@@ -245,28 +218,17 @@ describe('POST /chat (integration)', () => {
       // A tool that always asks for another tool call — the model never
       // reaches end_turn on its own, so this only terminates if the loop's
       // own cap does.
-      const alwaysToolUse = Array.from({ length: MAX_TOOL_ITERATIONS }, (_, i) =>
-        fakeMessage(
-          [
-            {
-              type: 'tool_use',
-              id: `toolu_${i}`,
-              name: 'test_tool',
-              input: {},
-              caller: { type: 'direct' },
-            },
-          ],
-          'tool_use',
-        ),
+      const alwaysToolUse = Array.from({ length: MAX_TOOL_ITERATIONS }, () =>
+        fakeMessage('', [{ name: 'test_tool', arguments: {} }]),
       );
-      const anthropic = fakeAnthropic(alwaysToolUse);
+      const model = fakeModel(alwaysToolUse);
       const handler = mock(() => Promise.resolve({ ok: true }));
       const tools: ChatTool[] = [
         {
           definition: {
             name: 'test_tool',
             description: 'a fake tool that always triggers another call',
-            input_schema: { type: 'object' },
+            inputSchema: { type: 'object' },
           },
           handler,
         },
@@ -275,8 +237,8 @@ describe('POST /chat (integration)', () => {
       const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
         .overrideProvider(DRIZZLE)
         .useValue(tx)
-        .overrideProvider(ANTHROPIC)
-        .useValue(anthropic)
+        .overrideProvider(CHAT_MODEL)
+        .useValue(model)
         .overrideProvider(CHAT_TOOLS)
         .useValue(tools)
         .compile();
@@ -322,24 +284,13 @@ describe('GET /chat/history (integration)', () => {
         name: 'Me',
       });
 
-      const anthropic = fakeAnthropic([
-        fakeMessage(
-          [
-            {
-              type: 'tool_use',
-              id: 'toolu_1',
-              name: 'test_tool',
-              input: {},
-              caller: { type: 'direct' },
-            },
-          ],
-          'tool_use',
-        ),
-        fakeMessage([{ type: 'text', text: 'done', citations: [] }], 'end_turn'),
+      const model = fakeModel([
+        fakeMessage('', [{ name: 'test_tool', arguments: {} }]),
+        fakeMessage('done'),
       ]);
       const tools: ChatTool[] = [
         {
-          definition: { name: 'test_tool', description: 'a fake tool', input_schema: {} },
+          definition: { name: 'test_tool', description: 'a fake tool', inputSchema: {} },
           handler: () => Promise.resolve({ ok: true }),
         },
       ];
@@ -347,8 +298,8 @@ describe('GET /chat/history (integration)', () => {
       const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
         .overrideProvider(DRIZZLE)
         .useValue(tx)
-        .overrideProvider(ANTHROPIC)
-        .useValue(anthropic)
+        .overrideProvider(CHAT_MODEL)
+        .useValue(model)
         .overrideProvider(CHAT_TOOLS)
         .useValue(tools)
         .compile();
@@ -369,6 +320,54 @@ describe('GET /chat/history (integration)', () => {
         { role: 'user', text: 'run the tool' },
         { role: 'assistant', text: 'done' },
       ]);
+
+      await app.close();
+    });
+  });
+});
+
+describe('DELETE /chat/history (integration)', () => {
+  it('clears only the authenticated user history', async () => {
+    await withRollback(testDb, async (tx) => {
+      const { user, token } = await signUpTestUser(tx, {
+        email: 'me@example.com',
+        name: 'Me',
+      });
+      const { user: otherUser } = await signUpTestUser(tx, {
+        email: 'other@example.com',
+        name: 'Other',
+      });
+      await tx.insert(messages).values([
+        {
+          userId: user.id,
+          role: 'user',
+          content: encryptField(JSON.stringify({ role: 'user', content: 'remove me' })),
+          contentFormat: 'ollama',
+        },
+        {
+          userId: otherUser.id,
+          role: 'user',
+          content: encryptField(JSON.stringify({ role: 'user', content: 'keep me' })),
+          contentFormat: 'ollama',
+        },
+      ]);
+
+      const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+        .overrideProvider(DRIZZLE)
+        .useValue(tx)
+        .compile();
+      const app: INestApplication = moduleRef.createNestApplication();
+      await app.init();
+
+      const res = await request(app.getHttpServer())
+        .delete('/chat/history')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(await tx.select().from(messages).where(eq(messages.userId, user.id))).toEqual([]);
+      expect(
+        await tx.select().from(messages).where(eq(messages.userId, otherUser.id)),
+      ).toHaveLength(1);
 
       await app.close();
     });

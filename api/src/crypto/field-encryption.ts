@@ -6,7 +6,7 @@ const IV_LENGTH = 12;
 
 // Tier-2 field encryption (architecture.md): protects sensitive columns
 // against DB-only exposure while staying readable by the backend, which
-// decrypts before ever calling Claude. iv/authTag/ciphertext are each
+// decrypts before ever calling the local model. iv/authTag/ciphertext are each
 // base64-encoded and joined with '.' into one column value.
 export function encryptField(plaintext: string): string {
   const iv = randomBytes(IV_LENGTH);

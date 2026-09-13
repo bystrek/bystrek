@@ -1,37 +1,34 @@
 import { describe, expect, it } from 'bun:test';
-import type Anthropic from '@anthropic-ai/sdk';
+import type { ChatMessage } from './chat.model';
 import { collapseTurnText, toHistoryTurns } from './chat.service';
 
 describe('collapseTurnText', () => {
   it('returns plain string content as-is', () => {
-    expect(collapseTurnText('what is my week look like?')).toBe('what is my week look like?');
+    expect(collapseTurnText({ role: 'user', content: 'what is my week look like?' })).toBe(
+      'what is my week look like?',
+    );
   });
 
   it('returns null for empty string content, same as an array with no text blocks', () => {
-    expect(collapseTurnText('')).toBeNull();
+    expect(collapseTurnText({ role: 'assistant', content: '' })).toBeNull();
   });
 
   it('concatenates text blocks in an array', () => {
-    const content: Anthropic.MessageParam['content'] = [
-      { type: 'text', text: 'Hello ', citations: [] },
-      { type: 'text', text: 'there', citations: [] },
-    ];
-    expect(collapseTurnText(content)).toBe('Hello there');
+    expect(collapseTurnText({ role: 'assistant', content: 'Hello there' })).toBe('Hello there');
   });
 
   it('returns null for a turn with no text blocks', () => {
-    const content: Anthropic.MessageParam['content'] = [
-      { type: 'tool_use', id: 'toolu_1', name: 'test_tool', input: {} },
-    ];
-    expect(collapseTurnText(content)).toBeNull();
+    expect(
+      collapseTurnText({
+        role: 'assistant',
+        content: '',
+        toolCalls: [{ name: 'test_tool', arguments: {} }],
+      }),
+    ).toBeNull();
   });
 
   it('drops tool_use/tool_result blocks but keeps any text block mixed in', () => {
-    const content: Anthropic.MessageParam['content'] = [
-      { type: 'tool_result', tool_use_id: 'toolu_1', content: '{"ok":true}' },
-      { type: 'text', text: 'done', citations: [] },
-    ];
-    expect(collapseTurnText(content)).toBe('done');
+    expect(collapseTurnText({ role: 'assistant', content: 'done' })).toBe('done');
   });
 });
 
@@ -41,17 +38,18 @@ describe('toHistoryTurns', () => {
   });
 
   it('drops turns with no resulting text and keeps the rest in order', () => {
-    const messages: Anthropic.MessageParam[] = [
+    const messages: ChatMessage[] = [
       { role: 'user', content: 'hi' },
       {
         role: 'assistant',
-        content: [{ type: 'tool_use', id: 'toolu_1', name: 'test_tool', input: {} }],
+        content: '',
+        toolCalls: [{ name: 'test_tool', arguments: {} }],
       },
       {
-        role: 'user',
-        content: [{ type: 'tool_result', tool_use_id: 'toolu_1', content: '{}' }],
+        role: 'tool',
+        content: '{}',
       },
-      { role: 'assistant', content: [{ type: 'text', text: 'done', citations: [] }] },
+      { role: 'assistant', content: 'done' },
     ];
 
     expect(toHistoryTurns(messages)).toEqual([

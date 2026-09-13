@@ -1,7 +1,7 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
-STACK_DIR="$HOME/bystrek"
+STACK_DIR="${STACK_DIR:-"$HOME/bystrek"}"
 
 if [ "$#" -gt 1 ]; then
   echo "usage: $0 [image-tag]" >&2

@@ -1,6 +1,6 @@
 # bystrek
 
-A self-hosted personal data platform: calendar, notes, research, medical records, nutrition, gym — centralized storage with an LLM (Claude) that can read and write into it, plus a custom app for browsing, visualization, and summaries. See [`docs/architecture.md`](docs/architecture.md) for the target design and the reasoning behind it.
+A self-hosted personal data platform: calendar, notes, research, medical records, nutrition, gym — centralized storage with a local LLM that can read and write into it, plus a custom app for browsing, visualization, and summaries. See [`docs/architecture.md`](docs/architecture.md) for the target design and the reasoning behind it.
 
 `https://bystrek.dev`
 
@@ -12,7 +12,7 @@ The app runs on the home server. See [Issues](https://github.com/bystrek/bystrek
 - A home server behind a Cloudflare Tunnel.
 - `bystrek.dev` and `api.bystrek.dev` route through Cloudflare to Caddy on the home server.
 - `ui/` (Angular, zoneless) at `bystrek.dev`: subscribe UI + service worker, login/user admin, profile, and chat pages.
-- `api/` (NestJS + Drizzle + Bun) at `api.bystrek.dev`: Postgres-backed subscriptions table, push subscribe/send endpoints, `better-auth`-backed login/invite/ban, `POST /chat` streaming Claude replies over SSE, and a calendar tool (CalDAV against Infomaniak kCalendar) with mutating actions gated behind explicit user confirmation. Verified end to end — a real push landed on a device via the deployed stack, and calendar read/write was verified against a real Infomaniak account.
+- `api/` (NestJS + Drizzle + Bun) at `api.bystrek.dev`: Postgres-backed subscriptions table, push subscribe/send endpoints, `better-auth`-backed login/invite/ban, `POST /chat` streaming local Ollama replies over SSE, and a calendar tool (CalDAV against Infomaniak kCalendar) with mutating actions gated behind explicit user confirmation. Verified end to end — a real push landed on a device via the deployed stack, and calendar read/write was verified against a real Infomaniak account.
 - Auth: email/password via `better-auth`, invite-gated (admin creates the row, no public signup), bearer tokens, admin plugin for invite/list/ban. Passkey deferred past v1.
 - Deploy pipeline: GitHub Actions builds `api`/`ui` images to GHCR, then calls a Cloudflare Access-protected deployment webhook with a service token. The deployment remains gated by a GitHub Environment requiring review.
 
@@ -24,7 +24,7 @@ The app runs on the home server. See [Issues](https://github.com/bystrek/bystrek
 
 ## Architecture
 
-Cloudflare Tunnel → Caddy → `ui` (Angular: subscribe UI + service worker, login/user admin, profile, chat); `api.bystrek.dev` → Caddy → `api` (NestJS: Postgres, push send/subscribe, `better-auth`, chat via `@anthropic-ai/sdk`). Full design in [`docs/architecture.md`](docs/architecture.md).
+Cloudflare Tunnel → Caddy → `ui` (Angular: subscribe UI + service worker, login/user admin, profile, chat); `api.bystrek.dev` → Caddy → `api` (NestJS: Postgres, push send/subscribe, `better-auth`, chat via private Ollama). Full design in [`docs/architecture.md`](docs/architecture.md).
 
 - **Access**: Cloudflare Tunnel exposes the application; the deployment webhook is protected by Cloudflare Access service-token authentication.
 - **TLS**: Cloudflare terminates TLS at the tunnel edge.

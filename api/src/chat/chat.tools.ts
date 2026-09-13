@@ -1,4 +1,4 @@
-import type Anthropic from '@anthropic-ai/sdk';
+import type { ChatToolDefinition } from './chat.model';
 
 // `requestId` is unique per `ChatService.reply()` call (i.e. per user
 // message, not per tool-call iteration within it) — tools that need a
@@ -15,7 +15,7 @@ export interface ToolContext {
 }
 
 export interface ChatTool {
-  definition: Anthropic.Tool;
+  definition: ChatToolDefinition;
   handler: (input: unknown, ctx: ToolContext) => Promise<unknown>;
 }
 

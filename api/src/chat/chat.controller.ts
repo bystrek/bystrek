@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Post,
   Req,
@@ -26,6 +27,12 @@ export class ChatController {
     return this.chatService.getHistory(req.session!.user.id);
   }
 
+  @Delete('history')
+  @UseGuards(AuthGuard)
+  async clearHistory(@Req() req: Request) {
+    await this.chatService.clearHistory(req.session!.user.id);
+  }
+
   @Post()
   @UseGuards(AuthGuard)
   async chat(@Body() body: ChatDto, @Req() req: Request, @Res() res: Response) {
@@ -39,9 +46,16 @@ export class ChatController {
       Connection: 'keep-alive',
     });
 
-    await this.chatService.reply(req.session!.user.id, body.message, (delta) => {
-      res.write(`data: ${JSON.stringify({ delta })}\n\n`);
-    });
+    await this.chatService.reply(
+      req.session!.user.id,
+      body.message,
+      (delta) => {
+        res.write(`data: ${JSON.stringify({ delta })}\n\n`);
+      },
+      (toolCalls) => {
+        res.write(`data: ${JSON.stringify({ done: true, toolCalls })}\n\n`);
+      },
+    );
 
     res.end();
   }
