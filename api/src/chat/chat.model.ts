@@ -20,14 +20,6 @@ export interface ChatMessage {
 
 export interface ChatCompletion {
   message: ChatMessage;
-  metrics?: ChatMetrics;
-}
-
-export interface ChatMetrics {
-  evalCount?: number;
-  evalDurationNs?: number;
-  promptEvalCount?: number;
-  promptEvalDurationNs?: number;
 }
 
 export interface ChatModel {

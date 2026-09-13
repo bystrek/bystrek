@@ -7,13 +7,7 @@ import { decryptField, encryptField } from '../crypto/field-encryption';
 import { DRIZZLE } from '../db/drizzle.provider';
 import * as schema from '../db/schema';
 import { messages, users } from '../db/schema';
-import {
-  CHAT_MODEL,
-  type ChatMessage,
-  type ChatMetrics,
-  type ChatModel,
-  type ChatToolCall,
-} from './chat.model';
+import { CHAT_MODEL, type ChatMessage, type ChatModel } from './chat.model';
 import { CHAT_TOOLS, type ChatTool } from './chat.tools';
 
 // Context sent to the model per request is a bounded recency window, not the
@@ -24,31 +18,6 @@ const RECENCY_WINDOW = 40;
 // triggering another tool_use (or a model stuck in a loop) can't hold the
 // request open forever.
 export const MAX_TOOL_ITERATIONS = 8;
-
-function addMetrics(
-  total: ChatMetrics | undefined,
-  next: ChatMetrics | undefined,
-): ChatMetrics | undefined {
-  if (!next) return total;
-  return {
-    evalCount:
-      total?.evalCount === undefined && next.evalCount === undefined
-        ? undefined
-        : (total?.evalCount ?? 0) + (next.evalCount ?? 0),
-    evalDurationNs:
-      total?.evalDurationNs === undefined && next.evalDurationNs === undefined
-        ? undefined
-        : (total?.evalDurationNs ?? 0) + (next.evalDurationNs ?? 0),
-    promptEvalCount:
-      total?.promptEvalCount === undefined && next.promptEvalCount === undefined
-        ? undefined
-        : (total?.promptEvalCount ?? 0) + (next.promptEvalCount ?? 0),
-    promptEvalDurationNs:
-      total?.promptEvalDurationNs === undefined && next.promptEvalDurationNs === undefined
-        ? undefined
-        : (total?.promptEvalDurationNs ?? 0) + (next.promptEvalDurationNs ?? 0),
-  };
-}
 
 // Computed per request from the user's own timezone/locale (`users` table
 // — no settings UI yet, defaults only), not baked into a constant: without
@@ -120,12 +89,7 @@ export class ChatService {
     userId: string,
     userText: string,
     onDelta: (text: string) => void,
-    onComplete: (
-      metrics: ChatMetrics | undefined,
-      toolCalls: string[],
-      toolCallDetails: ChatToolCall[],
-      toolRoundTrips: number,
-    ) => void,
+    onComplete: (toolCalls: string[]) => void,
   ): Promise<void> {
     // One id per user message, shared across every tool-call iteration
     // below — lets a tool (e.g. calendar's confirm_calendar_action) refuse
@@ -143,27 +107,21 @@ export class ChatService {
 
     const toolDefinitions = this.tools.map((tool) => tool.definition);
     const calledTools: string[] = [];
-    const toolCallDetails: ChatToolCall[] = [];
-    let metrics: ChatMetrics | undefined;
-    let toolRoundTrips = 0;
 
     for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
       const response = await this.model.complete(conversation, toolDefinitions, onDelta);
-      metrics = addMetrics(metrics, response.metrics);
 
       conversation.push(response.message);
       await this.persist(userId, response.message);
 
       if (!response.message.toolCalls?.length) {
-        onComplete(metrics, calledTools, toolCallDetails, toolRoundTrips);
+        onComplete(calledTools);
         return;
       }
 
-      toolRoundTrips++;
       const toolResults: ChatMessage[] = [];
       for (const toolCall of response.message.toolCalls) {
         calledTools.push(toolCall.name);
-        toolCallDetails.push(toolCall);
         const tool = this.tools.find((t) => t.definition.name === toolCall.name);
         const output = tool
           ? await tool.handler(toolCall.arguments, { userId, requestId, timezone })
@@ -182,7 +140,7 @@ export class ChatService {
     }
 
     onDelta('\n\n(Stopped after too many tool calls — try rephrasing.)');
-    onComplete(metrics, calledTools, toolCallDetails, toolRoundTrips);
+    onComplete(calledTools);
   }
 
   // Deliberately bounded to the same RECENCY_WINDOW as the context sent to

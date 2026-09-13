@@ -17,7 +17,6 @@ COPY --from=builder /app/dist ./dist
 COPY drizzle ./drizzle
 COPY drizzle.config.ts ./
 COPY docker-entrypoint.sh ./
-COPY scripts ./scripts
 RUN chmod +x docker-entrypoint.sh
 
 EXPOSE 3000

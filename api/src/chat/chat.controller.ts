@@ -52,10 +52,8 @@ export class ChatController {
       (delta) => {
         res.write(`data: ${JSON.stringify({ delta })}\n\n`);
       },
-      (metrics, toolCalls, toolCallDetails, toolRoundTrips) => {
-        res.write(
-          `data: ${JSON.stringify({ done: true, metrics, toolCalls, toolCallDetails, toolRoundTrips })}\n\n`,
-        );
+      (toolCalls) => {
+        res.write(`data: ${JSON.stringify({ done: true, toolCalls })}\n\n`);
       },
     );
 

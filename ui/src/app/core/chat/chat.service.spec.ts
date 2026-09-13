@@ -100,14 +100,11 @@ describe('ChatService', () => {
     req.event({
       type: HttpEventType.DownloadProgress,
       loaded: 10,
-      partialText:
-        'data: {"delta":"Hello"}\n\ndata: {"done":true,"metrics":{"evalCount":5},"toolCalls":[],"toolCallDetails":[],"toolRoundTrips":0}\n\n',
+      partialText: 'data: {"delta":"Hello"}\n\ndata: {"done":true,"toolCalls":[]}\n\n',
     });
 
     expect(service.messages()[1].text).toBe('Hello');
-    req.flush(
-      'data: {"delta":"Hello"}\n\ndata: {"done":true,"metrics":{"evalCount":5},"toolCalls":[],"toolCallDetails":[],"toolRoundTrips":0}\n\n',
-    );
+    req.flush('data: {"delta":"Hello"}\n\ndata: {"done":true,"toolCalls":[]}\n\n');
   });
 
   it('send is a no-op while a stream is already in flight', () => {
