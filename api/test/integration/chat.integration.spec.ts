@@ -100,6 +100,8 @@ describe('POST /chat (integration)', () => {
           done: true,
           metrics: { evalCount: 12, evalDurationNs: 100_000_000 },
           toolCalls: [],
+          toolCallDetails: [],
+          toolRoundTrips: 0,
         }),
       );
 
