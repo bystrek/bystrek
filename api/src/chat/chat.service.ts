@@ -7,7 +7,13 @@ import { decryptField, encryptField } from '../crypto/field-encryption';
 import { DRIZZLE } from '../db/drizzle.provider';
 import * as schema from '../db/schema';
 import { messages, users } from '../db/schema';
-import { CHAT_MODEL, type ChatMessage, type ChatModel } from './chat.model';
+import {
+  CHAT_MODEL,
+  type ChatMessage,
+  type ChatModel,
+  type ChatRole,
+  type ChatToolCall,
+} from './chat.model';
 import { CHAT_TOOLS, type ChatTool } from './chat.tools';
 
 // Context sent to the model per request is a bounded recency window, not the
@@ -58,6 +64,66 @@ type Role = 'user' | 'assistant';
 export interface ChatHistoryTurn {
   role: Role;
   text: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isChatRole(value: unknown): value is ChatRole {
+  return value === 'system' || value === 'user' || value === 'assistant' || value === 'tool';
+}
+
+function isChatToolCall(value: unknown): value is ChatToolCall {
+  return isRecord(value) && typeof value.name === 'string' && isRecord(value.arguments);
+}
+
+export function parseStoredMessage(value: unknown, legacyRole: Role): ChatMessage | null {
+  if (typeof value === 'string') {
+    return value.length > 0 ? { role: legacyRole, content: value } : null;
+  }
+
+  if (Array.isArray(value)) {
+    if (
+      !value.every(
+        (block) =>
+          isRecord(block) &&
+          (block.type === 'text' || block.type === 'tool_use' || block.type === 'tool_result'),
+      )
+    ) {
+      throw new Error('Unsupported legacy chat content block');
+    }
+    const content = value
+      .filter(
+        (block): block is { type: 'text'; text: string } =>
+          isRecord(block) && block.type === 'text' && typeof block.text === 'string',
+      )
+      .map((block) => block.text)
+      .join('');
+    return content.length > 0 ? { role: legacyRole, content } : null;
+  }
+
+  if (!isRecord(value) || !isChatRole(value.role) || typeof value.content !== 'string') {
+    throw new Error('Unsupported stored chat message format');
+  }
+
+  const message: ChatMessage = {
+    role: value.role,
+    content: value.content,
+  };
+  if (value.toolName !== undefined) {
+    if (typeof value.toolName !== 'string') {
+      throw new Error('Unsupported stored chat message tool name');
+    }
+    message.toolName = value.toolName;
+  }
+  if (value.toolCalls !== undefined) {
+    if (!Array.isArray(value.toolCalls) || !value.toolCalls.every(isChatToolCall)) {
+      throw new Error('Unsupported stored chat message tool calls');
+    }
+    message.toolCalls = value.toolCalls;
+  }
+  return message;
 }
 
 // Collapses one stored turn's content down to plain text for `GET
@@ -173,7 +239,10 @@ export class ChatService {
       .orderBy(desc(messages.createdAt))
       .limit(RECENCY_WINDOW);
 
-    return rows.reverse().map((row) => JSON.parse(decryptField(row.content)) as ChatMessage);
+    return rows.reverse().flatMap((row) => {
+      const message = parseStoredMessage(JSON.parse(decryptField(row.content)), row.role);
+      return message === null ? [] : [message];
+    });
   }
 
   private async persist(userId: string, message: ChatMessage): Promise<void> {
