@@ -1,6 +1,60 @@
 import { describe, expect, it } from 'bun:test';
 import type { ChatMessage } from './chat.model';
-import { collapseTurnText, toHistoryTurns } from './chat.service';
+import { collapseTurnText, parseStoredMessage, toHistoryTurns } from './chat.service';
+
+describe('parseStoredMessage', () => {
+  it('preserves the current provider-neutral message format', () => {
+    expect(
+      parseStoredMessage(
+        {
+          role: 'assistant',
+          content: '',
+          toolCalls: [{ name: 'list_calendar_events', arguments: { start: '2026-09-18' } }],
+        },
+        'assistant',
+      ),
+    ).toEqual({
+      role: 'assistant',
+      content: '',
+      toolCalls: [{ name: 'list_calendar_events', arguments: { start: '2026-09-18' } }],
+    });
+  });
+
+  it('converts legacy string content using the database role', () => {
+    expect(parseStoredMessage('hello', 'user')).toEqual({ role: 'user', content: 'hello' });
+  });
+
+  it('converts legacy Anthropic text blocks and ignores tool blocks', () => {
+    expect(
+      parseStoredMessage(
+        [
+          { type: 'text', text: 'Checking' },
+          { type: 'tool_use', id: 'tool-1', name: 'test', input: {} },
+          { type: 'text', text: ' now' },
+        ],
+        'assistant',
+      ),
+    ).toEqual({ role: 'assistant', content: 'Checking now' });
+  });
+
+  it('drops legacy tool-only turns', () => {
+    expect(
+      parseStoredMessage([{ type: 'tool_result', tool_use_id: 'tool-1', content: '{}' }], 'user'),
+    ).toBeNull();
+  });
+
+  it('rejects unknown legacy content blocks', () => {
+    expect(() =>
+      parseStoredMessage([{ type: 'image', source: 'unsupported' }], 'assistant'),
+    ).toThrow('Unsupported legacy chat content block');
+  });
+
+  it('rejects unknown stored values', () => {
+    expect(() => parseStoredMessage({ role: 'assistant' }, 'assistant')).toThrow(
+      'Unsupported stored chat message format',
+    );
+  });
+});
 
 describe('collapseTurnText', () => {
   it('returns plain string content as-is', () => {
