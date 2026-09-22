@@ -1,4 +1,4 @@
-name: deploy selected ref
+name: build selected ref
 
 on:
   workflow_dispatch:
@@ -14,9 +14,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-    outputs:
-      image_tag: ${{ steps.tag.outputs.image_tag }}
-      revision: ${{ steps.revision.outputs.revision }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -50,29 +47,12 @@ jobs:
           tags: ghcr.io/${{ github.repository_owner }}/ui:${{ steps.tag.outputs.image_tag }}
           labels: org.opencontainers.image.revision=${{ steps.revision.outputs.revision }}
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    environment: production
-    concurrency:
-      group: bystrek-home-server-deploy
-      cancel-in-progress: false
-    steps:
-      - name: Trigger deploy via webhook
+      - name: Summarize images
         run: |
-          status="$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
-            -H "CF-Access-Client-Id: ${{ secrets.CF_ACCESS_CLIENT_ID }}" \
-            -H "CF-Access-Client-Secret: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}" \
-            "https://deploy.bystrek.dev/hooks/deploy-bystrek?image_tag=${{ needs.build.outputs.image_tag }}")"
-          if [[ ! "$status" =~ ^2[0-9]{2}$ ]]; then
-            echo "Deploy webhook returned HTTP $status" >&2
-            exit 1
-          fi
           {
-            echo "## Selected ref deployed"
+            echo "## Selected ref built"
             echo
-            echo "Revision: \`${{ needs.build.outputs.revision }}\`"
+            echo "Revision: \`${{ steps.revision.outputs.revision }}\`"
             echo
-            echo "Image tag: \`${{ needs.build.outputs.image_tag }}\`"
+            echo "Image tag: \`${{ steps.tag.outputs.image_tag }}\`"
           } >> "$GITHUB_STEP_SUMMARY"

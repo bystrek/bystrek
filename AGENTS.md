@@ -35,6 +35,6 @@ This repository contains the application code for bystrek:
 
 - API port: `3000`
 - Database: PostgreSQL 16
-- API image pipeline: GHCR build + deploy webhook
-- UI image pipeline: GHCR build + deploy webhook
+- API image pipeline: GHCR build; deployed by pinning its digest in `homelab`
+- UI image pipeline: GHCR build; deployed by pinning its digest in `homelab`
 - Ollama connectivity is through `LLM_BASE_URL` / `LLM_MODEL`

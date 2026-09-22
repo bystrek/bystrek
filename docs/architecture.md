@@ -74,8 +74,8 @@ Key management: `.env` on the home server, alongside other secrets.
 
 ## Deployment (decided)
 
-- CI (GitHub Actions) builds each service's Docker image, pushes to GHCR, then calls the deployment webhook — gated by a GitHub Environment requiring manual approval.
-- Cloudflare Access protects the deployment webhook with a service token. The webhook runs `docker compose pull && up -d --remove-orphans` on the home server.
+- CI (GitHub Actions) builds each service's Docker image and pushes it to GHCR.
+- Deploying means pinning the new image digests in `bystrek/homelab` (`clusters/home/apps/bystrek/{api,ui}/`) through a reviewed PR. Flux rolls them out to k3s when the owner cuts a `homelab` release tag.
 - Migrations run automatically at container boot (entrypoint runs `drizzle-kit migrate`, then starts the app). Safe here specifically because it's a single instance, no rolling/concurrent deploys.
 - No rollback tooling.
 
