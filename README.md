@@ -14,7 +14,7 @@ The app runs on the home server. See [Issues](https://github.com/bystrek/bystrek
 - `ui/` (Angular, zoneless) at `bystrek.dev`: subscribe UI + service worker, login/user admin, profile, and chat pages.
 - `api/` (NestJS + Drizzle + Bun) at `api.bystrek.dev`: Postgres-backed subscriptions table, push subscribe/send endpoints, `better-auth`-backed login/invite/ban, `POST /chat` streaming local Ollama replies over SSE, and a calendar tool (CalDAV against Infomaniak kCalendar) with mutating actions gated behind explicit user confirmation. Verified end to end — a real push landed on a device via the deployed stack, and calendar read/write was verified against a real Infomaniak account.
 - Auth: email/password via `better-auth`, invite-gated (admin creates the row, no public signup), bearer tokens, admin plugin for invite/list/ban. Passkey deferred past v1.
-- Deploy pipeline: GitHub Actions builds `api`/`ui` images to GHCR, then calls a Cloudflare Access-protected deployment webhook with a service token. The deployment remains gated by a GitHub Environment requiring review.
+- Deploy pipeline: GitHub Actions builds `api`/`ui` images to GHCR. A reviewed `homelab` change pins the new image digests, and Flux rolls them out when the owner cuts a `homelab` release tag.
 
 **Not built yet:**
 - `owner_id`/`visibility` on domain tables — deferred until more domains exist (tier-2 field encryption is live, used by chat and calendar credentials).
@@ -26,7 +26,7 @@ The app runs on the home server. See [Issues](https://github.com/bystrek/bystrek
 
 Cloudflare Tunnel → Caddy → `ui` (Angular: subscribe UI + service worker, login/user admin, profile, chat); `api.bystrek.dev` → Caddy → `api` (NestJS: Postgres, push send/subscribe, `better-auth`, chat via private Ollama). Full design in [`docs/architecture.md`](docs/architecture.md).
 
-- **Access**: Cloudflare Tunnel exposes the application; the deployment webhook is protected by Cloudflare Access service-token authentication.
+- **Access**: Cloudflare Tunnel exposes the application.
 - **TLS**: Cloudflare terminates TLS at the tunnel edge.
 - **Domain**: `bystrek.dev` is a non-identifying domain.
 

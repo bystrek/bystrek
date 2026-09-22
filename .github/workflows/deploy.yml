@@ -1,4 +1,4 @@
-name: build and deploy
+name: build and publish
 
 on:
   push:
@@ -162,24 +162,3 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/ui:latest
             ghcr.io/${{ github.repository_owner }}/ui:${{ github.sha }}
-
-  deploy:
-    needs: [changes, build-api, build-ui]
-    if: github.event_name == 'push' && needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    environment: production
-    concurrency:
-      group: bystrek-home-server-deploy
-      cancel-in-progress: false
-    steps:
-      - name: Trigger deploy via webhook
-        run: |
-          status="$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
-            -H "CF-Access-Client-Id: ${{ secrets.CF_ACCESS_CLIENT_ID }}" \
-            -H "CF-Access-Client-Secret: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}" \
-            https://deploy.bystrek.dev/hooks/deploy-bystrek)"
-          if [[ ! "$status" =~ ^2[0-9]{2}$ ]]; then
-            echo "Deploy webhook returned HTTP $status" >&2
-            exit 1
-          fi
