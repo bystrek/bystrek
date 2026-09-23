@@ -68,10 +68,12 @@ test('sends a message and renders the streamed reply', async ({ page }) => {
 
   await expect(input).toBeDisabled();
   await expect(button).toBeDisabled();
+  await expect(page.getByRole('status', { name: 'Assistant is thinking' })).toBeVisible();
   releaseChat();
 
   await expect(page.locator('.bubble.user')).toHaveText('hi there');
   await expect(page.locator('.bubble.assistant')).toHaveText('Hello!');
+  await expect(page.getByRole('status', { name: 'Assistant is thinking' })).toHaveCount(0);
 
   await expect(input).toBeEnabled();
   await expect(button).toBeEnabled();

@@ -79,6 +79,35 @@ app-chat .bubble.assistant {
   color: var(--color-bubble-assistant-ink);
 }
 
+/* Shown in the empty assistant bubble until the first delta arrives, which
+   covers model load and any tool calls that run before the reply starts. */
+app-chat .bubble.pending {
+  display: flex;
+  align-items: center;
+}
+
+app-chat .spinner {
+  animation: chat-spin 0.8s linear infinite;
+  border: var(--border-width) solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  display: inline-block;
+  height: 1em;
+  width: 1em;
+}
+
+@keyframes chat-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  app-chat .spinner {
+    animation-duration: 2.4s;
+  }
+}
+
 /* A hard rule, not a fade: messages get cut off at the bar like everything
    else in this design gets cut off — by a border. */
 app-chat #chat-input {

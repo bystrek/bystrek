@@ -1,12 +1,18 @@
 <main class="chat-shell">
   <div class="messages">
-    @for (message of chat.messages(); track $index) {
-      <div
-        class="bubble"
-        [class.user]="message.role === 'user'"
-        [class.assistant]="message.role === 'assistant'"
-        [innerHTML]="message.text | markdown"
-      ></div>
+    @for (message of chat.messages(); track $index; let last = $last) {
+      @if (last && chat.sending() && message.role === 'assistant' && !message.text) {
+        <div class="bubble assistant pending" role="status" aria-label="Assistant is thinking">
+          <span class="spinner" aria-hidden="true"></span>
+        </div>
+      } @else {
+        <div
+          class="bubble"
+          [class.user]="message.role === 'user'"
+          [class.assistant]="message.role === 'assistant'"
+          [innerHTML]="message.text | markdown"
+        ></div>
+      }
     }
     <div #scrollAnchor></div>
   </div>
