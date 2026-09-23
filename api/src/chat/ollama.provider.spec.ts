@@ -66,6 +66,35 @@ describe('OllamaChatModel', () => {
     });
   });
 
+  it('applies the timeout to the request, not the body', async () => {
+    const fetchMock = mock(() => Promise.resolve(new Response('{"done":true}\n')));
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    await new OllamaChatModel().complete([], [], () => {});
+
+    const init = fetchMock.mock.calls[0][1];
+    expect(init?.signal).toBeInstanceOf(AbortSignal);
+    expect(JSON.parse(String(init?.body))).not.toHaveProperty('signal');
+  });
+
+  it('omits think when it is not configured', async () => {
+    const fetchMock = mock(() => Promise.resolve(new Response('{"done":true}\n')));
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    await new OllamaChatModel(undefined).complete([], [], () => {});
+
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).not.toHaveProperty('think');
+  });
+
+  it('sends the configured think option', async () => {
+    const fetchMock = mock(() => Promise.resolve(new Response('{"done":true}\n')));
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    await new OllamaChatModel(false).complete([], [], () => {});
+
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toMatchObject({ think: false });
+  });
+
   it("translates stored tool calls to Ollama's wire format", async () => {
     const fetchMock = mock(() => Promise.resolve(new Response('{"done":true}\n')));
     globalThis.fetch = fetchMock as typeof fetch;
