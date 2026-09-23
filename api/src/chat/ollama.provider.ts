@@ -1,5 +1,5 @@
 import { Provider } from '@nestjs/common';
-import { LLM_BASE_URL, LLM_MODEL, LLM_TIMEOUT_MS } from '../env';
+import { LLM_BASE_URL, LLM_MODEL, LLM_THINK, LLM_TIMEOUT_MS } from '../env';
 import {
   CHAT_MODEL,
   type ChatCompletion,
@@ -53,6 +53,8 @@ function toOllamaMessage(message: ChatMessage) {
 }
 
 export class OllamaChatModel implements ChatModel {
+  constructor(private readonly think: boolean | undefined = LLM_THINK) {}
+
   async complete(
     messages: ChatMessage[],
     tools: ChatToolDefinition[],
@@ -61,10 +63,11 @@ export class OllamaChatModel implements ChatModel {
     const response = await fetch(new URL('/api/chat', LLM_BASE_URL), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
       body: JSON.stringify({
         model: LLM_MODEL,
         stream: true,
-        signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
+        ...(this.think === undefined ? {} : { think: this.think }),
         messages: messages.map(toOllamaMessage),
         tools: tools.map((tool) => ({
           type: 'function',
