@@ -53,7 +53,6 @@ AUTH_SECRET=$auth_secret
 UI_URL=http://localhost:4200
 API_URL=http://localhost:3000
 LLM_BASE_URL=http://localhost:11434
-LLM_MODEL=smollm2:1.7b
 LLM_TIMEOUT_MS=120000
 ENCRYPTION_KEY=$encryption_key
 EOF
@@ -61,6 +60,8 @@ fi
 chmod 600 "$DEV_ENV"
 export DOTENV_CONFIG_PATH="$DEV_ENV"
 export BYSTREK_LOCAL_DEV=1
+export LLM_MODEL="${LLM_MODEL:-qwen3:8b}"
+export LLM_THINK="${LLM_THINK:-false}"
 unset DATABASE_URL
 
 echo "==> Starting dev Postgres"

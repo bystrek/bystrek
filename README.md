@@ -49,6 +49,8 @@ infra/         Manually-synced copies of the home-server configuration
 
 Private API config lives at `~/.config/bystrek/dev.env` (mode 600), outside the repo. Set `BYSTREK_DEV_ENV` to use another path. Keep this file: it contains the encryption key needed to read saved calendar credentials. Email delivery is optional locally; password resets need `RESEND_API_KEY` in that file. Existing `api/.env` and the old `bystrek` database are left untouched.
 
+For local chat, make Ollama available at `localhost:11434` with `qwen3:8b`. The launcher defaults to that model with `LLM_THINK=false`; shell-set `LLM_MODEL` and `LLM_THINK` override the defaults.
+
 Windows: run it under WSL2, not Git Bash — Docker Desktop already requires WSL2 as its backend.
 
 ## Infra snapshot
