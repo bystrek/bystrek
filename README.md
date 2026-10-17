@@ -45,11 +45,11 @@ infra/         Manually-synced copies of the home-server configuration
 
 ## Local development
 
-`./scripts/dev.sh` starts local Postgres, migrates a dedicated `bystrek_dev` database, creates an owner on first run, and runs `api`/`ui`. First run asks for an owner email and a local password; later runs keep the account and calendar settings. Add your test CalDAV account in Settings after signing in. `Ctrl+C` stops `api`/`ui`; Postgres keeps running.
+`BYSTREK_SSH_HOST=<your-cluster-SSH-target> ./scripts/dev.sh` starts local Postgres, migrates a dedicated `bystrek_dev` database, creates an owner on first run, and runs `api`/`ui` with a private SSH tunnel to the cluster's Ollama service. The SSH target must run `sudo k3s kubectl`; SSH and sudo may prompt for credentials. First run asks for an owner email and a local password; later runs keep the account and calendar settings. Add your test CalDAV account in Settings after signing in. `Ctrl+C` stops the tunnel, `api`, and `ui`; Postgres keeps running. If the tunnel exits, local dev stops.
 
 Private API config lives at `~/.config/bystrek/dev.env` (mode 600), outside the repo. Set `BYSTREK_DEV_ENV` to use another path. Keep this file: it contains the encryption key needed to read saved calendar credentials. Email delivery is optional locally; password resets need `RESEND_API_KEY` in that file. Existing `api/.env` and the old `bystrek` database are left untouched.
 
-For local chat, make Ollama available at `localhost:11434` with `qwen3:8b`. The launcher defaults to that model with `LLM_THINK=false`; shell-set `LLM_MODEL` and `LLM_THINK` override the defaults.
+The tunnel forwards Ollama to `localhost:11434`. The launcher defaults to `qwen3:8b` with `LLM_THINK=false`; shell-set `LLM_MODEL` and `LLM_THINK` override the defaults.
 
 Windows: run it under WSL2, not Git Bash — Docker Desktop already requires WSL2 as its backend.
 
