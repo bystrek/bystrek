@@ -109,7 +109,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 echo "==> Starting api (start:dev)"
-(cd api && exec bun --env-file="$DEV_ENV" run start:dev) &
+(cd api && exec bun --env-file="$DEV_ENV" run start:dev --exec bun) &
 pids+=($!)
 
 echo "==> Starting ui (dev)"
