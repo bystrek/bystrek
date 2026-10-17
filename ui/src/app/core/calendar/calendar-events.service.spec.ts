@@ -73,6 +73,14 @@ describe('CalendarEventsService', () => {
     expect(await pending).toEqual(sampleEvent);
   });
 
+  it('getEvent selects the requested occurrence of a recurring event', async () => {
+    const pending = service.getEvent('weekly', '2026-10-17T12:00:00+02:00');
+    const req = httpMock.expectOne((r) => r.url === '/api/calendar/events/weekly');
+    expect(req.request.params.get('occurrence')).toBe('2026-10-17T12:00:00+02:00');
+    req.flush(sampleEvent);
+    expect(await pending).toEqual(sampleEvent);
+  });
+
   it('getEvent rejects with a fallback message on failure', async () => {
     const pending = service.getEvent('missing');
     const req = httpMock.expectOne('/api/calendar/events/missing');

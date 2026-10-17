@@ -10,6 +10,7 @@
     <p class="loading">Loading…</p>
   } @else if (event(); as ev) {
     <div class="detail-card">
+      <div class="detail-date">{{ ev.startWeekday }}, {{ ev.start.slice(0, 10) }}</div>
       <div class="detail-time">
         <app-icon name="clock" />
         {{ formatTime(ev.start) }} - {{ formatTime(ev.end) }}

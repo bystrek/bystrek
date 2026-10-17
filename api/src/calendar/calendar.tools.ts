@@ -53,7 +53,7 @@ export function buildCalendarTools(
       definition: {
         name: 'list_calendar_events',
         description:
-          "List the user's calendar events in a date/time range. Recurring events are already expanded into individual occurrences by the calendar server.",
+          "List the user's calendar events in a date/time range. Results contain individual occurrences with their actual dates and weekdays.",
         inputSchema: {
           type: 'object',
           properties: {

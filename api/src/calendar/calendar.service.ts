@@ -5,7 +5,13 @@ import { createDAVClient, type DAVCalendar } from 'tsdav';
 type DAVClient = Awaited<ReturnType<typeof createDAVClient>>;
 import { assertSafeCaldavUrl } from './caldav-url';
 import { CalendarCredentialsService } from './calendar-credentials.service';
-import { buildEventIcs, parseEventIcs, updateEventIcs, type EventInput } from './ical-event';
+import {
+  buildEventIcs,
+  parseEventIcs,
+  parseEventOccurrences,
+  updateEventIcs,
+  type EventInput,
+} from './ical-event';
 import { assertValidTimeZone } from './zoned-time';
 
 export class CalendarNotConfiguredError extends Error {
@@ -116,22 +122,27 @@ export class CalendarService {
       timeRange: { start: range.start.toISOString(), end: range.end.toISOString() },
     });
 
-    return objects.flatMap((object) => {
-      if (!object.data) return [];
-      try {
-        return [parseEventIcs(object.data as string, timeZone)];
-      } catch {
-        return [];
-      }
-    });
+    return objects.flatMap((object) =>
+      object.data ? parseEventOccurrences(object.data as string, range, timeZone) : [],
+    );
   }
 
   // Used to build a human-readable confirmation preview before an
   // update/delete executes — see pending-actions.ts.
-  async getEvent(userId: string, uid: string, timeZone: string) {
+  async getEvent(userId: string, uid: string, timeZone: string, occurrence?: Date) {
     assertValidTimeZone(timeZone);
     const { client, calendar } = await this.connect(userId);
     const object = await this.findObjectByUid(client, calendar, uid);
+    if (occurrence) {
+      const matches = parseEventOccurrences(
+        object.data as string,
+        { start: occurrence, end: new Date(occurrence.getTime() + 1) },
+        timeZone,
+      );
+      const event = matches.find((item) => new Date(item.start).getTime() === occurrence.getTime());
+      if (!event) throw new CalendarEventNotFoundError(uid);
+      return event;
+    }
     return parseEventIcs(object.data as string, timeZone);
   }
 
