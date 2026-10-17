@@ -19,9 +19,9 @@ import {
   hourFractionFromIso,
   isSameDay,
   isSameDayAsIso,
-  isToday,
   startOfDay,
   startOfWeek,
+  todayInTimeZone,
   weekdayAbbr,
 } from './date-utils';
 
@@ -61,6 +61,7 @@ export class Agenda {
 
   readonly viewMode = signal<ViewMode>(ViewMode.Day);
   readonly selectedDate = signal(startOfDay(new Date()));
+  readonly timezone = signal<string | null>(null);
   readonly events = signal<CalendarEvent[]>([]);
   readonly loading = signal(false);
   readonly error = signal('');
@@ -68,7 +69,10 @@ export class Agenda {
   readonly weekStart = computed(() => startOfWeek(this.selectedDate()));
   readonly dayHeader = computed(() => formatDayHeader(this.selectedDate()));
   readonly weekHeader = computed(() => formatWeekHeader(this.weekStart()));
-  readonly isSelectedToday = computed(() => isToday(this.selectedDate()));
+  readonly isSelectedToday = computed(() => {
+    const timezone = this.timezone();
+    return timezone !== null && isSameDay(this.selectedDate(), todayInTimeZone(timezone));
+  });
 
   readonly todaysEvents = computed(() => {
     const day = this.selectedDate();
@@ -103,6 +107,8 @@ export class Agenda {
   readonly weekDays = computed<WeekDay[]>(() => {
     const weekStart = this.weekStart();
     const selected = this.selectedDate();
+    const timezone = this.timezone();
+    const today = timezone ? todayInTimeZone(timezone) : null;
     const { startHour } = this.hourRange();
     return Array.from({ length: 7 }, (_, i) => {
       const date = addDays(weekStart, i);
@@ -117,7 +123,7 @@ export class Agenda {
         date,
         abbr: weekdayAbbr(date),
         num: date.getDate(),
-        isToday: isToday(date),
+        isToday: today !== null && isSameDay(date, today),
         isSelected: isSameDay(date, selected),
         hasEvents: dayEvents.length > 0,
         events: dayEvents,
@@ -126,11 +132,25 @@ export class Agenda {
   });
 
   constructor() {
+    void this.initialize();
     effect(() => {
+      if (!this.timezone()) return;
       // weekStart(), not selectedDate() — refetch only on week change.
       void this.weekStart();
       void this.refresh();
     });
+  }
+
+  private async initialize(): Promise<void> {
+    this.loading.set(true);
+    try {
+      const timezone = await this.calendarEvents.getTimezone();
+      this.selectedDate.set(todayInTimeZone(timezone));
+      this.timezone.set(timezone);
+    } catch (err) {
+      this.error.set((err as Error).message);
+      this.loading.set(false);
+    }
   }
 
   selectDay(date: Date): void {
@@ -146,7 +166,7 @@ export class Agenda {
   }
 
   goToday(): void {
-    this.selectedDate.set(startOfDay(new Date()));
+    this.selectedDate.set(todayInTimeZone(this.timezone()!));
   }
 
   private async refresh(): Promise<void> {

@@ -42,6 +42,11 @@ export function isSameDay(a: Date, b: Date): boolean {
   );
 }
 
+export function todayInTimeZone(timeZone: string): Date {
+  const day = Temporal.Instant.fromEpochMilliseconds(Date.now()).toZonedDateTimeISO(timeZone);
+  return new Date(day.year, day.month - 1, day.day);
+}
+
 // `iso` always carries an explicit UTC offset (see ical-event.ts) that
 // already reflects the account's own configured timezone — read via
 // Temporal.PlainDateTime, which takes the wall-clock fields as written and
@@ -56,10 +61,6 @@ export function isSameDayAsIso(iso: string, date: Date): boolean {
     event.month === date.getMonth() + 1 &&
     event.day === date.getDate()
   );
-}
-
-export function isToday(date: Date): boolean {
-  return isSameDay(date, new Date());
 }
 
 export function formatDayHeader(date: Date): string {

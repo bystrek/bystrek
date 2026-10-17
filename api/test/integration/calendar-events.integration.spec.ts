@@ -1,14 +1,43 @@
 import { describe, expect, it } from 'bun:test';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { DRIZZLE } from '../../src/db/drizzle.provider';
+import { users } from '../../src/db/schema';
 import { signUpTestUser } from './support/auth';
 import { withRollback } from './support/rollback';
 import { testDb } from './support/test-db';
 
 describe('/calendar/events (integration)', () => {
+  it('returns the signed-in account timezone without calendar credentials', async () => {
+    await withRollback(testDb, async (tx) => {
+      const { token, user } = await signUpTestUser(tx, {
+        email: 'me@example.com',
+        name: 'Me',
+      });
+      await tx.update(users).set({ timezone: 'Pacific/Kiritimati' }).where(eq(users.id, user.id));
+
+      const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+        .overrideProvider(DRIZZLE)
+        .useValue(tx)
+        .compile();
+      const app: INestApplication = moduleRef.createNestApplication();
+      await app.init();
+
+      const unauthorized = await request(app.getHttpServer()).get('/calendar/events/timezone');
+      expect(unauthorized.status).toBe(401);
+      const res = await request(app.getHttpServer())
+        .get('/calendar/events/timezone')
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ timezone: 'Pacific/Kiritimati' });
+
+      await app.close();
+    });
+  });
+
   it('401s without a session token', async () => {
     await withRollback(testDb, async (tx) => {
       const moduleRef = await Test.createTestingModule({ imports: [AppModule] })

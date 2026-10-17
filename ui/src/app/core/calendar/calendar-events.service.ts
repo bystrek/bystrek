@@ -23,6 +23,17 @@ export class CalendarEventsService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = inject(APP_CONFIG).apiUrl;
 
+  async getTimezone(): Promise<string> {
+    try {
+      const result = await firstValueFrom(
+        this.http.get<{ timezone: string }>(`${this.apiUrl}/calendar/events/timezone`),
+      );
+      return result.timezone;
+    } catch (err) {
+      throw new Error(errorMessage(err, 'Could not load your timezone.'));
+    }
+  }
+
   async listEvents(range: { start: Date; end: Date }): Promise<CalendarEvent[]> {
     try {
       const result = await firstValueFrom(

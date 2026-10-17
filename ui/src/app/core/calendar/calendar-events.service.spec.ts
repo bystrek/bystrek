@@ -36,6 +36,22 @@ describe('CalendarEventsService', () => {
     httpMock.verify();
   });
 
+  it('loads the account timezone before listing events', async () => {
+    const pending = service.getTimezone();
+    const req = httpMock.expectOne('/api/calendar/events/timezone');
+    expect(req.request.method).toBe('GET');
+    req.flush({ timezone: 'Pacific/Kiritimati' });
+    expect(await pending).toBe('Pacific/Kiritimati');
+  });
+
+  it('reports a timezone request failure', async () => {
+    const pending = service.getTimezone();
+    httpMock
+      .expectOne('/api/calendar/events/timezone')
+      .flush('error', { status: 500, statusText: 'Server Error' });
+    await expect(pending).rejects.toThrow('Could not load your timezone.');
+  });
+
   it('listEvents sends start/end as plain (no UTC offset) local ISO date-times', async () => {
     const pending = service.listEvents({
       start: new Date(2026, 8, 1, 0, 0, 0),
