@@ -42,6 +42,11 @@ export class CalendarEventsController {
     return { events };
   }
 
+  @Get('timezone')
+  async getTimezone(@Req() req: Request) {
+    return { timezone: await this.loadTimezone(req.session!.user.id) };
+  }
+
   @Get(':uid')
   async get(
     @Param('uid') uid: string,
