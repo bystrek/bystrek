@@ -19,6 +19,7 @@ import { formatTime } from '../date-utils';
 export class EventDetail {
   private readonly route = inject(ActivatedRoute);
   private readonly calendarEvents = inject(CalendarEventsService);
+  private requestId = 0;
 
   protected readonly formatTime = formatTime;
 
@@ -27,6 +28,9 @@ export class EventDetail {
   private readonly paramMap = toSignal(this.route.paramMap, {
     initialValue: this.route.snapshot.paramMap,
   });
+  private readonly queryParamMap = toSignal(this.route.queryParamMap, {
+    initialValue: this.route.snapshot.queryParamMap,
+  });
 
   readonly event = signal<CalendarEvent | null>(null);
   readonly loading = signal(true);
@@ -34,11 +38,15 @@ export class EventDetail {
 
   constructor() {
     effect(() => {
-      void this.load(this.paramMap().get('uid'));
+      void this.load(
+        this.paramMap().get('uid'),
+        this.queryParamMap().get('occurrence') ?? undefined,
+      );
     });
   }
 
-  private async load(uid: string | null): Promise<void> {
+  private async load(uid: string | null, occurrence?: string): Promise<void> {
+    const requestId = ++this.requestId;
     if (!uid) {
       this.event.set(null);
       this.error.set('No event specified.');
@@ -46,13 +54,15 @@ export class EventDetail {
       return;
     }
     this.loading.set(true);
+    this.event.set(null);
     this.error.set('');
     try {
-      this.event.set(await this.calendarEvents.getEvent(uid));
+      const event = await this.calendarEvents.getEvent(uid, occurrence);
+      if (requestId === this.requestId) this.event.set(event);
     } catch (err) {
-      this.error.set((err as Error).message);
+      if (requestId === this.requestId) this.error.set((err as Error).message);
     } finally {
-      this.loading.set(false);
+      if (requestId === this.requestId) this.loading.set(false);
     }
   }
 }

@@ -43,9 +43,21 @@ export class CalendarEventsController {
   }
 
   @Get(':uid')
-  async get(@Param('uid') uid: string, @Req() req: Request) {
+  async get(
+    @Param('uid') uid: string,
+    @Query('occurrence') occurrence: string | undefined,
+    @Req() req: Request,
+  ) {
     const timezone = await this.loadTimezone(req.session!.user.id);
-    return this.withErrorMapping(() => this.calendar.getEvent(req.session!.user.id, uid, timezone));
+    let occurrenceDate: Date | undefined;
+    try {
+      occurrenceDate = occurrence ? parseZonedIso(occurrence, timezone) : undefined;
+    } catch (err) {
+      throw new BadRequestException(err instanceof Error ? err.message : String(err));
+    }
+    return this.withErrorMapping(() =>
+      this.calendar.getEvent(req.session!.user.id, uid, timezone, occurrenceDate),
+    );
   }
 
   private parseRange(start: string, end: string, timezone: string): { start: Date; end: Date } {

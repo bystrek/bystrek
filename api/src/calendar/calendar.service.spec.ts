@@ -118,10 +118,55 @@ describe('CalendarService', () => {
 
     const [listed] = await service.listEvents(
       'user-1',
-      { start: new Date(), end: new Date() },
+      { start: new Date('2026-09-01T00:00:00Z'), end: new Date('2026-09-02T00:00:00Z') },
       'Europe/Warsaw',
     );
     expect(listed.start).toBe('2026-09-01T12:00:00+02:00');
+  });
+
+  it('expands recurring objects even when the CalDAV server returns the series master', async () => {
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'BEGIN:VEVENT',
+      'UID:weekly',
+      'SUMMARY:Weekly sync',
+      'DTSTART:20261010T100000Z',
+      'DTEND:20261010T110000Z',
+      'RRULE:FREQ=WEEKLY;BYDAY=SA',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+    const service = await loadCalendarService(
+      () =>
+        Promise.resolve({
+          fetchCalendars: () => Promise.resolve([fakeCalendar]),
+          fetchCalendarObjects: () =>
+            Promise.resolve([{ url: `${fakeCalendar.url}weekly.ics`, data: ics }]),
+        }),
+      fakeCredentials(),
+    );
+
+    const range = {
+      start: new Date('2026-10-17T00:00:00Z'),
+      end: new Date('2026-10-19T00:00:00Z'),
+    };
+    const events = await service.listEvents('user-1', range, 'Europe/Warsaw');
+    expect(events).toHaveLength(1);
+    expect(events[0].start).toBe('2026-10-17T12:00:00+02:00');
+    expect(events[0].startWeekday).toBe('Saturday');
+
+    const occurrence = await service.getEvent(
+      'user-1',
+      'weekly',
+      'Europe/Warsaw',
+      new Date(events[0].start),
+    );
+    expect(occurrence.start).toBe(events[0].start);
+
+    await expect(
+      service.getEvent('user-1', 'weekly', 'Europe/Warsaw', new Date('2026-10-18T10:00:00Z')),
+    ).rejects.toThrow('no event found with uid "weekly"');
   });
 
   it('throws CalendarEventNotFoundError when no object matches the UID', async () => {

@@ -36,10 +36,12 @@ export class CalendarEventsService {
     }
   }
 
-  async getEvent(uid: string): Promise<CalendarEvent> {
+  async getEvent(uid: string, occurrence?: string): Promise<CalendarEvent> {
     try {
       return await firstValueFrom(
-        this.http.get<CalendarEvent>(`${this.apiUrl}/calendar/events/${encodeURIComponent(uid)}`),
+        this.http.get<CalendarEvent>(`${this.apiUrl}/calendar/events/${encodeURIComponent(uid)}`, {
+          params: occurrence ? { occurrence } : {},
+        }),
       );
     } catch (err) {
       throw new Error(errorMessage(err, 'Could not load this event.'));
