@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Checks prerequisites and runs api + ui locally against a dev Postgres.
+# Prepares a private local database and runs api + ui.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -17,8 +17,12 @@ docker compose version >/dev/null 2>&1 || fail "docker compose plugin not found"
 [ -d api/node_modules ] || (cd api && echo "==> Installing api deps" && bun install)
 [ -d ui/node_modules ] || (cd ui && echo "==> Installing ui deps" && bun install)
 
-if [ ! -f api/.env ]; then
-  echo "==> Generating api/.env with a fresh local VAPID keypair"
+DEV_ENV="${BYSTREK_DEV_ENV:-$HOME/.config/bystrek/dev.env}"
+if [ ! -f "$DEV_ENV" ]; then
+  [ -t 0 ] || fail "first-time setup needs a terminal for the local owner and password"
+  echo "==> Creating private local config at $DEV_ENV"
+  mkdir -p -m 700 "$(dirname "$DEV_ENV")"
+  umask 077
   vapid_json="$(cd api && ./node_modules/.bin/web-push generate-vapid-keys --json)"
   vapid_public="$(echo "$vapid_json" | grep -oE '"publicKey":"[^"]*"' | cut -d'"' -f4)"
   vapid_private="$(echo "$vapid_json" | grep -oE '"privateKey":"[^"]*"' | cut -d'"' -f4)"
@@ -26,22 +30,37 @@ if [ ! -f api/.env ]; then
 
   seed_name="$(git config user.name 2>/dev/null || true)"
   seed_email="$(git config user.email 2>/dev/null || true)"
-  if [ -t 0 ]; then
-    echo "==> Seed owner (used by 'bun run db:seed' — press Enter to accept the default)"
-    read -r -p "    Name [$seed_name]: " input_name
-    read -r -p "    Email [$seed_email]: " input_email
-    seed_name="${input_name:-$seed_name}"
-    seed_email="${input_email:-$seed_email}"
-  fi
-
-  awk -v pub="$vapid_public" -v priv="$vapid_private" -v name="$seed_name" -v email="$seed_email" '
-    /^VAPID_PUBLIC_KEY=/  { print "VAPID_PUBLIC_KEY=" pub; next }
-    /^VAPID_PRIVATE_KEY=/ { print "VAPID_PRIVATE_KEY=" priv; next }
-    /^SEED_OWNER_NAME=/   { print "SEED_OWNER_NAME=" name; next }
-    /^SEED_OWNER_EMAIL=/  { print "SEED_OWNER_EMAIL=" email; next }
-    { print }
-  ' api/.env.example > api/.env
+  echo "==> Local owner (press Enter to accept the default)"
+  read -r -p "    Name [$seed_name]: " input_name
+  read -r -p "    Email [$seed_email]: " input_email
+  seed_name="${input_name:-$seed_name}"
+  seed_email="${input_email:-$seed_email}"
+  [[ "$seed_email" =~ ^[^[:space:]@]+@[^[:space:]@]+$ ]] || fail "a local owner email is required"
+  [ -n "$seed_name" ] || fail "a local owner name is required"
+  auth_secret="$(bun -e 'console.log(require("node:crypto").randomBytes(32).toString("base64"))')"
+  encryption_key="$(bun -e 'console.log(require("node:crypto").randomBytes(32).toString("base64"))')"
+  cat > "$DEV_ENV" <<EOF
+PORT=3000
+HOST=127.0.0.1
+DATABASE_URL=postgres://bystrek:bystrek@localhost:5432/bystrek_dev
+CORS_ORIGINS=http://localhost:4200
+VAPID_PUBLIC_KEY=$vapid_public
+VAPID_PRIVATE_KEY=$vapid_private
+VAPID_SUBJECT=mailto:$seed_email
+SEED_OWNER_NAME=$seed_name
+SEED_OWNER_EMAIL=$seed_email
+AUTH_SECRET=$auth_secret
+UI_URL=http://localhost:4200
+API_URL=http://localhost:3000
+LLM_BASE_URL=http://localhost:11434
+LLM_MODEL=smollm2:1.7b
+LLM_TIMEOUT_MS=120000
+ENCRYPTION_KEY=$encryption_key
+EOF
 fi
+chmod 600 "$DEV_ENV"
+export DOTENV_CONFIG_PATH="$DEV_ENV"
+export BYSTREK_LOCAL_DEV=1
 
 echo "==> Starting dev Postgres"
 docker compose -f docker-compose.dev.yml up -d
@@ -53,6 +72,24 @@ for _ in $(seq 1 30); do
 done
 docker compose -f docker-compose.dev.yml exec -T postgres pg_isready -U bystrek >/dev/null 2>&1 \
   || fail "Postgres didn't become ready in time"
+
+echo "==> Preparing local database"
+(cd api && bun run src/db/ensure-local-db.ts && bun run db:migrate)
+
+seed_status="$(cd api && bun run src/db/seed-local.ts --check)"
+case "$seed_status" in
+  ready) ;;
+  needs-password)
+    [ -t 0 ] || fail "first-time setup needs a terminal to enter the local password"
+    read -r -s -p "    Local login password (8-128 characters): " local_password
+    echo
+    [ "${#local_password}" -ge 8 ] && [ "${#local_password}" -le 128 ] \
+      || fail "local password must be 8-128 characters"
+    printf '%s' "$local_password" | (cd api && bun run src/db/seed-local.ts --create)
+    unset local_password
+    ;;
+  *) fail "unexpected local owner status: $seed_status" ;;
+esac
 
 pids=()
 kill_tree() {

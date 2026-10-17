@@ -6,6 +6,7 @@ import { RESEND_API_KEY } from '../env';
 const FROM = 'bystrek <noreply@bystrek.dev>';
 
 export async function sendEmail(to: string, subject: string, html: string) {
+  if (!RESEND_API_KEY) throw new Error('Email delivery is not configured');
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {

@@ -23,6 +23,6 @@ async function bootstrap() {
   app.use('/api/auth', toNodeHandler(auth));
   app.use(express.json());
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 3000, process.env.HOST ?? '0.0.0.0');
 }
 bootstrap();

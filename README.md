@@ -45,7 +45,9 @@ infra/         Manually-synced copies of the home-server configuration
 
 ## Local development
 
-`./scripts/dev.sh` checks prerequisites (`bun`, `docker`), generates `api/.env`/`ui/.env` on first run (prompts for a seed owner name/email, defaulting to your `git config`), starts a dev Postgres, and runs `api`/`ui` together. `Ctrl+C` stops `api`/`ui`; Postgres keeps running.
+`./scripts/dev.sh` starts local Postgres, migrates a dedicated `bystrek_dev` database, creates an owner on first run, and runs `api`/`ui`. First run asks for an owner email and a local password; later runs keep the account and calendar settings. Add your test CalDAV account in Settings after signing in. `Ctrl+C` stops `api`/`ui`; Postgres keeps running.
+
+Private API config lives at `~/.config/bystrek/dev.env` (mode 600), outside the repo. Set `BYSTREK_DEV_ENV` to use another path. Keep this file: it contains the encryption key needed to read saved calendar credentials. Email delivery is optional locally; password resets need `RESEND_API_KEY` in that file. Existing `api/.env` and the old `bystrek` database are left untouched.
 
 Windows: run it under WSL2, not Git Bash — Docker Desktop already requires WSL2 as its backend.
 
