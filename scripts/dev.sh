@@ -113,7 +113,7 @@ echo "==> Starting api (start:dev)"
 pids+=($!)
 
 echo "==> Starting ui (dev)"
-(cd ui && exec bun run start) &
+(cd ui && exec env NG_CLI_ANALYTICS=false bun run start) &
 pids+=($!)
 
 echo "==> api: http://localhost:3000  ui: http://localhost:4200  (Ctrl+C to stop)"
