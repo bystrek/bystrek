@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
-import { desc, eq } from 'drizzle-orm';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { weekBoundsAround } from '../calendar/zoned-time';
 import { decryptField, encryptField } from '../crypto/field-encryption';
 import { DRIZZLE } from '../db/drizzle.provider';
 import * as schema from '../db/schema';
-import { messages, users } from '../db/schema';
+import { conversations, messages, users } from '../db/schema';
 import {
   CHAT_MODEL,
   type ChatMessage,
@@ -64,6 +64,12 @@ type Role = 'user' | 'assistant';
 export interface ChatHistoryTurn {
   role: Role;
   text: string;
+}
+
+export interface ChatConversation {
+  id: string;
+  title: string;
+  hasTitle: boolean;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -151,8 +157,37 @@ export class ChatService {
     @Inject(CHAT_TOOLS) private readonly tools: ChatTool[],
   ) {}
 
+  async listConversations(userId: string): Promise<ChatConversation[]> {
+    const rows = await this.db
+      .select({ id: conversations.id, title: conversations.title })
+      .from(conversations)
+      .where(eq(conversations.userId, userId))
+      .orderBy(desc(conversations.updatedAt), desc(conversations.id));
+    return rows.map((row) => ({
+      id: row.id,
+      title: row.title === null ? 'Chat' : decryptField(row.title),
+      hasTitle: row.title !== null,
+    }));
+  }
+
+  async createConversation(userId: string): Promise<ChatConversation> {
+    const [row] = await this.db.insert(conversations).values({ userId }).returning({
+      id: conversations.id,
+    });
+    return { id: row.id, title: 'New chat', hasTitle: false };
+  }
+
+  async requireConversation(userId: string, conversationId: string): Promise<void> {
+    const [row] = await this.db
+      .select({ id: conversations.id })
+      .from(conversations)
+      .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)));
+    if (!row) throw new NotFoundException('Conversation not found');
+  }
+
   async reply(
     userId: string,
+    conversationId: string,
     userText: string,
     onDelta: (text: string) => void,
     onComplete: (toolCalls: string[]) => void,
@@ -163,13 +198,17 @@ export class ChatService {
     // proposed in, forcing a genuinely separate human turn in between.
     const requestId = randomUUID();
     const { timezone, locale } = await this.loadUserContext(userId);
-    const history = await this.loadRecentMessages(userId);
+    const history = await this.loadRecentMessages(conversationId);
     const conversation: ChatMessage[] = [
       { role: 'system', content: buildSystemPrompt(timezone, locale) },
       ...history,
       { role: 'user', content: userText },
     ];
-    await this.persist(userId, { role: 'user', content: userText });
+    await this.db
+      .update(conversations)
+      .set({ title: encryptField(userText.trim().slice(0, 80)) })
+      .where(and(eq(conversations.id, conversationId), isNull(conversations.title)));
+    await this.persist(userId, conversationId, { role: 'user', content: userText });
 
     const toolDefinitions = this.tools.map((tool) => tool.definition);
     const calledTools: string[] = [];
@@ -178,7 +217,7 @@ export class ChatService {
       const response = await this.model.complete(conversation, toolDefinitions, onDelta);
 
       conversation.push(response.message);
-      await this.persist(userId, response.message);
+      await this.persist(userId, conversationId, response.message);
 
       if (!response.message.toolCalls?.length) {
         onComplete(calledTools);
@@ -201,7 +240,7 @@ export class ChatService {
 
       conversation.push(...toolResults);
       for (const toolResult of toolResults) {
-        await this.persist(userId, toolResult);
+        await this.persist(userId, conversationId, toolResult);
       }
     }
 
@@ -213,13 +252,14 @@ export class ChatService {
   // the model, not the full persisted thread — see devlog day 9. Pagination
   // over older messages is a later addition if that ever proves
   // insufficient, same call as pgvector retrieval.
-  async getHistory(userId: string): Promise<ChatHistoryTurn[]> {
-    const history = await this.loadRecentMessages(userId);
+  async getHistory(userId: string, conversationId: string): Promise<ChatHistoryTurn[]> {
+    await this.requireConversation(userId, conversationId);
+    const history = await this.loadRecentMessages(conversationId);
     return toHistoryTurns(history);
   }
 
   async clearHistory(userId: string): Promise<void> {
-    await this.db.delete(messages).where(eq(messages.userId, userId));
+    await this.db.delete(conversations).where(eq(conversations.userId, userId));
   }
 
   private async loadUserContext(userId: string): Promise<{ timezone: string; locale: string }> {
@@ -231,12 +271,12 @@ export class ChatService {
     return row;
   }
 
-  private async loadRecentMessages(userId: string): Promise<ChatMessage[]> {
+  private async loadRecentMessages(conversationId: string): Promise<ChatMessage[]> {
     const rows = await this.db
       .select()
       .from(messages)
-      .where(eq(messages.userId, userId))
-      .orderBy(desc(messages.createdAt))
+      .where(eq(messages.conversationId, conversationId))
+      .orderBy(desc(messages.createdAt), desc(messages.id))
       .limit(RECENCY_WINDOW);
 
     return rows.reverse().flatMap((row) => {
@@ -245,10 +285,15 @@ export class ChatService {
     });
   }
 
-  private async persist(userId: string, message: ChatMessage): Promise<void> {
+  private async persist(
+    userId: string,
+    conversationId: string,
+    message: ChatMessage,
+  ): Promise<void> {
     if (message.role === 'system') throw new Error('Cannot persist a system message');
     await this.db.insert(messages).values({
       userId,
+      conversationId,
       // The database's user/assistant roles intentionally remain UI-facing.
       // Ollama tool result messages are persisted as user rows but retain their
       // real role inside encrypted provider-neutral content for replay.
@@ -256,5 +301,9 @@ export class ChatService {
       content: encryptField(JSON.stringify(message)),
       contentFormat: 'ollama',
     });
+    await this.db
+      .update(conversations)
+      .set({ updatedAt: new Date() })
+      .where(eq(conversations.id, conversationId));
   }
 }

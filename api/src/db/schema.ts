@@ -136,7 +136,20 @@ export const visibility = pgEnum('visibility', ['private', 'shared']);
 export const messageRole = pgEnum('message_role', ['user', 'assistant']);
 export const messageContentFormat = pgEnum('message_content_format', ['ollama']);
 
-// One continuous thread per user, not per-conversation — see devlog day 9.
+export const conversations = pgTable(
+  'conversations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    title: text('title'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('conversations_user_id_updated_at_idx').on(table.userId, table.updatedAt)],
+);
+
 // `content` holds an encrypted, JSON-serialized provider-neutral message.
 export const messages = pgTable(
   'messages',
@@ -145,6 +158,9 @@ export const messages = pgTable(
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
+    conversationId: uuid('conversation_id')
+      .notNull()
+      .references(() => conversations.id, { onDelete: 'cascade' }),
     visibility: visibility('visibility').notNull().default('private'),
     role: messageRole('role').notNull(),
     contentFormat: messageContentFormat('content_format').notNull().default('ollama'),
@@ -158,7 +174,9 @@ export const messages = pgTable(
       .notNull()
       .default(sql`clock_timestamp()`),
   },
-  (table) => [index('messages_user_id_created_at_idx').on(table.userId, table.createdAt)],
+  (table) => [
+    index('messages_conversation_id_created_at_idx').on(table.conversationId, table.createdAt),
+  ],
 );
 
 // One CalDAV account per user (Infomaniak kCalendar — see docs/roadmap.md).

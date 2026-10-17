@@ -24,25 +24,65 @@ describe('ChatService', () => {
     httpMock.verify();
   });
 
-  it('loadHistory populates messages from GET /chat/history', async () => {
-    const pending = service.loadHistory();
+  const first = { id: 'first-id', title: 'First chat', hasTitle: true };
+  const second = { id: 'second-id', title: 'Second chat', hasTitle: true };
 
-    const req = httpMock.expectOne(`/api/chat/history`);
-    req.flush([
+  async function loadFirst() {
+    const pending = service.loadConversations();
+    httpMock.expectOne('/api/chat/conversations').flush([first, second]);
+    await Promise.resolve();
+    httpMock.expectOne('/api/chat/conversations/first-id/history').flush([
       { role: 'user', text: 'hi' },
       { role: 'assistant', text: 'hello' },
     ]);
     await pending;
+  }
 
+  it('loads conversations and the latest history', async () => {
+    await loadFirst();
+
+    expect(service.conversations()).toEqual([first, second]);
+    expect(service.activeConversationId()).toBe(first.id);
     expect(service.messages()).toEqual([
       { role: 'user', text: 'hi' },
       { role: 'assistant', text: 'hello' },
     ]);
   });
 
+  it('switches histories without mixing messages', async () => {
+    await loadFirst();
+    const pending = service.selectConversation(second.id);
+    expect(service.messages()).toEqual([]);
+    httpMock
+      .expectOne('/api/chat/conversations/second-id/history')
+      .flush([{ role: 'user', text: 'separate' }]);
+    await pending;
+    expect(service.activeConversationId()).toBe(second.id);
+    expect(service.messages()).toEqual([{ role: 'user', text: 'separate' }]);
+  });
+
+  it('starts a new chat without deleting prior conversations', async () => {
+    await loadFirst();
+    const pending = service.startNewChat();
+    httpMock
+      .expectOne('/api/chat/conversations')
+      .flush({ id: 'new-id', title: 'New chat', hasTitle: false });
+    await pending;
+    expect(service.conversations().map((conversation) => conversation.id)).toEqual([
+      'new-id',
+      'first-id',
+      'second-id',
+    ]);
+    expect(service.messages()).toEqual([]);
+  });
+
   it('send appends the user message and a trailing assistant placeholder, then streams deltas into it', async () => {
     service.send('hi there');
 
+    httpMock
+      .expectOne('/api/chat/conversations')
+      .flush({ id: 'new-id', title: 'New chat', hasTitle: false });
+    await Promise.resolve();
     expect(service.messages()).toEqual([
       { role: 'user', text: 'hi there' },
       { role: 'assistant', text: '' },
@@ -50,7 +90,7 @@ describe('ChatService', () => {
     expect(service.sending()).toBe(true);
 
     const req = httpMock.expectOne(`/api/chat`);
-    expect(req.request.body).toEqual({ message: 'hi there' });
+    expect(req.request.body).toEqual({ message: 'hi there', conversationId: 'new-id' });
 
     req.event({
       type: HttpEventType.DownloadProgress,
@@ -72,7 +112,8 @@ describe('ChatService', () => {
     expect(service.messages()[1].text).toBe('Hello');
   });
 
-  it('ignores an incomplete trailing frame until it is completed by a later event', () => {
+  it('ignores an incomplete trailing frame until it is completed by a later event', async () => {
+    await loadFirst();
     service.send('hi');
     const req = httpMock.expectOne(`/api/chat`);
 
@@ -81,19 +122,20 @@ describe('ChatService', () => {
       loaded: 5,
       partialText: 'data: {"delta":"Hel',
     });
-    expect(service.messages()[1].text).toBe('');
+    expect(service.messages().at(-1)?.text).toBe('');
 
     req.event({
       type: HttpEventType.DownloadProgress,
       loaded: 10,
       partialText: 'data: {"delta":"Hel"}\n\n',
     });
-    expect(service.messages()[1].text).toBe('Hel');
+    expect(service.messages().at(-1)?.text).toBe('Hel');
 
     req.flush('data: {"delta":"Hel"}\n\n');
   });
 
-  it('ignores a metadata-only completion frame', () => {
+  it('ignores a metadata-only completion frame', async () => {
+    await loadFirst();
     service.send('hi');
     const req = httpMock.expectOne(`/api/chat`);
 
@@ -103,51 +145,42 @@ describe('ChatService', () => {
       partialText: 'data: {"delta":"Hello"}\n\ndata: {"done":true,"toolCalls":[]}\n\n',
     });
 
-    expect(service.messages()[1].text).toBe('Hello');
+    expect(service.messages().at(-1)?.text).toBe('Hello');
     req.flush('data: {"delta":"Hello"}\n\ndata: {"done":true,"toolCalls":[]}\n\n');
   });
 
-  it('send is a no-op while a stream is already in flight', () => {
+  it('send is a no-op while a stream is already in flight', async () => {
+    await loadFirst();
     service.send('first');
     httpMock.expectOne(`/api/chat`);
 
     service.send('second');
     httpMock.expectNone((r) => r.body?.message === 'second');
-    expect(service.messages().length).toBe(2);
+    expect(service.messages().length).toBe(4);
   });
 
-  it('does not let a slow loadHistory clobber messages appended by a send that started first', async () => {
-    const pending = service.loadHistory();
-    const historyReq = httpMock.expectOne(`/api/chat/history`);
-
-    service.send('hi there');
-    expect(service.messages()).toEqual([
-      { role: 'user', text: 'hi there' },
-      { role: 'assistant', text: '' },
-    ]);
-
-    historyReq.flush([{ role: 'user', text: 'stale history' }]);
+  it('does not switch conversations while a stream is in flight', async () => {
+    await loadFirst();
+    service.send('hi');
+    const pending = service.selectConversation(second.id);
     await pending;
-
-    expect(service.messages()).toEqual([
-      { role: 'user', text: 'hi there' },
-      { role: 'assistant', text: '' },
-    ]);
-
-    httpMock.expectOne(`/api/chat`).flush('');
+    httpMock.expectNone('/api/chat/conversations/second-id/history');
+    expect(service.activeConversationId()).toBe(first.id);
+    httpMock.expectOne('/api/chat').flush('');
   });
 
-  it('clears a stale error once loadHistory succeeds', async () => {
+  it('clears a stale error once conversations load', async () => {
     service.error.set('previous failure');
 
-    const pending = service.loadHistory();
-    httpMock.expectOne(`/api/chat/history`).flush([]);
+    const pending = service.loadConversations();
+    httpMock.expectOne('/api/chat/conversations').flush([]);
     await pending;
 
     expect(service.error()).toBe('');
   });
 
-  it('sets an error and clears sending when the request fails', () => {
+  it('sets an error and clears sending when the request fails', async () => {
+    await loadFirst();
     // `responseType: 'text'` means a failed response body never gets
     // JSON-parsed, so this always falls back to the generic message.
     service.send('hi');
@@ -157,5 +190,16 @@ describe('ChatService', () => {
 
     expect(service.sending()).toBe(false);
     expect(service.error()).toBe('Something went wrong.');
+  });
+
+  it('keeps messages empty when creating the first conversation fails', async () => {
+    service.send('hi');
+    httpMock
+      .expectOne('/api/chat/conversations')
+      .flush('boom', { status: 500, statusText: 'Server Error' });
+    await Promise.resolve();
+    expect(service.sending()).toBe(false);
+    expect(service.messages()).toEqual([]);
+    expect(service.error()).toBe('Could not start a new chat.');
   });
 });

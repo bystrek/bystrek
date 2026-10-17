@@ -13,6 +13,34 @@ app-chat .chat-shell {
   min-height: 100%;
 }
 
+app-chat .chat-toolbar {
+  align-items: center;
+  background: var(--color-bg);
+  border-bottom: var(--border-width) solid var(--color-border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 24px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+app-chat .chat-toolbar select {
+  flex: 1;
+  min-width: 0;
+}
+
+app-chat .chat-toolbar button {
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  app-chat .chat-toolbar {
+    top: 56px;
+  }
+}
+
 app-chat .messages {
   display: flex;
   flex: 1;

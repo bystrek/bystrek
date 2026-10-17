@@ -34,7 +34,7 @@ test('edits first/last name and avatar, then saves via update-user', async ({ pa
   await mockSignIn(page);
   await mockSession(page);
   await page.route('**/users', (route) => route.fulfill({ json: [] }));
-  await page.route('**/chat/history', (route) => route.fulfill({ json: [] }));
+  await page.route('**/chat/conversations', (route) => route.fulfill({ json: [] }));
   await page.route('**/calendar/credentials', (route) =>
     route.fulfill({
       json: {

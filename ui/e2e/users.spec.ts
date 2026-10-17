@@ -31,7 +31,7 @@ test('signs in and shows users, without admin controls for a regular user', asyn
       json: [{ id: '1', name: 'Michał', status: 'active', banned: false }],
     }),
   );
-  await page.route('**/chat/history', (route) => route.fulfill({ json: [] }));
+  await page.route('**/chat/conversations', (route) => route.fulfill({ json: [] }));
   await page.route('**/calendar/credentials', (route) =>
     route.fulfill({
       json: {
@@ -68,7 +68,7 @@ test('shows invite form and ban controls for an admin', async ({ page }) => {
       json: [{ id: '1', name: 'Michał', status: 'active', banned: false }],
     }),
   );
-  await page.route('**/chat/history', (route) => route.fulfill({ json: [] }));
+  await page.route('**/chat/conversations', (route) => route.fulfill({ json: [] }));
   await page.route('**/calendar/credentials', (route) =>
     route.fulfill({
       json: {
