@@ -20,7 +20,8 @@ export const CORS_ORIGINS = (process.env.CORS_ORIGINS ?? 'https://bystrek.dev')
 // a glob for better-auth's trustedOrigins.
 export const LOCALHOST_ORIGIN = /^http:\/\/localhost(:\d+)?$/;
 export const LOCALHOST_ORIGIN_PATTERN = 'http://localhost:*';
-export const RESEND_API_KEY = required('RESEND_API_KEY');
+export const RESEND_API_KEY =
+  process.env.BYSTREK_LOCAL_DEV === '1' ? process.env.RESEND_API_KEY : required('RESEND_API_KEY');
 export const AUTH_SECRET = required('AUTH_SECRET');
 export const UI_URL = process.env.UI_URL ?? 'http://localhost:5173';
 export const API_URL = process.env.API_URL ?? 'http://localhost:3000';
