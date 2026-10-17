@@ -14,7 +14,7 @@ import { MAX_TOOL_ITERATIONS } from '../../src/chat/chat.service';
 import { CHAT_TOOLS, type ChatTool } from '../../src/chat/chat.tools';
 import { decryptField, encryptField } from '../../src/crypto/field-encryption';
 import { DRIZZLE } from '../../src/db/drizzle.provider';
-import { messages } from '../../src/db/schema';
+import { conversations, messages } from '../../src/db/schema';
 import { signUpTestUser } from './support/auth';
 import { withRollback } from './support/rollback';
 import { testDb } from './support/test-db';
@@ -65,6 +65,7 @@ describe('POST /chat (integration)', () => {
         email: 'me@example.com',
         name: 'Me',
       });
+      const [conversation] = await tx.insert(conversations).values({ userId: user.id }).returning();
 
       const model = fakeModel([fakeMessage('Hello there')]);
 
@@ -80,7 +81,7 @@ describe('POST /chat (integration)', () => {
       const res = await request(app.getHttpServer())
         .post('/chat')
         .set('Authorization', `Bearer ${token}`)
-        .send({ message: 'what is my week look like?' });
+        .send({ message: 'what is my week look like?', conversationId: conversation.id });
 
       expect(res.status).toBe(200);
       expect(res.headers['content-type']).toContain('text/event-stream');
@@ -99,6 +100,7 @@ describe('POST /chat (integration)', () => {
         .orderBy(asc(messages.createdAt));
 
       expect(rows).toHaveLength(2);
+      expect(rows.every((row) => row.conversationId === conversation.id)).toBe(true);
       expect(rows[0].role).toBe('user');
       expect(rows[0].visibility).toBe('private');
       expect(rows[0].content).not.toContain('what is my week');
@@ -111,6 +113,12 @@ describe('POST /chat (integration)', () => {
         role: 'assistant',
         content: 'Hello there',
       });
+      const [storedConversation] = await tx
+        .select()
+        .from(conversations)
+        .where(eq(conversations.id, conversation.id));
+      expect(storedConversation.title).not.toContain('what is my week');
+      expect(decryptField(storedConversation.title!)).toBe('what is my week look like?');
 
       await app.close();
     });
@@ -122,6 +130,7 @@ describe('POST /chat (integration)', () => {
         email: 'me@example.com',
         name: 'Me',
       });
+      const [conversation] = await tx.insert(conversations).values({ userId: user.id }).returning();
 
       const model = fakeModel([
         fakeMessage('', [{ name: 'test_tool', arguments: { foo: 'bar' } }]),
@@ -154,7 +163,7 @@ describe('POST /chat (integration)', () => {
       const res = await request(app.getHttpServer())
         .post('/chat')
         .set('Authorization', `Bearer ${token}`)
-        .send({ message: 'run the tool' });
+        .send({ message: 'run the tool', conversationId: conversation.id });
 
       expect(res.status).toBe(200);
       expect(handler).toHaveBeenCalledTimes(1);
@@ -185,10 +194,11 @@ describe('POST /chat (integration)', () => {
 
   it('rejects an empty message', async () => {
     await withRollback(testDb, async (tx) => {
-      const { token } = await signUpTestUser(tx, {
+      const { user, token } = await signUpTestUser(tx, {
         email: 'me@example.com',
         name: 'Me',
       });
+      const [conversation] = await tx.insert(conversations).values({ userId: user.id }).returning();
 
       const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
         .overrideProvider(DRIZZLE)
@@ -200,7 +210,7 @@ describe('POST /chat (integration)', () => {
       const res = await request(app.getHttpServer())
         .post('/chat')
         .set('Authorization', `Bearer ${token}`)
-        .send({ message: '   ' });
+        .send({ message: '   ', conversationId: conversation.id });
 
       expect(res.status).toBe(400);
 
@@ -210,10 +220,11 @@ describe('POST /chat (integration)', () => {
 
   it('stops after MAX_TOOL_ITERATIONS instead of looping forever', async () => {
     await withRollback(testDb, async (tx) => {
-      const { token } = await signUpTestUser(tx, {
+      const { user, token } = await signUpTestUser(tx, {
         email: 'me@example.com',
         name: 'Me',
       });
+      const [conversation] = await tx.insert(conversations).values({ userId: user.id }).returning();
 
       // A tool that always asks for another tool call — the model never
       // reaches end_turn on its own, so this only terminates if the loop's
@@ -248,7 +259,7 @@ describe('POST /chat (integration)', () => {
       const res = await request(app.getHttpServer())
         .post('/chat')
         .set('Authorization', `Bearer ${token}`)
-        .send({ message: 'go' });
+        .send({ message: 'go', conversationId: conversation.id });
 
       expect(res.status).toBe(200);
       expect(handler).toHaveBeenCalledTimes(MAX_TOOL_ITERATIONS);
@@ -269,7 +280,7 @@ describe('GET /chat/history (integration)', () => {
       const app: INestApplication = moduleRef.createNestApplication();
       await app.init();
 
-      const res = await request(app.getHttpServer()).get('/chat/history');
+      const res = await request(app.getHttpServer()).get('/chat/conversations');
 
       expect(res.status).toBe(401);
 
@@ -279,10 +290,11 @@ describe('GET /chat/history (integration)', () => {
 
   it('returns persisted turns collapsed to plain text, dropping pure tool turns', async () => {
     await withRollback(testDb, async (tx) => {
-      const { token } = await signUpTestUser(tx, {
+      const { user, token } = await signUpTestUser(tx, {
         email: 'me@example.com',
         name: 'Me',
       });
+      const [conversation] = await tx.insert(conversations).values({ userId: user.id }).returning();
 
       const model = fakeModel([
         fakeMessage('', [{ name: 'test_tool', arguments: {} }]),
@@ -309,10 +321,10 @@ describe('GET /chat/history (integration)', () => {
       await request(app.getHttpServer())
         .post('/chat')
         .set('Authorization', `Bearer ${token}`)
-        .send({ message: 'run the tool' });
+        .send({ message: 'run the tool', conversationId: conversation.id });
 
       const res = await request(app.getHttpServer())
-        .get('/chat/history')
+        .get(`/chat/conversations/${conversation.id}/history`)
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
@@ -320,6 +332,126 @@ describe('GET /chat/history (integration)', () => {
         { role: 'user', text: 'run the tool' },
         { role: 'assistant', text: 'done' },
       ]);
+
+      await app.close();
+    });
+  });
+});
+
+describe('conversation isolation (integration)', () => {
+  it('sends only the selected conversation history to the model', async () => {
+    await withRollback(testDb, async (tx) => {
+      const { user, token } = await signUpTestUser(tx, {
+        email: 'me@example.com',
+        name: 'Me',
+      });
+      const [first, second] = await tx
+        .insert(conversations)
+        .values([{ userId: user.id }, { userId: user.id }])
+        .returning();
+      await tx.insert(messages).values([
+        {
+          userId: user.id,
+          conversationId: first.id,
+          role: 'user',
+          content: encryptField(JSON.stringify({ role: 'user', content: 'private to first' })),
+        },
+        {
+          userId: user.id,
+          conversationId: second.id,
+          role: 'user',
+          content: encryptField(JSON.stringify({ role: 'user', content: 'private to second' })),
+        },
+      ]);
+
+      const complete = mock((_history: unknown) => Promise.resolve(fakeMessage('reply')));
+      const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+        .overrideProvider(DRIZZLE)
+        .useValue(tx)
+        .overrideProvider(CHAT_MODEL)
+        .useValue({ complete })
+        .compile();
+      const app: INestApplication = moduleRef.createNestApplication();
+      await app.init();
+
+      const res = await request(app.getHttpServer())
+        .post('/chat')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ conversationId: second.id, message: 'follow up' });
+      expect(res.status).toBe(200);
+      expect(complete).toHaveBeenCalledTimes(1);
+      const history = complete.mock.calls[0][0] as { role: string; content: string }[];
+      expect(history.map((turn) => turn.content)).toContain('private to second');
+      expect(history.map((turn) => turn.content)).not.toContain('private to first');
+
+      await app.close();
+    });
+  });
+
+  it('lists and loads only the owner’s conversations and rejects foreign sends', async () => {
+    await withRollback(testDb, async (tx) => {
+      const { user, token } = await signUpTestUser(tx, {
+        email: 'me@example.com',
+        name: 'Me',
+      });
+      const { user: otherUser, token: otherToken } = await signUpTestUser(tx, {
+        email: 'other@example.com',
+        name: 'Other',
+      });
+      const [mine] = await tx.insert(conversations).values({ userId: user.id }).returning();
+      const [theirs] = await tx.insert(conversations).values({ userId: otherUser.id }).returning();
+      await tx.insert(messages).values([
+        {
+          userId: user.id,
+          conversationId: mine.id,
+          role: 'user',
+          content: encryptField(JSON.stringify({ role: 'user', content: 'mine' })),
+        },
+        {
+          userId: otherUser.id,
+          conversationId: theirs.id,
+          role: 'user',
+          content: encryptField(JSON.stringify({ role: 'user', content: 'theirs' })),
+        },
+      ]);
+
+      const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+        .overrideProvider(DRIZZLE)
+        .useValue(tx)
+        .compile();
+      const app: INestApplication = moduleRef.createNestApplication();
+      await app.init();
+
+      const list = await request(app.getHttpServer())
+        .get('/chat/conversations')
+        .set('Authorization', `Bearer ${token}`);
+      expect(list.body).toEqual([{ id: mine.id, title: 'Chat', hasTitle: false }]);
+
+      const history = await request(app.getHttpServer())
+        .get(`/chat/conversations/${mine.id}/history`)
+        .set('Authorization', `Bearer ${token}`);
+      expect(history.body).toEqual([{ role: 'user', text: 'mine' }]);
+
+      const foreignHistory = await request(app.getHttpServer())
+        .get(`/chat/conversations/${theirs.id}/history`)
+        .set('Authorization', `Bearer ${token}`);
+      expect(foreignHistory.status).toBe(404);
+
+      const foreignSend = await request(app.getHttpServer())
+        .post('/chat')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ conversationId: theirs.id, message: 'hi' });
+      expect(foreignSend.status).toBe(404);
+      expect(foreignSend.headers['content-type']).not.toContain('text/event-stream');
+
+      const newChat = await request(app.getHttpServer())
+        .post('/chat/conversations')
+        .set('Authorization', `Bearer ${otherToken}`)
+        .send({});
+      expect(newChat.status).toBe(201);
+      expect(newChat.body.title).toBe('New chat');
+      expect(newChat.body.hasTitle).toBe(false);
+      expect(newChat.body.id).not.toBe(mine.id);
 
       await app.close();
     });
@@ -337,15 +469,19 @@ describe('DELETE /chat/history (integration)', () => {
         email: 'other@example.com',
         name: 'Other',
       });
+      const [mine] = await tx.insert(conversations).values({ userId: user.id }).returning();
+      const [theirs] = await tx.insert(conversations).values({ userId: otherUser.id }).returning();
       await tx.insert(messages).values([
         {
           userId: user.id,
+          conversationId: mine.id,
           role: 'user',
           content: encryptField(JSON.stringify({ role: 'user', content: 'remove me' })),
           contentFormat: 'ollama',
         },
         {
           userId: otherUser.id,
+          conversationId: theirs.id,
           role: 'user',
           content: encryptField(JSON.stringify({ role: 'user', content: 'keep me' })),
           contentFormat: 'ollama',

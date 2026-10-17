@@ -28,7 +28,7 @@ function mockSession(page: import('@playwright/test').Page) {
 }
 
 // Signing in now lands straight on /chat (the '' route redirects there), so
-// the chat-history route must be mocked *before* signing in — it fires as
+// the conversation routes must be mocked *before* signing in — they fire as
 // soon as the redirect resolves, not after a later navigation.
 async function signIn(
   page: import('@playwright/test').Page,
@@ -37,7 +37,14 @@ async function signIn(
   await mockSignIn(page);
   await mockSession(page);
   await page.route('**/users', (route) => route.fulfill({ json: [] }));
-  await page.route('**/chat/history', (route) => route.fulfill({ json: history }));
+  await page.route('**/chat/conversations', (route) =>
+    route.request().method() === 'POST'
+      ? route.fulfill({ json: { id: 'new-id', title: 'New chat', hasTitle: false } })
+      : route.fulfill({ json: [{ id: 'first-id', title: 'First chat', hasTitle: true }] }),
+  );
+  await page.route('**/chat/conversations/*/history', (route) =>
+    route.fulfill({ json: route.request().url().includes('first-id') ? history : [] }),
+  );
   await page.goto('/auth/login');
   await page.waitForLoadState('networkidle');
   await page.getByPlaceholder('Email').fill('me@example.com');
@@ -45,6 +52,30 @@ async function signIn(
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL('/chat');
 }
+
+test('starts a separate chat and returns to earlier messages', async ({ page }) => {
+  await signIn(page, [{ role: 'user', text: 'earlier message' }]);
+  await page.route('**/chat', (route) =>
+    route.fulfill({
+      contentType: 'text/event-stream',
+      body: 'data: {"delta":"new reply"}\n\n',
+    }),
+  );
+  await expect(page.locator('.bubble.user')).toHaveText('earlier message');
+
+  await page.getByRole('button', { name: 'New chat' }).click();
+  await expect(page.locator('.bubble')).toHaveCount(0);
+  await expect(page.getByLabel('Conversation')).toHaveValue('new-id');
+  await page.getByPlaceholder('Message').fill('new question');
+  await page.getByRole('button', { name: 'Send message' }).click();
+  await expect(page.locator('.bubble.assistant')).toHaveText('new reply');
+  await expect(page.getByLabel('Conversation').locator('option:checked')).toHaveText(
+    'new question',
+  );
+
+  await page.getByLabel('Conversation').selectOption('first-id');
+  await expect(page.locator('.bubble.user')).toHaveText('earlier message');
+});
 
 test('sends a message and renders the streamed reply', async ({ page }) => {
   await signIn(page);
@@ -132,4 +163,17 @@ test('opens with history pinned to the bottom, not scrolled to the top', async (
   const lastBubble = page.locator('.bubble').last();
   await expect(lastBubble).toHaveText(`Seeded message ${history.length - 1}.`);
   await expect(lastBubble).toBeInViewport();
+  await expect(page.getByRole('button', { name: 'New chat' })).toBeInViewport();
+});
+
+test('keeps new chat reachable above long history on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const history = Array.from({ length: 30 }, (_, i) => ({
+    role: i % 2 === 0 ? 'user' : 'assistant',
+    text: `Seeded message ${i}.`,
+  }));
+  await signIn(page, history);
+
+  await expect(page.locator('.bubble').last()).toBeInViewport();
+  await expect(page.getByRole('button', { name: 'New chat' })).toBeInViewport();
 });

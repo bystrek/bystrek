@@ -37,7 +37,7 @@ export class Chat implements OnInit {
   private readonly model = signal({ draft: '' });
   protected readonly draftForm = form(this.model, (path) => {
     required(path.draft);
-    disabled(path.draft, { when: () => this.chat.sending() });
+    disabled(path.draft, { when: () => this.chat.sending() || this.chat.loading() });
   });
 
   // Tracks the last message content actually rendered, so the render effect
@@ -98,7 +98,7 @@ export class Chat implements OnInit {
   }
 
   ngOnInit(): void {
-    void this.chat.loadHistory();
+    void this.chat.loadConversations();
   }
 
   private onScroll(container: HTMLElement): void {
@@ -125,10 +125,14 @@ export class Chat implements OnInit {
     return this.scrollContainer;
   }
 
-  send(): void {
+  async send(): Promise<void> {
     const text = this.model().draft.trim();
-    if (!text) return;
-    this.chat.send(text);
-    this.model.set({ draft: '' });
+    if (!text || this.chat.loading() || this.chat.sending()) return;
+    if (await this.chat.send(text)) this.model.set({ draft: '' });
+  }
+
+  async newChat(): Promise<void> {
+    await this.chat.startNewChat();
+    if (this.chat.activeConversationId() && !this.chat.error()) this.model.set({ draft: '' });
   }
 }

@@ -4,6 +4,8 @@ import {
   Controller,
   Delete,
   Get,
+  Param,
+  ParseUUIDPipe,
   Post,
   Req,
   Res,
@@ -15,16 +17,29 @@ import { ChatService } from './chat.service';
 
 class ChatDto {
   message!: string;
+  conversationId!: string;
 }
 
 @Controller('chat')
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
-  @Get('history')
+  @Get('conversations')
   @UseGuards(AuthGuard)
-  async history(@Req() req: Request) {
-    return this.chatService.getHistory(req.session!.user.id);
+  async conversations(@Req() req: Request) {
+    return this.chatService.listConversations(req.session!.user.id);
+  }
+
+  @Post('conversations')
+  @UseGuards(AuthGuard)
+  async newConversation(@Req() req: Request) {
+    return this.chatService.createConversation(req.session!.user.id);
+  }
+
+  @Get('conversations/:id/history')
+  @UseGuards(AuthGuard)
+  async history(@Req() req: Request, @Param('id', ParseUUIDPipe) id: string) {
+    return this.chatService.getHistory(req.session!.user.id, id);
   }
 
   @Delete('history')
@@ -35,10 +50,16 @@ export class ChatController {
 
   @Post()
   @UseGuards(AuthGuard)
-  async chat(@Body() body: ChatDto, @Req() req: Request, @Res() res: Response) {
-    if (!body.message || !body.message.trim()) {
+  async chat(
+    @Body() body: ChatDto,
+    @Body('conversationId', ParseUUIDPipe) conversationId: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    if (typeof body.message !== 'string' || !body.message.trim()) {
       throw new BadRequestException('message is required');
     }
+    await this.chatService.requireConversation(req.session!.user.id, conversationId);
 
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -48,6 +69,7 @@ export class ChatController {
 
     await this.chatService.reply(
       req.session!.user.id,
+      conversationId,
       body.message,
       (delta) => {
         res.write(`data: ${JSON.stringify({ delta })}\n\n`);

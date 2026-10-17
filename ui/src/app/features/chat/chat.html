@@ -1,4 +1,24 @@
 <main class="chat-shell">
+  <div class="chat-toolbar">
+    <label for="conversation-select">Conversation</label>
+    <select
+      #conversationPicker
+      id="conversation-select"
+      [value]="chat.activeConversationId() ?? ''"
+      [disabled]="chat.loading() || chat.sending()"
+      (change)="chat.selectConversation(conversationPicker.value)"
+    >
+      @if (!chat.activeConversationId()) {
+        <option value="">No conversation</option>
+      }
+      @for (conversation of chat.conversations(); track conversation.id) {
+        <option [value]="conversation.id">{{ conversation.title }}</option>
+      }
+    </select>
+    <button type="button" (click)="newChat()" [disabled]="chat.loading() || chat.sending()">
+      New chat
+    </button>
+  </div>
   <div class="messages">
     @for (message of chat.messages(); track $index; let last = $last) {
       @if (last && chat.sending() && message.role === 'assistant' && !message.text) {
@@ -21,7 +41,12 @@
 
   <form id="chat-input" [formRoot]="draftForm" (submit)="send()">
     <input type="text" [formField]="draftForm.draft" placeholder="Message" />
-    <button type="submit" class="send" [disabled]="chat.sending()" aria-label="Send message">
+    <button
+      type="submit"
+      class="send"
+      [disabled]="chat.sending() || chat.loading()"
+      aria-label="Send message"
+    >
       <app-icon name="arrow-up" />
     </button>
   </form>

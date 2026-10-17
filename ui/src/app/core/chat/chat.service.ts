@@ -5,6 +5,7 @@ import { APP_CONFIG } from '../config/app-config';
 import { errorMessage } from '../http/error-message';
 
 export type ChatMessage = { role: 'user' | 'assistant'; text: string };
+export type ChatConversation = { id: string; title: string; hasTitle: boolean };
 
 @Injectable({ providedIn: 'root' })
 export class ChatService {
@@ -12,51 +13,129 @@ export class ChatService {
   private readonly apiUrl = inject(APP_CONFIG).apiUrl;
 
   readonly messages = signal<ChatMessage[]>([]);
+  readonly conversations = signal<ChatConversation[]>([]);
+  readonly activeConversationId = signal<string | null>(null);
   readonly sending = signal(false);
+  readonly loading = signal(false);
   readonly error = signal('');
 
   // Outgoing sends route through a Subject + switchMap so a new send cancels
   // an in-flight stream if it's ever superseded, even though the UI also
   // disables input while `sending()` is true.
-  private readonly sendRequests = new Subject<string>();
+  private readonly sendRequests = new Subject<{ text: string; conversationId: string }>();
 
   constructor() {
-    this.sendRequests.pipe(switchMap((text) => this.streamReply(text))).subscribe();
+    this.sendRequests
+      .pipe(switchMap(({ text, conversationId }) => this.streamReply(text, conversationId)))
+      .subscribe();
   }
 
-  async loadHistory(): Promise<void> {
+  async loadConversations(): Promise<void> {
+    this.loading.set(true);
+    this.messages.set([]);
+    this.activeConversationId.set(null);
+    this.conversations.set([]);
     try {
-      const history = await firstValueFrom(
-        this.http.get<ChatMessage[]>(`${this.apiUrl}/chat/history`),
+      const conversations = await firstValueFrom(
+        this.http.get<ChatConversation[]>(`${this.apiUrl}/chat/conversations`),
       );
-      // Only apply if nothing has been sent yet — a send() that started
-      // while this request was in flight already owns `messages`, and
-      // overwriting it here would wipe the pending user/assistant turns
-      // out from under an in-progress stream.
-      if (this.messages().length === 0) {
-        this.messages.set(history);
-      }
+      this.conversations.set(conversations);
+      if (conversations.length) await this.loadHistory(conversations[0].id);
       this.error.set('');
     } catch (err) {
-      this.error.set(errorMessage(err, 'Could not load chat history.'));
+      this.error.set(errorMessage(err, 'Could not load conversations.'));
+    } finally {
+      this.loading.set(false);
     }
   }
 
-  send(text: string): void {
-    if (!text.trim() || this.sending()) return;
-    this.error.set('');
-    this.sending.set(true);
-    this.messages.update((m) => [...m, { role: 'user', text }, { role: 'assistant', text: '' }]);
-    this.sendRequests.next(text);
+  async selectConversation(id: string): Promise<void> {
+    if (this.loading() || this.sending() || id === this.activeConversationId()) return;
+    this.loading.set(true);
+    this.messages.set([]);
+    this.activeConversationId.set(null);
+    try {
+      await this.loadHistory(id);
+      this.error.set('');
+    } catch (err) {
+      this.error.set(errorMessage(err, 'Could not load chat history.'));
+    } finally {
+      this.loading.set(false);
+    }
   }
 
-  private streamReply(text: string) {
+  async startNewChat(): Promise<void> {
+    if (this.loading() || this.sending()) return;
+    this.loading.set(true);
+    try {
+      const conversation = await this.createConversation();
+      this.conversations.update((list) => [conversation, ...list]);
+      this.activeConversationId.set(conversation.id);
+      this.messages.set([]);
+      this.error.set('');
+    } catch (err) {
+      this.error.set(errorMessage(err, 'Could not start a new chat.'));
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  send(text: string): Promise<boolean> {
+    if (!text.trim() || this.sending() || this.loading()) return Promise.resolve(false);
+    this.error.set('');
+    this.sending.set(true);
+    return this.beginSend(text);
+  }
+
+  private async beginSend(text: string): Promise<boolean> {
+    let conversationId = this.activeConversationId();
+    if (!conversationId) {
+      try {
+        const conversation = await this.createConversation();
+        conversationId = conversation.id;
+        this.conversations.update((list) => [conversation, ...list]);
+        this.activeConversationId.set(conversationId);
+      } catch (err) {
+        this.error.set(errorMessage(err, 'Could not start a new chat.'));
+        this.sending.set(false);
+        return false;
+      }
+    }
+    const id = conversationId;
+    this.conversations.update((list) => {
+      const current = list.find((conversation) => conversation.id === id);
+      if (!current) return list;
+      const updated = current.hasTitle
+        ? current
+        : { ...current, title: text.trim().slice(0, 80), hasTitle: true };
+      return [updated, ...list.filter((conversation) => conversation.id !== id)];
+    });
+    this.messages.update((m) => [...m, { role: 'user', text }, { role: 'assistant', text: '' }]);
+    this.sendRequests.next({ text, conversationId: id });
+    return true;
+  }
+
+  private createConversation(): Promise<ChatConversation> {
+    return firstValueFrom(
+      this.http.post<ChatConversation>(`${this.apiUrl}/chat/conversations`, {}),
+    );
+  }
+
+  private async loadHistory(id: string): Promise<void> {
+    const history = await firstValueFrom(
+      this.http.get<ChatMessage[]>(`${this.apiUrl}/chat/conversations/${id}/history`),
+    );
+    this.activeConversationId.set(id);
+    this.messages.set(history);
+  }
+
+  private streamReply(text: string, conversationId: string) {
     let framesApplied = 0;
 
     return this.http
       .post(
         `${this.apiUrl}/chat`,
-        { message: text },
+        { message: text, conversationId },
         { observe: 'events', responseType: 'text', reportProgress: true },
       )
       .pipe(
