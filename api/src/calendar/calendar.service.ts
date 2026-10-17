@@ -60,6 +60,12 @@ export class CalendarService {
     }));
   }
 
+  async listConfiguredCalendars(userId: string): Promise<CalendarSummary[]> {
+    const creds = await this.credentials.getInternal(userId);
+    if (!creds) throw new CalendarNotConfiguredError();
+    return this.previewCalendars(creds.caldavUrl, creds.username, creds.password);
+  }
+
   private async buildClient(
     caldavUrl: string,
     username: string,
