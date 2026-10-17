@@ -44,7 +44,25 @@ export class CalendarService {
     username: string;
     password: string;
   }): Promise<CalendarOption[]> {
+    const saved = this.credentials();
+    if (!input.password && !saved?.configured) {
+      throw new Error('Enter the password to load calendars.');
+    }
+    if (
+      !input.password &&
+      (input.caldavUrl !== saved?.caldavUrl || input.username !== saved?.username)
+    ) {
+      throw new Error('Enter the password to load calendars for a different account.');
+    }
     try {
+      if (!input.password && saved?.configured) {
+        const result = await firstValueFrom(
+          this.http.get<{ calendars: CalendarOption[] }>(
+            `${this.apiUrl}/calendar/credentials/calendars`,
+          ),
+        );
+        return result.calendars;
+      }
       const result = await firstValueFrom(
         this.http.post<{ calendars: CalendarOption[] }>(
           `${this.apiUrl}/calendar/credentials/preview-calendars`,

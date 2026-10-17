@@ -31,6 +31,11 @@ export class CalendarCredentialsController {
     return this.credentials.getDisplayable(req.session!.user.id);
   }
 
+  @Get('calendars')
+  async listConfiguredCalendars(@Req() req: Request) {
+    return { calendars: await this.calendar.listConfiguredCalendars(req.session!.user.id) };
+  }
+
   // Connects with the given (not-yet-saved) credentials and lists the
   // account's calendars — lets the profile page offer a dropdown before
   // anything is persisted. Never touches the database.

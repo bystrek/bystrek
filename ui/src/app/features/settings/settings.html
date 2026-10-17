@@ -78,7 +78,8 @@
         [disabled]="
           loadingCalendars() ||
           !calendarForm.caldavUrl().value() ||
-          !calendarForm.caldavUsername().value()
+          !calendarForm.caldavUsername().value() ||
+          (!calendarForm.caldavPassword().value() && !calendar.credentials()?.configured)
         "
         (click)="loadCalendars()"
       >

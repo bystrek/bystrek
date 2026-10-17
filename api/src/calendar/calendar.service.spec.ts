@@ -208,6 +208,32 @@ describe('CalendarService', () => {
     );
   });
 
+  it('lists calendars with the requesting user’s saved credentials', async () => {
+    const fetchCalendars = mock(() => Promise.resolve([fakeCalendar]));
+    const service = await loadCalendarService(
+      () => Promise.resolve({ fetchCalendars, fetchCalendarObjects: () => Promise.resolve([]) }),
+      fakeCredentials(),
+    );
+
+    expect(await service.listConfiguredCalendars('user-1')).toEqual([fakeCalendar]);
+    expect(fetchCalendars).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects listing configured calendars when the user has none', async () => {
+    const service = await loadCalendarService(
+      () =>
+        Promise.resolve({
+          fetchCalendars: () => Promise.resolve([fakeCalendar]),
+          fetchCalendarObjects: () => Promise.resolve([]),
+        }),
+      { getInternal: () => Promise.resolve(null) } as unknown as CalendarCredentialsService,
+    );
+
+    await expect(service.listConfiguredCalendars('user-1')).rejects.toThrow(
+      'no calendar connected',
+    );
+  });
+
   // Real bug hit in production: a configured calendarName that didn't
   // match any calendar's actual displayName was silently treated the same
   // as "nothing configured at all" — a deeply misleading error when
