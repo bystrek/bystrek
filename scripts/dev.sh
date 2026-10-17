@@ -61,6 +61,7 @@ fi
 chmod 600 "$DEV_ENV"
 export DOTENV_CONFIG_PATH="$DEV_ENV"
 export BYSTREK_LOCAL_DEV=1
+unset DATABASE_URL
 
 echo "==> Starting dev Postgres"
 docker compose -f docker-compose.dev.yml up -d
@@ -74,9 +75,9 @@ docker compose -f docker-compose.dev.yml exec -T postgres pg_isready -U bystrek 
   || fail "Postgres didn't become ready in time"
 
 echo "==> Preparing local database"
-(cd api && bun run src/db/ensure-local-db.ts && bun run db:migrate)
+(cd api && bun --env-file="$DEV_ENV" run src/db/ensure-local-db.ts && bun --env-file="$DEV_ENV" run db:migrate)
 
-seed_status="$(cd api && bun run src/db/seed-local.ts --check)"
+seed_status="$(cd api && bun --env-file="$DEV_ENV" run src/db/seed-local.ts --check)"
 case "$seed_status" in
   ready) ;;
   needs-password)
@@ -85,7 +86,7 @@ case "$seed_status" in
     echo
     [ "${#local_password}" -ge 8 ] && [ "${#local_password}" -le 128 ] \
       || fail "local password must be 8-128 characters"
-    printf '%s' "$local_password" | (cd api && bun run src/db/seed-local.ts --create)
+    printf '%s' "$local_password" | (cd api && bun --env-file="$DEV_ENV" run src/db/seed-local.ts --create)
     unset local_password
     ;;
   *) fail "unexpected local owner status: $seed_status" ;;
@@ -108,7 +109,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 echo "==> Starting api (start:dev)"
-(cd api && exec bun run start:dev) &
+(cd api && exec bun --env-file="$DEV_ENV" run start:dev) &
 pids+=($!)
 
 echo "==> Starting ui (dev)"
