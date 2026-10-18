@@ -7,9 +7,10 @@ Status: accepted. Scope: read and draft actions for calendar (#80, #81, #82).
 - The model emits either a relative day token (`today`, `tomorrow`, `yesterday`) or an explicit `YYYY-MM-DD`, plus `HH:mm` for times.
 - The backend resolves all of these in `users.timezone`, using the server clock as "now". The browser's timezone is never used.
 - A day spans account-local midnight to the next account-local midnight.
-- Missing `end` means start + 60 minutes, which may cross midnight.
-- `endDay` defaults to `day`. If the resolved end is not after the start and `endDay` is unset, the request returns `invalid_range`. Overnight events (for example 23:30–00:30) set `endDay`.
-- Ambiguous local times (DST fall-back) and nonexistent local times (DST spring-forward) return `needs_choice` with concrete options. The backend never picks silently.
+- On `create_event`, missing `end` means start + 60 minutes, which may cross midnight.
+- On `create_event`, `endDay` defaults to `day`. If the resolved end is not after the start and `endDay` is unset, the request returns `invalid_range`. Overnight events (for example 23:30–00:30) set `endDay`.
+- Event times in results and previews are RFC 3339 with offset (`2026-10-25T02:30:00+01:00`). The offset tells the two fall-back occurrences apart.
+- Ambiguous local times (DST fall-back) and nonexistent local times (DST spring-forward) return `needs_choice`. Its options are the resolved RFC 3339 instants. The backend never picks silently.
 - Unparseable or nonexistent dates return `invalid_date`. A range whose start is not before its end returns `invalid_range`.
 
 ## Actions
@@ -28,8 +29,8 @@ type EventView = {
   eventId: string;
   version: string;
   summary: string;
-  start: string; // absolute, account-local
-  end: string; // absolute, account-local
+  start: string; // RFC 3339 with offset
+  end: string; // RFC 3339 with offset
   description?: string;
   location?: string;
 };
@@ -55,18 +56,32 @@ type DraftAction =
 ```
 
 - `update_event` and `delete_event` require a target. A recurring target returns `recurring_not_supported`.
+- Targets are never free text. The model picks an `EventTarget` from an `answer` of `list_events`. If several events match, the model asks the user which one before drafting. The backend does not resolve targets.
+- On `update_event`, omitted fields keep their current values. Setting any of `day`, `start`, `end`, or `endDay` recomputes start and end from the set values and the event's current values for the rest.
 - `shift_events` and undo are not part of this contract.
 
 ## Results and statuses
 
+```ts
+type Result =
+  | { status: 'answer'; events: EventView[] }
+  | { status: 'needs_input'; pending_id: string; missing: string[] }
+  | { status: 'needs_choice'; pending_id: string; options: ChoiceOption[] }
+  | { status: 'preview'; pending_id: string; kind: DraftAction['kind']; event: Omit<EventView, 'eventId' | 'version'> }
+  | { status: 'applied'; kind: DraftAction['kind']; eventId: string }
+  | { status: 'error'; code: ErrorCode; message: string };
+```
+
+`ErrorCode` is one of the codes in Errors.
+
 | Status | Meaning | Next allowed |
 | --- | --- | --- |
-| `answer` | Read result with `EventView[]` from the backend | terminal |
-| `needs_input` | Missing fields. Carries `pending_id` | client resends with `pending_id` and the added fields |
-| `needs_choice` | Ambiguous time or target. Carries `options: ChoiceOption[]` and `pending_id` | client calls `/choose` |
-| `preview` | Resolved write with exact absolute date and times. Carries `pending_id` | client calls `/confirm` |
+| `answer` | Read result from the backend | terminal |
+| `needs_input` | Missing fields listed in `missing` | client resends `POST /calendar/drafts` with `pending_id` and the added fields |
+| `needs_choice` | Ambiguous or nonexistent local time | client calls `/choose` |
+| `preview` | Resolved write with exact absolute times in `event` | client calls `/confirm` |
 | `applied` | Write committed | terminal |
-| `error` | Request failed. Carries an error code | terminal |
+| `error` | Request failed | terminal |
 
 - Only `preview` can precede `applied`.
 - No Result contains an undo token.
@@ -74,8 +89,8 @@ type DraftAction =
 ## Endpoints
 
 - `POST /calendar/read`: body `ReadAction`. Returns `answer` or `error`.
-- `POST /calendar/drafts`: body `DraftAction`. Returns `needs_input`, `needs_choice`, or `preview`.
-- `POST /calendar/drafts/:pending_id/choose`: body `{ optionId: string }`, matching one `ChoiceOption` on the draft. Returns `preview` only. Never applies a write.
+- `POST /calendar/drafts`: body `DraftAction` plus optional `pending_id`. Returns `needs_input`, `needs_choice`, `preview`, or `error`. With `pending_id`, the request's fields merge into the open draft: set fields overwrite, omitted fields keep the draft's values. A different `kind` or `target` returns `draft_mismatch`.
+- `POST /calendar/drafts/:pending_id/choose`: body `{ optionId: string }`, matching one `ChoiceOption` on the draft. Returns `preview` or `error`. Never applies a write.
 - `POST /calendar/drafts/:pending_id/confirm`: body empty. Claims and applies the draft (see lifecycle). Returns `applied` or `error`.
 
 ## `pending_id` lifecycle
@@ -96,6 +111,7 @@ type DraftAction =
 | `ambiguous_date` | Read bound falls in a DST fall-back overlap. Read has no `needs_choice`, so it errors |
 | `invalid_range` | Start not before end, or range invalid |
 | `invalid_choice` | `optionId` is not on this draft |
+| `draft_mismatch` | Continuation changes `kind` or `target` of an open draft |
 | `draft_expired` | `pending_id` unknown, expired, or already claimed while in flight |
 | `stale_target` | `expectedVersion` no longer matches the event |
 | `upstream_failed` | Calendar write failed before any write was made |
