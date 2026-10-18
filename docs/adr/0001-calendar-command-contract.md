@@ -7,10 +7,11 @@ Status: accepted. Scope: read and draft actions for calendar (#80, #81, #82).
 - The model emits either a relative day token (`today`, `tomorrow`, `yesterday`) or an explicit `YYYY-MM-DD`, plus `HH:mm` for times.
 - The backend resolves all of these in `users.timezone`, using the server clock as "now". The browser's timezone is never used.
 - A day spans account-local midnight to the next account-local midnight.
-- On `create_event`, missing `end` means start + 60 minutes, which may cross midnight.
-- On `create_event`, `endDay` defaults to `day`. If the resolved end is not after the start and `endDay` is unset, the request returns `invalid_range`. Overnight events (for example 23:30–00:30) set `endDay`.
+- On `create_event`, missing `end` means start + 60 minutes as an instant. `endDay` is then the local date of that end, so 23:30 resolves to 00:30 on the next day.
+- On `create_event` with an explicit `end`, `endDay` defaults to `day`. If the resolved end is not after the start, the request returns `invalid_range`. Overnight events with an explicit `end` (for example 23:30–00:30) set `endDay`.
 - Event times in results and previews are RFC 3339 with offset (`2026-10-25T02:30:00+01:00`). The offset tells the two fall-back occurrences apart.
-- Ambiguous local times (DST fall-back) and nonexistent local times (DST spring-forward) return `needs_choice`. Its options are the resolved RFC 3339 instants. The backend never picks silently.
+- Ambiguous local times (DST fall-back) return `needs_choice`. Its options are the two resolved RFC 3339 instants. The backend never picks silently.
+- Nonexistent local times (DST spring-forward gap) and malformed `HH:mm` return `invalid_time`. The backend does not shift them; the model asks the user for another time.
 - Unparseable or nonexistent dates return `invalid_date`. A range whose start is not before its end returns `invalid_range`.
 
 ## Actions
@@ -78,7 +79,7 @@ type Result =
 | --- | --- | --- |
 | `answer` | Read result from the backend | terminal |
 | `needs_input` | Missing fields listed in `missing` | client resends `POST /calendar/drafts` with `pending_id` and the added fields |
-| `needs_choice` | Ambiguous or nonexistent local time | client calls `/choose` |
+| `needs_choice` | Ambiguous local time (fall-back overlap) | client calls `/choose` |
 | `preview` | Resolved write with exact absolute times in `event` | client calls `/confirm` |
 | `applied` | Write committed | terminal |
 | `error` | Request failed | terminal |
@@ -100,6 +101,7 @@ type Result =
 - The client echoes it to continue the same draft. A new request without it starts a new draft.
 - Bound to the user. Expires 10 minutes after creation or last use.
 - Confirm atomically claims the draft: the first confirm moves it from `open` to `claimed`. Any later confirm returns the stored outcome, or `draft_expired` while the first is still in flight. Unknown ids return `draft_expired`.
+- For `update_event` and `delete_event`, confirm sends `expectedVersion` as a precondition on the write. A mismatch returns `stale_target` and writes nothing. A backend that cannot enforce this precondition does not offer update or delete.
 - A claimed draft is never re-run. Any failure after the claim is final, including upstream timeouts with an unknown write outcome (`write_outcome_unknown`). The user creates a new draft to try again, after checking the calendar.
 
 ## Errors
@@ -108,6 +110,7 @@ type Result =
 | --- | --- |
 | `recurring_not_supported` | Target is a recurring event |
 | `invalid_date` | Unparseable or nonexistent date |
+| `invalid_time` | Malformed `HH:mm`, or a local time in a DST spring-forward gap |
 | `ambiguous_date` | Read bound falls in a DST fall-back overlap. Read has no `needs_choice`, so it errors |
 | `invalid_range` | Start not before end, or range invalid |
 | `invalid_choice` | `optionId` is not on this draft |
@@ -123,5 +126,6 @@ type Result =
 - No choice, clarification, or model output can apply a write. Only the user's confirm request writes.
 - Every `preview` includes the resolved absolute date and times.
 - Confirm is at-most-once per draft. A repeated or concurrent confirm never writes twice.
+- Update and delete writes check `expectedVersion` at confirm time, not only at preview.
 - Timezone comes from the account, never the browser.
 - Event data in results comes from the backend, never from model output.
