@@ -1,0 +1,92 @@
+# ADR 0001: Calendar command contract and local-date rules
+
+Status: accepted. Scope: read and draft actions for calendar (#80, #81, #82).
+
+## Local dates and times
+
+- The model emits either a relative day token (`today`, `tomorrow`, `yesterday`) or an explicit `YYYY-MM-DD`, plus `HH:mm` for times.
+- The backend resolves all of these in `users.timezone`, using the server clock as "now". The browser's timezone is never used.
+- A day spans account-local midnight to the next account-local midnight.
+- Missing `end` means start + 60 minutes.
+- Ambiguous local times (DST fall-back) and nonexistent local times (DST spring-forward) return `needs_choice` with concrete options. The backend never picks silently.
+- Unparseable or nonexistent dates return `invalid_date`. A range whose start is not before its end returns `invalid_range`.
+
+## Actions
+
+```ts
+type DayRef = { token: 'today' | 'tomorrow' | 'yesterday' } | { date: string }; // date: YYYY-MM-DD
+type TimeRef = { hhmm: string }; // HH:mm, account-local
+
+type ReadAction = {
+  kind: 'list_events';
+  range: { day: DayRef } | { start: DayRef; end: DayRef }; // end exclusive
+};
+
+type EventTarget = { eventId: string; expectedVersion: string };
+
+type EventFields = {
+  summary?: string;
+  day?: DayRef;
+  start?: TimeRef;
+  end?: TimeRef;
+  description?: string;
+  location?: string;
+};
+
+type DraftAction =
+  | { kind: 'create_event'; fields: EventFields } // summary, day, start required
+  | { kind: 'update_event'; target: EventTarget; fields: EventFields }
+  | { kind: 'delete_event'; target: EventTarget }; // cancel means delete
+```
+
+- `update_event` and `delete_event` require a target. A recurring target returns `recurring_not_supported`.
+- `shift_events` and undo are not part of this contract.
+
+## Results and statuses
+
+| Status | Meaning | Next allowed |
+| --- | --- | --- |
+| `answer` | Read result with events from the backend | terminal |
+| `needs_input` | Missing fields. Carries `pending_id` | client resends with `pending_id` and the added fields |
+| `needs_choice` | Ambiguous time or target. Carries options and `pending_id` | client calls `/choose` |
+| `preview` | Resolved write with exact absolute date and times. Carries `pending_id` | client calls `/confirm` |
+| `applied` | Write committed | terminal |
+| `error` | Request failed. Carries an error code | terminal |
+
+- Only `preview` can precede `applied`.
+- No Result contains an undo token.
+
+## Endpoints
+
+- `POST /calendar/read`: body `ReadAction`. Returns `answer` or `error`.
+- `POST /calendar/drafts`: body `DraftAction`. Returns `needs_input`, `needs_choice`, or `preview`.
+- `POST /calendar/drafts/:pending_id/choose`: body with the chosen option. Returns `preview` only. Never applies a write.
+- `POST /calendar/drafts/:pending_id/confirm`: applies the validated draft. Returns `applied` or `error`.
+
+## `pending_id` lifecycle
+
+- Created with a `needs_input`, `needs_choice`, or `preview` result.
+- Held in server memory, per instance. A restart drops all drafts; the client gets `draft_expired`.
+- The client echoes it to continue the same draft. A new request without it starts a new draft.
+- Bound to the user. Expires 10 minutes after creation or last use.
+- Consumed on successful confirm. Reusing a consumed or unknown id returns `draft_expired`.
+
+## Errors
+
+| Code | When |
+| --- | --- |
+| `recurring_not_supported` | Target is a recurring event |
+| `invalid_date` | Unparseable or nonexistent date |
+| `ambiguous_date` | Read bound falls in a DST fall-back overlap. Read has no `needs_choice`, so it errors |
+| `invalid_range` | Start not before end, or range invalid |
+| `draft_expired` | `pending_id` unknown, expired, or already used |
+| `stale_target` | `expectedVersion` no longer matches the event |
+| `upstream_failed` | Calendar write failed |
+
+## Invariants
+
+- The model has no write tools. It emits draft actions only.
+- No choice, clarification, or model output can apply a write. Only the user's confirm request writes.
+- Every `preview` includes the resolved absolute date and times.
+- Timezone comes from the account, never the browser.
+- Event data in results comes from the backend, never from model output.
