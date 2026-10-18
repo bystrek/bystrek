@@ -21,6 +21,12 @@ This repository contains the application code for bystrek:
 - If you change a public contract used by `homelab` manifests or runbooks,
   update the corresponding docs there too.
 
+## Pull request reviews
+
+- When addressing review comments, resolve each thread once its fix is pushed.
+  Reply on the thread or post a summary comment on the PR.
+- Re-check for unresolved threads before reporting the work as done.
+
 ## Validation
 
 - Use the existing package scripts only:
