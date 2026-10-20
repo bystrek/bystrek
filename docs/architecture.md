@@ -18,7 +18,7 @@ Sync connectors (calendar, ...) ─────────────┘
 Scheduler ──▶ RabbitMQ ──▶ Worker ──▶ Backend API / push
 ```
 
-- Backend API is the single gateway to Postgres. Nothing else talks to it directly.
+- Backend API is the single gateway to Postgres (constitution Principle I). Nothing else talks to it directly.
 - Chat and the app live in one installed PWA, one icon.
 - Chat UI is custom-built.
 - Sync connectors are small, scheduled, per-source jobs. Shared interface once there are 2–3 of them.
@@ -31,7 +31,7 @@ Scheduler ──▶ RabbitMQ ──▶ Worker ──▶ Backend API / push
 
 ## Write safety
 
-The LLM never calls write tools. It drafts a typed action; the user confirms it in the UI, and only that confirmation writes. Applies to sensitive domains, medical records included. Soft-deletes/versioning on all writes. Calendar command contract and confirm flow: [ADR 0001](adr/0001-calendar-command-contract.md).
+Rule: constitution Principle II. The LLM never calls write tools. It drafts a typed action; the user confirms it in the UI, and only that confirmation writes. Confirm flow and command contract: [ADR 0001](adr/0001-calendar-command-contract.md).
 
 ## Domains (decided)
 
@@ -83,9 +83,8 @@ Key management: `.env` on the home server, alongside other secrets.
 
 - `api`: unit tests for pure logic (encryption helpers, tool-call-loop parsing) plus integration tests against a real local Postgres, each wrapped in a rolled-back transaction — no mocked DB as the primary safety net. Runner: Bun's native `bun:test`.
 - `ui`: Vitest for unit/component logic, Playwright (WebKit only) for e2e — service worker, push, and passkey flows need a real browser, and WebKit specifically since iOS Safari fidelity is the actual target.
-- E2E stays small: a handful of real user journeys, not edge-case coverage.
-- No real third-party calls (Resend, CalDAV, FCM/APNs) in any test — stub at the boundary.
-- CI gate: tests run before image build/push; `timeout-minutes: 10` enforces the budget.
+- E2E stays small in scope; rules are in constitution Principle IV.
+- CI timeout: `timeout-minutes: 10` enforces the test budget.
 
 ## Future shape: connectors, multi-user, multi-LLM (not decided)
 

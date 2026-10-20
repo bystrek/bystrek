@@ -2,6 +2,10 @@
 
 Working conventions for this repo. See `README.md` for what the project is and `docs/architecture.md` for the target design and reasoning. What's currently in flight lives in GitHub Issues (grouped by the `MVP`/`Post-MVP` milestones), not a docs file.
 
+## Working conventions
+
+Rules are in `.specify/memory/constitution.md` (the main doc). This file holds the conventions below.
+
 ## Docs style
 
 Every `.md` file: short, concise, simple language, minimal words. State decisions, not the deliberation behind them — put reasoning/alternatives-considered narrative in devlog entries instead (see below).
@@ -23,17 +27,9 @@ Also update `Home.md` (the wiki's index) when adding a new day. No `[[Page Name]
 - `docs/architecture.md` is a living direction doc — the target shape, not a snapshot of what's built. Update it when the direction actually changes (like the Open WebUI → custom app pivot), not on every feature that ships.
 - `infra/` holds reference copies of the home server's `docker-compose.yml`, `Caddyfile`, and `deploy.sh` — manually synced via `scp`. All are reference copies only, not deployed from this repo. `infra/` is the source of truth for current infra config. Re-sync it (ask the user to `scp` fresh copies) whenever the home server's config changes materially, and check new copies for literal secrets before committing (established pattern: secrets are referenced by env var name only, e.g. `env_file: .env` — never by value).
 
-## Secrets
-
-Never commit secrets, `.env` files, API keys, or tokens to this repo. The established pattern is a `.env` file on the home server (`~/bystrek/.env`, `chmod 600`) — API keys, VAPID keys, and similar all follow that pattern, referenced by name in docs/compose files but never by value.
-
 ## Identity and domain
 
-`bystrek.dev` was deliberately chosen as a non-identifying domain — not the user's name or anything derivable from it. Certificate Transparency logs make any hostname a TLS cert is issued for permanently public, so don't introduce new subdomains, service names, or commit content that ties this project back to the user's real identity (name, exact address, etc.) without flagging the tradeoff first.
-
-## No fabricated URLs
-
-Don't invent or guess URLs (docs links, dashboard links, package pages) in commits, docs, or chat. Only use URLs the user has provided or that come from local files/tool output.
+Secrets, identity, and URL rules are in `.specify/memory/constitution.md`.
 
 ## Current architecture
 

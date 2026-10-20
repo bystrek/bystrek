@@ -1,6 +1,8 @@
 # bystrek repo guidance
 
-This repository contains the application code for bystrek:
+This repository contains the application code for bystrek. Rules and principles
+live in `.specify/memory/constitution.md`; read it before changing code, docs, or
+infra. This file covers repo layout, commands, and current facts.
 
 - `api/` — NestJS + Bun + Drizzle backend
 - `ui/` — Angular frontend
@@ -16,16 +18,6 @@ This repository contains the application code for bystrek:
 - The API currently runs migrations at container boot via `api/docker-entrypoint.sh`.
   Preserve the restore → original secrets → migrate → API → UI invariant in any
   future deployment docs or manifests.
-- Never commit `.env` files, secrets, credential dumps, or generated deployment
-  artifacts.
-- If you change a public contract used by `homelab` manifests or runbooks,
-  update the corresponding docs there too.
-
-## Pull request reviews
-
-- When addressing review comments, resolve each thread once its fix is pushed.
-  Reply on the thread or post a summary comment on the PR.
-- Re-check for unresolved threads before reporting the work as done.
 
 ## Validation
 
@@ -34,8 +26,6 @@ This repository contains the application code for bystrek:
   - `bun run test`
   - `bun run test:integration`
   - `bun run build`
-- Keep deployment/infra checks read-only. Do not run compose, kubectl, or Cloudflare
-  changes from this repository as part of bundle work.
 
 ## Current facts to preserve
 
