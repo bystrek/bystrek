@@ -219,6 +219,73 @@ describe('parseEventOccurrences', () => {
     expect(events.map((event) => event.summary)).toEqual(['Moved to Monday']);
   });
 
+  it('reports each instance of a weekly series with its own date and time', () => {
+    const ics = calendarWith(
+      eventWith(
+        'UID:weekend',
+        'SUMMARY:Weekly sync',
+        'DTSTART:20261010T100000Z',
+        'DTEND:20261010T110000Z',
+        'RRULE:FREQ=WEEKLY;BYDAY=SA',
+      ),
+    );
+    const events = parseEventOccurrences(
+      ics,
+      { start: new Date('2026-10-10T00:00:00Z'), end: new Date('2026-10-31T00:00:00Z') },
+      'Europe/Warsaw',
+    );
+    expect(events.map((event) => event.start)).toEqual([
+      '2026-10-10T12:00:00+02:00',
+      '2026-10-17T12:00:00+02:00',
+      '2026-10-24T12:00:00+02:00',
+    ]);
+  });
+
+  it('omits the original slot of an exception moved outside the range', () => {
+    const ics = calendarWith(
+      eventWith(
+        'UID:weekend',
+        'SUMMARY:Weekly sync',
+        'DTSTART:20261010T100000Z',
+        'DTEND:20261010T110000Z',
+        'RRULE:FREQ=WEEKLY;BYDAY=SA',
+      ),
+      eventWith(
+        'UID:weekend',
+        'RECURRENCE-ID:20261017T100000Z',
+        'DTSTART:20261030T100000Z',
+        'DTEND:20261030T110000Z',
+      ),
+    );
+    const events = parseEventOccurrences(
+      ics,
+      { start: weekend.start, end: new Date('2026-10-19T00:00:00Z') },
+      'UTC',
+    );
+    expect(events).toEqual([]);
+  });
+
+  it('reports an instance that falls on the next local day in the account timezone', () => {
+    const ics = calendarWith(
+      eventWith(
+        'UID:late',
+        'SUMMARY:Late call',
+        'DTSTART:20261017T223000Z',
+        'DTEND:20261017T233000Z',
+        'RRULE:FREQ=WEEKLY;BYDAY=SA',
+      ),
+    );
+    const [event] = parseEventOccurrences(
+      ics,
+      { start: new Date('2026-10-17T22:00:00Z'), end: new Date('2026-10-18T22:00:00Z') },
+      'Europe/Warsaw',
+    );
+    expect(event).toMatchObject({
+      start: '2026-10-18T00:30:00+02:00',
+      startWeekday: 'Sunday',
+    });
+  });
+
   it('omits a cancelled occurrence without suppressing the rest of its series', () => {
     const ics = calendarWith(
       eventWith(

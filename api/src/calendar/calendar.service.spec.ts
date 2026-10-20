@@ -169,6 +169,59 @@ describe('CalendarService', () => {
     ).rejects.toThrow('no event found with uid "weekly"');
   });
 
+  it('getEvent selects a moved exception by its moved time and a cancelled one not at all', async () => {
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'BEGIN:VEVENT',
+      'UID:weekly',
+      'SUMMARY:Weekly sync',
+      'DTSTART:20261010T100000Z',
+      'DTEND:20261010T110000Z',
+      'RRULE:FREQ=WEEKLY;BYDAY=SA',
+      'END:VEVENT',
+      'BEGIN:VEVENT',
+      'UID:weekly',
+      'RECURRENCE-ID:20261017T100000Z',
+      'SUMMARY:Moved sync',
+      'DTSTART:20261017T120000Z',
+      'DTEND:20261017T130000Z',
+      'END:VEVENT',
+      'BEGIN:VEVENT',
+      'UID:weekly',
+      'RECURRENCE-ID:20261024T100000Z',
+      'DTSTART:20261024T100000Z',
+      'DTEND:20261024T110000Z',
+      'STATUS:CANCELLED',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+    const service = await loadCalendarService(
+      () =>
+        Promise.resolve({
+          fetchCalendars: () => Promise.resolve([fakeCalendar]),
+          fetchCalendarObjects: () =>
+            Promise.resolve([{ url: `${fakeCalendar.url}weekly.ics`, data: ics }]),
+        }),
+      fakeCredentials(),
+    );
+
+    const moved = await service.getEvent(
+      'user-1',
+      'weekly',
+      'Europe/Warsaw',
+      new Date('2026-10-17T12:00:00Z'),
+    );
+    expect(moved).toMatchObject({ summary: 'Moved sync', start: '2026-10-17T14:00:00+02:00' });
+
+    await expect(
+      service.getEvent('user-1', 'weekly', 'Europe/Warsaw', new Date('2026-10-17T10:00:00Z')),
+    ).rejects.toThrow('no event found with uid "weekly"');
+    await expect(
+      service.getEvent('user-1', 'weekly', 'Europe/Warsaw', new Date('2026-10-24T10:00:00Z')),
+    ).rejects.toThrow('no event found with uid "weekly"');
+  });
+
   it('throws CalendarEventNotFoundError when no object matches the UID', async () => {
     const objects: FakeCalendarObject[] = [
       {
