@@ -1,6 +1,65 @@
-#login {
+:host {
+  display: block;
+}
+
+.login {
+  box-sizing: border-box;
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  align-items: stretch;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--space-6);
+}
+
+.login-stack {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+}
+
+/* Out of flow, so showing or hiding it never moves the form. */
+.status-alert {
+  position: absolute;
+  top: calc(100% + var(--space-4));
+  left: 0;
+  right: 0;
+}
+
+.intro {
+  text-align: center;
+}
+
+.intro p {
+  margin: 0;
+  color: var(--color-ink-muted);
+  line-height: 1.5;
+}
+
+#login {
+  margin: 0;
+}
+
+#login input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--tap);
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  border: var(--border-heavy);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font: inherit;
+  font-family: var(--font-ui);
+  /* 16px+ avoids iOS Safari auto-zoom on focus. */
+  font-size: var(--text-lg);
+}
+
+#login input:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+#login input:disabled {
+  background: var(--color-bg);
+  color: var(--color-ink-subtle);
 }

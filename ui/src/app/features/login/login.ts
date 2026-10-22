@@ -2,11 +2,16 @@ import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@a
 import { FormField, FormRoot, email, form, required } from '@angular/forms/signals';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
-import { StatusBanner } from '../../shared/status-banner/status-banner';
+import { Alert } from '../../shared/alert/alert';
+import { Button } from '../../shared/button/button';
+import { Card } from '../../shared/card/card';
+import { Stack } from '../../shared/stack/stack';
+
+const MIN_BUSY_MS = 400;
 
 @Component({
   selector: 'app-login',
-  imports: [FormField, FormRoot, StatusBanner],
+  imports: [FormField, FormRoot, Alert, Button, Card, Stack],
   templateUrl: './login.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './login.css',
@@ -27,6 +32,21 @@ export class Login {
   readonly pendingAction = signal<'signin' | 'reset' | null>(null);
   readonly busy = computed(() => this.pendingAction() !== null);
 
+  dismissStatus(): void {
+    this.status.set('');
+    this.statusError.set(false);
+  }
+
+  /* Keeps the busy label visible long enough to read, even when the request fails instantly. */
+  private async withMinimumBusy<T>(work: Promise<T>): Promise<T> {
+    const minimumDelay = new Promise<void>((resolve) => setTimeout(resolve, MIN_BUSY_MS));
+    try {
+      return await work;
+    } finally {
+      await minimumDelay;
+    }
+  }
+
   async submit(): Promise<void> {
     if (this.loginForm().invalid()) {
       this.loginForm().markAsTouched();
@@ -36,7 +56,7 @@ export class Login {
     this.status.set('');
     this.statusError.set(false);
     try {
-      await this.auth.signIn(this.model().email, this.model().password);
+      await this.withMinimumBusy(this.auth.signIn(this.model().email, this.model().password));
       this.model.update((m) => ({ ...m, password: '' }));
       await this.auth.initSession();
       await this.router.navigateByUrl('/');
@@ -58,7 +78,7 @@ export class Login {
     this.status.set('');
     this.statusError.set(false);
     try {
-      await this.auth.requestPasswordReset(this.model().email);
+      await this.withMinimumBusy(this.auth.requestPasswordReset(this.model().email));
       this.status.set('If that email exists, a reset link is on its way.');
     } catch (err) {
       this.status.set((err as Error).message);
