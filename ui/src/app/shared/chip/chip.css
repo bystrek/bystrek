@@ -1,0 +1,46 @@
+.app-chip {
+  --_bg: var(--color-secondary);
+  --_bg-hover: color-mix(in srgb, var(--color-secondary), var(--color-ink) 12%);
+
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  margin: 0;
+  padding: 0 var(--space-3);
+  border: var(--border-heavy);
+  background: var(--_bg);
+  color: var(--color-ink);
+  font: 500 var(--text-sm) / 1.2 var(--font-mono);
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--motion-fast);
+}
+
+.app-chip[data-tone='surface'] {
+  --_bg: var(--color-surface);
+  --_bg-hover: color-mix(in srgb, var(--color-surface), var(--color-ink) 8%);
+}
+
+@media (hover: hover) {
+  .app-chip:hover:not(:disabled) {
+    background: var(--_bg-hover);
+  }
+}
+
+.app-chip:active:not(:disabled) {
+  background: var(--_bg-hover);
+  transform: translate(1px, 1px);
+}
+
+.app-chip:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.app-chip:disabled {
+  border-style: dashed;
+  background: var(--color-bg);
+  color: var(--color-ink-subtle);
+  cursor: not-allowed;
+}
