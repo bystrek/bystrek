@@ -34,20 +34,22 @@ Cloudflare Tunnel → Caddy → `ui` (Angular: login, profile, settings); `api.b
 .github/       CI workflows (builds api/ and ui/ images to GHCR)
 api/           NestJS + Drizzle + Bun backend — Postgres, auth, calendar
 ui/            Angular frontend — login, profile, settings
+scripts/       dev.sh — one-command local start (Postgres, migrate, seed, api, ui)
 brand/         Logo, icon, and favicon assets (SVG sources + rendered exports)
 docs/          architecture.md (direction) — live punch list is in GitHub Issues
 ```
 
 ## Local development
 
-1. Start Postgres: `docker compose -f docker-compose.dev.yml up -d`
-2. Create `api/.env` from `api/.env.example`. Set `DATABASE_URL=postgres://bystrek:bystrek@localhost:5432/bystrek`. Set `AUTH_SECRET` and `ENCRYPTION_KEY` (see the example for generation). `ENCRYPTION_KEY` protects saved calendar credentials, so keep it stable.
-3. Set `RESEND_API_KEY`. The API won't start without it unless `BYSTREK_LOCAL_DEV=1` is set (then password-reset emails are not sent).
-4. Migrate and start the API: `cd api && bun run db:migrate && bun run start:dev`
-5. Start the UI: `cd ui && bun run start`. Use `bun run start:remote` to proxy to the deployed API.
-6. Create the owner. Set `SEED_OWNER_NAME` and `SEED_OWNER_EMAIL` in `api/.env`, then run `cd api && bun run db:seed` in a second terminal. This emails a password-setup link that opens the UI's `/auth/reset-password` page, so keep the UI running. Set the password from that link.
+1. Create `api/.env` from `api/.env.example`. Set `AUTH_SECRET` and `ENCRYPTION_KEY` (see the example for generation). `ENCRYPTION_KEY` protects saved calendar credentials, so keep it stable.
+2. Set `SEED_OWNER_NAME`, `SEED_OWNER_EMAIL`, and `SEED_OWNER_PASSWORD` in `api/.env`.
+3. Run `./scripts/dev.sh`. It starts Postgres, migrates, creates the owner on first run, and starts the API and UI. Log in at `http://localhost:4200` with the seeded email and password. `Ctrl+C` stops the API and UI; Postgres keeps running.
 
 Add your test CalDAV account in Settings after signing in.
+
+Without `dev.sh`: `cd api && bun run db:migrate && bun run db:seed:local`, then `bun run start:dev` in `api/` and `bun run start` in `ui/`. Set `BYSTREK_LOCAL_DEV=1` so the API starts without `RESEND_API_KEY`. Use `bun run start:remote` in `ui/` to proxy to the deployed API.
+
+Deployed environments use `cd api && bun run db:seed`, which emails a password-setup link instead (needs `RESEND_API_KEY`).
 
 Windows: run it under WSL2, not Git Bash — Docker Desktop already requires WSL2 as its backend.
 

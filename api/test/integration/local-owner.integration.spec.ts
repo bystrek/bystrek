@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { eq } from 'drizzle-orm';
 import { verifyPassword } from 'better-auth/crypto';
-import { localOwnerNeedsPassword, seedLocalOwner } from '../../src/db/local-owner';
+import { localOwnerNeedsPassword, seedLocalOwner } from '../../scripts/local-owner';
 import { accounts, users } from '../../src/db/schema';
 import { testDb } from './support/test-db';
 

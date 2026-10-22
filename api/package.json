@@ -7,8 +7,8 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\" \"*.ts\"",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" \"*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\" \"*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
@@ -20,7 +20,8 @@
     "test:integration": "bun test test/integration",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "bun run src/db/seed.ts"
+    "db:seed": "bun run scripts/seed.ts",
+    "db:seed:local": "bun run scripts/seed-local.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
