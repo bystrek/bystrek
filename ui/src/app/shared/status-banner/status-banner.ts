@@ -8,7 +8,7 @@ import { Icon } from '../icon/icon';
     @if (message()) {
       <div class="status" [id]="elementId()" [class.error]="error()">
         @if (error()) {
-          <app-icon name="square-alert" />
+          <app-icon name="warning" />
         }
         <span>{{ message() }}</span>
       </div>
