@@ -1,22 +1,58 @@
-<main class="auth-shell">
-  <h1>bystrek</h1>
-  <p>Sign in to reach the assistant.</p>
+<main class="login">
+  <app-stack class="login-stack" gap="space-6">
+    <header class="intro">
+      <h1>bystrek</h1>
+      <p>Sign in to reach the assistant.</p>
+    </header>
 
-  <form id="login" [formRoot]="loginForm" (submit)="submit()">
-    <input type="email" [formField]="loginForm.email" placeholder="Email" autocomplete="email" />
-    <input
-      type="password"
-      [formField]="loginForm.password"
-      placeholder="Password"
-      autocomplete="current-password"
-    />
-    <button type="submit" [disabled]="busy()">
-      {{ pendingAction() === 'signin' ? 'Signing in…' : 'Sign in' }}
-    </button>
-    <button type="button" class="link" (click)="forgotPassword()" [disabled]="busy()">
-      {{ pendingAction() === 'reset' ? 'Sending…' : 'Forgot password?' }}
-    </button>
-  </form>
+    <app-card>
+      <form id="login" [formRoot]="loginForm" (submit)="submit()">
+        <app-stack gap="space-3">
+          <input
+            type="email"
+            [formField]="loginForm.email"
+            placeholder="Email"
+            autocomplete="email"
+          />
+          <input
+            type="password"
+            [formField]="loginForm.password"
+            placeholder="Password"
+            autocomplete="current-password"
+          />
+          <button
+            appButton
+            type="submit"
+            variant="primary"
+            block
+            [disabled]="busy()"
+            [attr.aria-busy]="pendingAction() === 'signin' ? 'true' : null"
+          >
+            {{ pendingAction() === 'signin' ? 'Signing in…' : 'Sign in' }}
+          </button>
+          <button
+            appButton
+            type="button"
+            block
+            [disabled]="busy()"
+            [attr.aria-busy]="pendingAction() === 'reset' ? 'true' : null"
+            (click)="forgotPassword()"
+          >
+            {{ pendingAction() === 'reset' ? 'Sending…' : 'Forgot password?' }}
+          </button>
+        </app-stack>
+      </form>
+    </app-card>
 
-  <app-status-banner [message]="status()" [error]="statusError()" />
+    @if (status()) {
+      <app-alert
+        class="status-alert"
+        [tone]="statusError() ? 'danger' : 'neutral'"
+        [heading]="statusError() ? 'Something went wrong' : 'Heads up'"
+        (dismissed)="dismissStatus()"
+      >
+        {{ status() }}
+      </app-alert>
+    }
+  </app-stack>
 </main>
