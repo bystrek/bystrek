@@ -1,1 +1,0 @@
-ALTER TABLE "calendar_credentials" DROP COLUMN "calendar_name";

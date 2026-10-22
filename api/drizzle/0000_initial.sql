@@ -1,3 +1,5 @@
+CREATE TYPE "public"."user_status" AS ENUM('invited', 'active');--> statement-breakpoint
+CREATE TYPE "public"."visibility" AS ENUM('private', 'shared');--> statement-breakpoint
 CREATE TABLE "accounts" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
@@ -15,6 +17,18 @@ CREATE TABLE "accounts" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "calendar_credentials" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" uuid NOT NULL,
+	"caldav_url" text NOT NULL,
+	"username" text NOT NULL,
+	"password" text NOT NULL,
+	"calendar_url" text,
+	"calendar_display_name" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "sessions" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
@@ -23,6 +37,25 @@ CREATE TABLE "sessions" (
 	"ip_address" text,
 	"user_agent" text,
 	"impersonated_by" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "users" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"email" text NOT NULL,
+	"name" text,
+	"image" text,
+	"first_name" text,
+	"last_name" text,
+	"email_verified" boolean DEFAULT false NOT NULL,
+	"status" "user_status" DEFAULT 'invited' NOT NULL,
+	"timezone" text DEFAULT 'Europe/Warsaw' NOT NULL,
+	"locale" text DEFAULT 'en-PL' NOT NULL,
+	"role" text DEFAULT 'user' NOT NULL,
+	"banned" boolean DEFAULT false NOT NULL,
+	"ban_reason" text,
+	"ban_expires" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -36,14 +69,13 @@ CREATE TABLE "verifications" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "users" ADD COLUMN "role" text DEFAULT 'user' NOT NULL;--> statement-breakpoint
-ALTER TABLE "users" ADD COLUMN "banned" boolean DEFAULT false NOT NULL;--> statement-breakpoint
-ALTER TABLE "users" ADD COLUMN "ban_reason" text;--> statement-breakpoint
-ALTER TABLE "users" ADD COLUMN "ban_expires" timestamp with time zone;--> statement-breakpoint
 ALTER TABLE "accounts" ADD CONSTRAINT "accounts_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "calendar_credentials" ADD CONSTRAINT "calendar_credentials_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sessions" ADD CONSTRAINT "sessions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "accounts_issuer_account_id_unique" ON "accounts" USING btree ("issuer","account_id");--> statement-breakpoint
 CREATE INDEX "accounts_user_id_idx" ON "accounts" USING btree ("user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "calendar_credentials_user_id_unique" ON "calendar_credentials" USING btree ("user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "sessions_token_unique" ON "sessions" USING btree ("token");--> statement-breakpoint
 CREATE INDEX "sessions_user_id_idx" ON "sessions" USING btree ("user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "users_email_unique" ON "users" USING btree ("email");--> statement-breakpoint
 CREATE INDEX "verifications_identifier_idx" ON "verifications" USING btree ("identifier");
