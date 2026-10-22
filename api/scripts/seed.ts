@@ -1,10 +1,10 @@
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { createAuth } from '../auth/auth.config';
-import { DATABASE_URL, UI_URL } from '../env';
-import * as schema from './schema';
-import { users } from './schema';
+import { createAuth } from '../src/auth/auth.config';
+import { DATABASE_URL, UI_URL } from '../src/env';
+import * as schema from '../src/db/schema';
+import { users } from '../src/db/schema';
 
 function required(name: string): string {
   const value = process.env[name];

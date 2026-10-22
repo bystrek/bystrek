@@ -11,51 +11,47 @@ The app runs on the home server. See [Issues](https://github.com/bystrek/bystrek
 **Working today:**
 - A home server behind a Cloudflare Tunnel.
 - `bystrek.dev` and `api.bystrek.dev` route through Cloudflare to Caddy on the home server.
-- `ui/` (Angular, zoneless) at `bystrek.dev`: subscribe UI + service worker, login/user admin, profile, and chat pages.
-- `api/` (NestJS + Drizzle + Bun) at `api.bystrek.dev`: Postgres-backed subscriptions table, push subscribe/send endpoints, `better-auth`-backed login/invite/ban, `POST /chat` streaming local Ollama replies over SSE, and a calendar tool (CalDAV against Infomaniak kCalendar) with mutating actions gated behind explicit user confirmation. Verified end to end — a real push landed on a device via the deployed stack, and calendar read/write was verified against a real Infomaniak account.
-- Auth: email/password via `better-auth`, invite-gated (admin creates the row, no public signup), bearer tokens, admin plugin for invite/list/ban. Passkey deferred past v1.
+- `ui/` (Angular, zoneless) at `bystrek.dev`: login, profile, and settings.
+- `api/` (NestJS + Drizzle + Bun) at `api.bystrek.dev`: `better-auth`-backed login/invite/ban, and calendar event reads over CalDAV (Infomaniak kCalendar).
+- Auth: email/password via `better-auth`, invite-gated (admin creates the row, no public signup), bearer tokens, admin plugin for invite/list/ban.
 - Deploy pipeline: GitHub Actions builds `api`/`ui` images to GHCR. A reviewed `homelab` change pins the new image digests, and Flux rolls them out when the owner cuts a `homelab` release tag.
 
 **Not built yet:**
-- `owner_id`/`visibility` on domain tables — deferred until more domains exist (tier-2 field encryption is live, used by chat and calendar credentials).
-- An agenda view and the daily digest push for the calendar vertical slice.
+- An agenda view and the daily digest for the calendar vertical slice.
 - Notes/research/medical/nutrition/gym domains.
-- Proactive nudging (the assistant messaging first, not just replying).
 
 ## Architecture
 
-Cloudflare Tunnel → Caddy → `ui` (Angular: subscribe UI + service worker, login/user admin, profile, chat); `api.bystrek.dev` → Caddy → `api` (NestJS: Postgres, push send/subscribe, `better-auth`, chat via private Ollama). Full design in [`docs/architecture.md`](docs/architecture.md).
+Cloudflare Tunnel → Caddy → `ui` (Angular: login, profile, settings); `api.bystrek.dev` → Caddy → `api` (NestJS: Postgres, `better-auth`, calendar over CalDAV). Full design in [`docs/architecture.md`](docs/architecture.md).
 
 - **Access**: Cloudflare Tunnel exposes the application.
 - **TLS**: Cloudflare terminates TLS at the tunnel edge.
 - **Domain**: `bystrek.dev` is a non-identifying domain.
 
-For current infrastructure configuration, see `infra/` below.
-
 ## Repo layout
 
 ```
 .github/       CI workflows (builds api/ and ui/ images to GHCR)
-api/           NestJS + Drizzle + Bun backend — Postgres, push subscribe/send, chat
-ui/            Angular frontend — subscribe UI, service worker, chat
+api/           NestJS + Drizzle + Bun backend — Postgres, auth, calendar
+ui/            Angular frontend — login, profile, settings
+scripts/       dev.sh — one-command local start (Postgres, migrate, seed, api, ui)
 brand/         Logo, icon, and favicon assets (SVG sources + rendered exports)
 docs/          architecture.md (direction) — live punch list is in GitHub Issues
-infra/         Manually-synced copies of the home-server configuration
 ```
 
 ## Local development
 
-`BYSTREK_SSH_HOST=<your-cluster-SSH-target> ./scripts/dev.sh` starts local Postgres, migrates a dedicated `bystrek_dev` database, creates an owner on first run, and runs `api`/`ui` with a private SSH tunnel to the cluster's Ollama service. The SSH target must run `sudo k3s kubectl`; SSH and sudo may prompt for credentials. First run asks for an owner email and a local password; later runs keep the account and calendar settings. Add your test CalDAV account in Settings after signing in. `Ctrl+C` stops the tunnel, `api`, and `ui`; Postgres keeps running. If the tunnel exits, local dev stops.
+1. Create `api/.env` from `api/.env.example`. Set `AUTH_SECRET` and `ENCRYPTION_KEY` (see the example for generation). `ENCRYPTION_KEY` protects saved calendar credentials, so keep it stable.
+2. Set `SEED_OWNER_NAME`, `SEED_OWNER_EMAIL`, and `SEED_OWNER_PASSWORD` in `api/.env`.
+3. Set `BYSTREK_SSH_HOST` to your cluster SSH target. Run `./scripts/dev.sh`. It opens an SSH tunnel to Ollama, starts Postgres, migrates, creates the owner on first run, and starts the API and UI. Log in at `http://localhost:4200` with the seeded email and password. `Ctrl+C` stops the API and UI; Postgres keeps running.
 
-Private API config lives at `~/.config/bystrek/dev.env` (mode 600), outside the repo. Set `BYSTREK_DEV_ENV` to use another path. Keep this file: it contains the encryption key needed to read saved calendar credentials. Email delivery is optional locally; password resets need `RESEND_API_KEY` in that file. Existing `api/.env` and the old `bystrek` database are left untouched.
+Add your test CalDAV account in Settings after signing in.
 
-The tunnel forwards Ollama to `localhost:11434`. The launcher defaults to `qwen3:8b` with `LLM_THINK=false`; shell-set `LLM_MODEL` and `LLM_THINK` override the defaults.
+Without `dev.sh`: `cd api && bun run db:migrate && bun run db:seed:local`, then `bun run start:dev` in `api/` and `bun run start` in `ui/`. Set `BYSTREK_LOCAL_DEV=1` so the API starts without `RESEND_API_KEY`. Use `bun run start:remote` in `ui/` to proxy to the deployed API.
+
+Deployed environments use `cd api && bun run db:seed`, which emails a password-setup link instead (needs `RESEND_API_KEY`).
 
 Windows: run it under WSL2, not Git Bash — Docker Desktop already requires WSL2 as its backend.
-
-## Infra snapshot
-
-[`infra/`](infra/) holds reference copies of the home server's `docker-compose.yml`, `Caddyfile`, and `deploy.sh`. See [`infra/README.md`](infra/README.md) for the sync model.
 
 ## Secrets
 

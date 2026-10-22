@@ -22,17 +22,7 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./features/layout/layout').then((m) => m.Layout),
     children: [
-      { path: '', pathMatch: 'full', redirectTo: 'chat' },
-      { path: 'chat', loadComponent: () => import('./features/chat/chat').then((m) => m.Chat) },
-      {
-        path: 'agenda',
-        loadComponent: () => import('./features/agenda/agenda').then((m) => m.Agenda),
-      },
-      {
-        path: 'agenda/event/:uid',
-        loadComponent: () =>
-          import('./features/agenda/event-detail/event-detail').then((m) => m.EventDetail),
-      },
+      { path: '', pathMatch: 'full', redirectTo: 'settings' },
       {
         path: 'settings',
         loadComponent: () => import('./features/settings/settings').then((m) => m.Settings),

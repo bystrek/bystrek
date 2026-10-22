@@ -1,8 +1,8 @@
 import { and, eq } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { hashPassword } from 'better-auth/crypto';
-import * as schema from './schema';
-import { accounts, users } from './schema';
+import * as schema from '../src/db/schema';
+import { accounts, users } from '../src/db/schema';
 
 type Database = PostgresJsDatabase<typeof schema>;
 

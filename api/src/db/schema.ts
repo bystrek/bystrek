@@ -1,4 +1,3 @@
-import { sql } from 'drizzle-orm';
 import {
   boolean,
   index,
@@ -9,13 +8,6 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-
-export const subscriptions = pgTable('subscriptions', {
-  endpoint: text('endpoint').primaryKey(),
-  p256dh: text('p256dh').notNull(),
-  auth: text('auth').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
 
 export const userStatus = pgEnum('user_status', ['invited', 'active']);
 
@@ -33,9 +25,7 @@ export const users = pgTable(
     lastName: text('last_name'),
     emailVerified: boolean('email_verified').notNull().default(false),
     status: userStatus('status').notNull().default('invited'),
-    // No settings UI yet — set from sensible defaults, editable later
-    // alongside profile/calendar settings. Used to give the chat system
-    // prompt real "now"/formatting context (see devlog day 12).
+    // No settings UI yet — set from sensible defaults, editable later.
     timezone: text('timezone').notNull().default('Europe/Warsaw'),
     locale: text('locale').notNull().default('en-PL'),
     // better-auth admin plugin
@@ -133,56 +123,10 @@ export const verifications = pgTable(
 // owner. Defined once here so every future domain table reuses it.
 export const visibility = pgEnum('visibility', ['private', 'shared']);
 
-export const messageRole = pgEnum('message_role', ['user', 'assistant']);
-export const messageContentFormat = pgEnum('message_content_format', ['ollama']);
-
-export const conversations = pgTable(
-  'conversations',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    title: text('title'),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => [index('conversations_user_id_updated_at_idx').on(table.userId, table.updatedAt)],
-);
-
-// `content` holds an encrypted, JSON-serialized provider-neutral message.
-export const messages = pgTable(
-  'messages',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    conversationId: uuid('conversation_id')
-      .notNull()
-      .references(() => conversations.id, { onDelete: 'cascade' }),
-    visibility: visibility('visibility').notNull().default('private'),
-    role: messageRole('role').notNull(),
-    contentFormat: messageContentFormat('content_format').notNull().default('ollama'),
-    content: text('content').notNull(),
-    // clock_timestamp(), not defaultNow() (= now(), frozen for a whole
-    // transaction): a single reply persists several rows in quick
-    // succession, and their relative order (fed back to the local model as
-    // conversation history, and returned by GET /chat/history) must reflect
-    // real insertion order even when those inserts share one transaction.
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .default(sql`clock_timestamp()`),
-  },
-  (table) => [
-    index('messages_conversation_id_created_at_idx').on(table.conversationId, table.createdAt),
-  ],
-);
-
-// One CalDAV account per user (Infomaniak kCalendar — see docs/roadmap.md).
-// `password` is tier-2 encrypted (api/src/crypto/field-encryption.ts), same
-// as `messages.content`; `caldavUrl`/`username`/`calendarUrl`/
-// `calendarDisplayName` aren't credentials on their own so are stored plain.
+// One CalDAV account per user (Infomaniak kCalendar).
+// `password` is tier-2 encrypted (api/src/crypto/field-encryption.ts);
+// `caldavUrl`/`username`/`calendarUrl`/`calendarDisplayName` aren't
+// credentials on their own so are stored plain.
 export const calendarCredentials = pgTable(
   'calendar_credentials',
   {

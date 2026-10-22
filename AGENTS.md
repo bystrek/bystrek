@@ -4,13 +4,11 @@ This repository contains the application code for bystrek:
 
 - `api/` — NestJS + Bun + Drizzle backend
 - `ui/` — Angular frontend
-- `infra/` — historical Compose/Caddy/deploy mirror for the current homeserver
 - `.github/workflows/` — CI and GHCR publish/deploy automation
 
 ## Working rules
 
-- Treat `api/.env.example`, `ui/public/config.json`, `ui/config.prod.json`, and
-  `infra/README.md` as the documented current behavior.
+- Treat `api/.env.example` and `ui/public/config.json` as the documented current behavior.
 - Keep the current Compose deployment facts separate from the Kubernetes target
   that lives in `~/Projects/homelab`.
 - The API currently runs migrations at container boot via `api/docker-entrypoint.sh`.
@@ -43,4 +41,3 @@ This repository contains the application code for bystrek:
 - Database: PostgreSQL 16
 - API image pipeline: GHCR build; deployed by pinning its digest in `homelab`
 - UI image pipeline: GHCR build; deployed by pinning its digest in `homelab`
-- Ollama connectivity is through `LLM_BASE_URL` / `LLM_MODEL`

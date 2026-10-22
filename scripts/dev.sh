@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Prepares a private local database and runs api + ui.
+# Local dev: Postgres + migrate + seed owner + api + ui. Needs api/.env (see api/.env.example).
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -7,70 +7,30 @@ cd "$ROOT_DIR"
 
 fail() { echo "error: $*" >&2; exit 1; }
 
+echo "==> Checking prerequisites"
 [ -t 0 ] || fail "a terminal is required for the SSH tunnel and sudo"
 stty sane </dev/tty
-echo "==> Checking prerequisites"
-
 command -v bun >/dev/null 2>&1 || fail "bun not found — install from https://bun.sh"
 command -v docker >/dev/null 2>&1 || fail "docker not found — install Docker Desktop"
 command -v ssh >/dev/null 2>&1 || fail "ssh not found"
 command -v curl >/dev/null 2>&1 || fail "curl not found"
 [ -n "${BYSTREK_SSH_HOST:-}" ] || fail "set BYSTREK_SSH_HOST to your cluster SSH target"
 docker info >/dev/null 2>&1 || fail "docker daemon not running — start Docker Desktop"
-docker compose version >/dev/null 2>&1 || fail "docker compose plugin not found"
+[ -f api/.env ] || fail "create api/.env from api/.env.example first"
 
 [ -d api/node_modules ] || (cd api && echo "==> Installing api deps" && bun install)
 [ -d ui/node_modules ] || (cd ui && echo "==> Installing ui deps" && bun install)
 
-DEV_ENV="${BYSTREK_DEV_ENV:-$HOME/.config/bystrek/dev.env}"
-if [ ! -f "$DEV_ENV" ]; then
-  [ -t 0 ] || fail "first-time setup needs a terminal for the local owner and password"
-  echo "==> Creating private local config at $DEV_ENV"
-  mkdir -p -m 700 "$(dirname "$DEV_ENV")"
-  umask 077
-  vapid_json="$(cd api && ./node_modules/.bin/web-push generate-vapid-keys --json)"
-  vapid_public="$(echo "$vapid_json" | grep -oE '"publicKey":"[^"]*"' | cut -d'"' -f4)"
-  vapid_private="$(echo "$vapid_json" | grep -oE '"privateKey":"[^"]*"' | cut -d'"' -f4)"
-  [ -n "$vapid_public" ] && [ -n "$vapid_private" ] || fail "failed to generate VAPID keypair"
-
-  seed_name="$(git config user.name 2>/dev/null || true)"
-  seed_email="$(git config user.email 2>/dev/null || true)"
-  echo "==> Local owner (press Enter to accept the default)"
-  read -r -p "    Name [$seed_name]: " input_name
-  read -r -p "    Email [$seed_email]: " input_email
-  seed_name="${input_name:-$seed_name}"
-  seed_email="${input_email:-$seed_email}"
-  [[ "$seed_email" =~ ^[^[:space:]@]+@[^[:space:]@]+$ ]] || fail "a local owner email is required"
-  [ -n "$seed_name" ] || fail "a local owner name is required"
-  auth_secret="$(bun -e 'console.log(require("node:crypto").randomBytes(32).toString("base64"))')"
-  encryption_key="$(bun -e 'console.log(require("node:crypto").randomBytes(32).toString("base64"))')"
-  cat > "$DEV_ENV" <<EOF
-PORT=3000
-HOST=127.0.0.1
-DATABASE_URL=postgres://bystrek:bystrek@localhost:5432/bystrek_dev
-CORS_ORIGINS=http://localhost:4200
-VAPID_PUBLIC_KEY=$vapid_public
-VAPID_PRIVATE_KEY=$vapid_private
-VAPID_SUBJECT=mailto:$seed_email
-SEED_OWNER_NAME=$seed_name
-SEED_OWNER_EMAIL=$seed_email
-AUTH_SECRET=$auth_secret
-UI_URL=http://localhost:4200
-API_URL=http://localhost:3000
-LLM_BASE_URL=http://localhost:11434
-LLM_TIMEOUT_MS=120000
-ENCRYPTION_KEY=$encryption_key
-EOF
-fi
-chmod 600 "$DEV_ENV"
-export DOTENV_CONFIG_PATH="$DEV_ENV"
-export BYSTREK_LOCAL_DEV=1
-export LLM_MODEL="${LLM_MODEL:-qwen3:8b}"
-export LLM_THINK="${LLM_THINK:-false}"
+# A shell-exported DATABASE_URL would override api/.env, so drop it.
 unset DATABASE_URL
+# Skips RESEND_API_KEY; the local owner is seeded with a password, not an email link.
+export BYSTREK_LOCAL_DEV=1
+export HOST="${HOST:-127.0.0.1}"
+# Angular CLI would otherwise prompt for analytics, which fails in a background job.
+export NG_CLI_ANALYTICS=false
 
 echo "==> Starting dev Postgres"
-docker compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml up -d postgres
 
 echo "==> Waiting for Postgres"
 for _ in $(seq 1 30); do
@@ -80,23 +40,8 @@ done
 docker compose -f docker-compose.dev.yml exec -T postgres pg_isready -U bystrek >/dev/null 2>&1 \
   || fail "Postgres didn't become ready in time"
 
-echo "==> Preparing local database"
-(cd api && bun --env-file="$DEV_ENV" run src/db/ensure-local-db.ts && bun --env-file="$DEV_ENV" run db:migrate)
-
-seed_status="$(cd api && bun --env-file="$DEV_ENV" run src/db/seed-local.ts --check)"
-case "$seed_status" in
-  ready) ;;
-  needs-password)
-    [ -t 0 ] || fail "first-time setup needs a terminal to enter the local password"
-    read -r -s -p "    Local login password (8-128 characters): " local_password
-    echo
-    [ "${#local_password}" -ge 8 ] && [ "${#local_password}" -le 128 ] \
-      || fail "local password must be 8-128 characters"
-    printf '%s' "$local_password" | (cd api && bun --env-file="$DEV_ENV" run src/db/seed-local.ts --create)
-    unset local_password
-    ;;
-  *) fail "unexpected local owner status: $seed_status" ;;
-esac
+echo "==> Migrating and seeding local owner"
+(cd api && bun run db:migrate && bun run db:seed:local)
 
 pids=()
 tunnel_ready_file=""
@@ -124,9 +69,8 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-echo "==> Starting private Ollama tunnel"
-tunnel_ready_file="$(mktemp)"
 echo "==> Waiting for Ollama tunnel (enter SSH/sudo credentials when prompted)"
+tunnel_ready_file="$(mktemp)"
 ssh -tt -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
   -L 127.0.0.1:11434:127.0.0.1:11435 \
   "$BYSTREK_SSH_HOST" \
@@ -136,8 +80,8 @@ ssh -tt -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCoun
       printf 'ready\n' > "$tunnel_ready_file"
     fi
   done) 2>&1 </dev/tty &
-tunnel_pid=$!
-pids+=("$tunnel_pid")
+pids+=("$!")
+tunnel_pid="$!"
 
 for _ in $(seq 1 120); do
   stty opost onlcr isig </dev/tty
@@ -151,12 +95,13 @@ kill -0 "$tunnel_pid" 2>/dev/null || fail "Ollama tunnel exited"
 [ -s "$tunnel_ready_file" ] && curl -fs --max-time 2 -o /dev/null http://127.0.0.1:11434/api/tags \
   || fail "Ollama tunnel didn't become ready in time"
 
+# Bun runs the API: calendar code uses the Temporal API, which Node lacks.
 echo "==> Starting api (start:dev)"
-(cd api && exec bun --env-file="$DEV_ENV" run start:dev --exec bun) &
+(cd api && exec bun run start:dev --exec bun) &
 pids+=("$!")
 
-echo "==> Starting ui (dev)"
-(cd ui && exec env NG_CLI_ANALYTICS=false bun run start) &
+echo "==> Starting ui"
+(cd ui && exec bun run start) &
 pids+=("$!")
 
 echo "==> api: http://localhost:3000  ui: http://localhost:4200  (Ctrl+C to stop)"
