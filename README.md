@@ -11,7 +11,7 @@ The app runs on the home server. See [Issues](https://github.com/bystrek/bystrek
 **Working today:**
 - A home server behind a Cloudflare Tunnel.
 - `bystrek.dev` and `api.bystrek.dev` route through Cloudflare to Caddy on the home server.
-- `ui/` (Angular, zoneless) at `bystrek.dev`: login, profile, settings, and the agenda page.
+- `ui/` (Angular, zoneless) at `bystrek.dev`: login, profile, and settings.
 - `api/` (NestJS + Drizzle + Bun) at `api.bystrek.dev`: `better-auth`-backed login/invite/ban, and calendar event reads over CalDAV (Infomaniak kCalendar).
 - Auth: email/password via `better-auth`, invite-gated (admin creates the row, no public signup), bearer tokens, admin plugin for invite/list/ban.
 - Deploy pipeline: GitHub Actions builds `api`/`ui` images to GHCR. A reviewed `homelab` change pins the new image digests, and Flux rolls them out when the owner cuts a `homelab` release tag.
@@ -22,7 +22,7 @@ The app runs on the home server. See [Issues](https://github.com/bystrek/bystrek
 
 ## Architecture
 
-Cloudflare Tunnel → Caddy → `ui` (Angular: login, profile, settings, agenda); `api.bystrek.dev` → Caddy → `api` (NestJS: Postgres, `better-auth`, calendar over CalDAV). Full design in [`docs/architecture.md`](docs/architecture.md).
+Cloudflare Tunnel → Caddy → `ui` (Angular: login, profile, settings); `api.bystrek.dev` → Caddy → `api` (NestJS: Postgres, `better-auth`, calendar over CalDAV). Full design in [`docs/architecture.md`](docs/architecture.md).
 
 - **Access**: Cloudflare Tunnel exposes the application.
 - **TLS**: Cloudflare terminates TLS at the tunnel edge.
@@ -33,7 +33,7 @@ Cloudflare Tunnel → Caddy → `ui` (Angular: login, profile, settings, agenda)
 ```
 .github/       CI workflows (builds api/ and ui/ images to GHCR)
 api/           NestJS + Drizzle + Bun backend — Postgres, auth, calendar
-ui/            Angular frontend — login, profile, settings, agenda
+ui/            Angular frontend — login, profile, settings
 brand/         Logo, icon, and favicon assets (SVG sources + rendered exports)
 docs/          architecture.md (direction) — live punch list is in GitHub Issues
 ```
