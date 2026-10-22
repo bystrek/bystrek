@@ -16,6 +16,8 @@ until compose exec -T postgres pg_isready -U bystrek >/dev/null 2>&1; do sleep 1
 
 # Skips RESEND_API_KEY; the local owner is seeded with a password, not an email link.
 export BYSTREK_LOCAL_DEV=1
+# Angular CLI would otherwise prompt for analytics, which fails in a background job.
+export NG_CLI_ANALYTICS=false
 
 (cd api && bun run db:migrate && bun run db:seed:local)
 
