@@ -27,19 +27,6 @@
   </section>
 
   <section class="settings-section">
-    <h2>Notifications</h2>
-    <p>Enable notifications to let the assistant reach you.</p>
-
-    <button (click)="push.subscribe()" [disabled]="push.busy() || push.subscribed()">
-      {{ push.subscribed() ? 'Subscribed' : 'Enable notifications' }}
-    </button>
-    <button (click)="push.sendTest()" [disabled]="push.busy() || !push.subscribed()">
-      Send test notification
-    </button>
-    <app-status-banner elementId="status" [message]="push.status()" [error]="push.statusError()" />
-  </section>
-
-  <section class="settings-section">
     <h2>Calendar</h2>
     @if (calendar.credentials()?.configured) {
       <p>
@@ -110,34 +97,4 @@
 
     <app-status-banner [message]="calendarStatus()" [error]="calendarStatusError()" />
   </section>
-
-  @if (users.members(); as members) {
-    <section class="settings-section" id="users">
-      <h2>Users</h2>
-      <ul>
-        @for (member of members; track member.id) {
-          <li>
-            {{ member.name ?? 'Unnamed user' }}
-            <span class="badge">{{ member.status }}</span>
-            @if (auth.session()?.user?.role === 'admin') {
-              <button class="link" (click)="toggleBan(member)" [disabled]="users.busy()">
-                {{ member.banned ? 'Unban' : 'Ban' }}
-              </button>
-            }
-          </li>
-        }
-      </ul>
-
-      @if (auth.session()?.user?.role === 'admin') {
-        <form id="invite" [formRoot]="inviteForm" (submit)="invite()">
-          <input type="text" [formField]="inviteForm.inviteName" placeholder="Name" />
-          <input type="email" [formField]="inviteForm.inviteEmail" placeholder="Email" />
-          <button type="submit" [disabled]="users.busy()">
-            {{ invitingUser() ? 'Inviting…' : 'Invite' }}
-          </button>
-        </form>
-        <app-status-banner [message]="inviteStatus()" [error]="inviteStatusError()" />
-      }
-    </section>
-  }
 </main>

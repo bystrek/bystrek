@@ -33,8 +33,7 @@ function mockSession(page: import('@playwright/test').Page) {
 test('edits first/last name and avatar, then saves via update-user', async ({ page }) => {
   await mockSignIn(page);
   await mockSession(page);
-  await page.route('**/users', (route) => route.fulfill({ json: [] }));
-  await page.route('**/chat/conversations', (route) => route.fulfill({ json: [] }));
+
   await page.route('**/calendar/credentials', (route) =>
     route.fulfill({
       json: {
@@ -58,7 +57,7 @@ test('edits first/last name and avatar, then saves via update-user', async ({ pa
   await page.getByPlaceholder('Password').fill('correct horse battery staple');
   await page.getByRole('button', { name: 'Sign in' }).click();
 
-  await expect(page).toHaveURL('/chat');
+  await expect(page).toHaveURL('/agenda');
   await page.getByRole('link', { name: 'Settings' }).click();
   await expect(page).toHaveURL('/settings');
 

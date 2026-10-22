@@ -1,9 +1,7 @@
 import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
-import { FormField, FormRoot, email, form, required } from '@angular/forms/signals';
+import { FormField, FormRoot, form, required } from '@angular/forms/signals';
 import { AuthService } from '../../core/auth/auth.service';
 import { CalendarOption, CalendarService } from '../../core/calendar/calendar.service';
-import { PushService } from '../../core/push/push.service';
-import { UsersService, type Member } from '../../core/users/users.service';
 import { StatusBanner } from '../../shared/status-banner/status-banner';
 import { downscaleImage } from './downscale-image';
 
@@ -17,8 +15,6 @@ import { downscaleImage } from './downscale-image';
 export class Settings implements OnInit {
   protected readonly auth = inject(AuthService);
   protected readonly calendar = inject(CalendarService);
-  protected readonly push = inject(PushService);
-  protected readonly users = inject(UsersService);
 
   private readonly profileModel = signal({ firstName: '', lastName: '' });
   protected readonly profileForm = form(this.profileModel, (path) => {
@@ -52,20 +48,7 @@ export class Settings implements OnInit {
   readonly calendarOptions = signal<CalendarOption[]>([]);
   readonly loadingCalendars = signal(false);
 
-  private readonly inviteModel = signal({ inviteName: '', inviteEmail: '' });
-  protected readonly inviteForm = form(this.inviteModel, (path) => {
-    required(path.inviteName);
-    required(path.inviteEmail);
-    email(path.inviteEmail);
-  });
-  readonly inviteStatus = signal('');
-  readonly inviteStatusError = signal(false);
-  readonly invitingUser = signal(false);
-
   ngOnInit(): void {
-    void this.push.checkExistingSubscription();
-    void this.users.load();
-
     const user = this.auth.session()?.user;
     if (!user) return;
     this.profileModel.set({ firstName: user.firstName ?? '', lastName: user.lastName ?? '' });
@@ -188,30 +171,5 @@ export class Settings implements OnInit {
     } finally {
       this.busy.set(false);
     }
-  }
-
-  async invite(): Promise<void> {
-    if (this.inviteForm().invalid()) {
-      this.inviteForm().markAsTouched();
-      return;
-    }
-    this.inviteStatus.set('');
-    this.inviteStatusError.set(false);
-    this.invitingUser.set(true);
-    try {
-      const { inviteName, inviteEmail } = this.inviteModel();
-      await this.users.invite(inviteName, inviteEmail);
-      this.inviteModel.set({ inviteName: '', inviteEmail: '' });
-      this.inviteStatus.set('Invited — they’ll get an email to set a password.');
-    } catch (err) {
-      this.inviteStatus.set((err as Error).message);
-      this.inviteStatusError.set(true);
-    } finally {
-      this.invitingUser.set(false);
-    }
-  }
-
-  toggleBan(member: Member): void {
-    void this.users.toggleBan(member);
   }
 }

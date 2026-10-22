@@ -43,9 +43,8 @@ export interface CalendarSummary {
 
 // Thin per-request wrapper: builds a tsdav DAVClient from the requesting
 // user's stored CalDAV credentials and resolves their target calendar. No
-// caching — chat's tool-call volume doesn't warrant it, and it keeps every
-// call self-contained (no stale client across a long-lived credentials
-// change).
+// caching, so every call is self-contained (no stale client across a
+// long-lived credentials change).
 @Injectable()
 export class CalendarService {
   constructor(private readonly credentials: CalendarCredentialsService) {}
@@ -115,10 +114,9 @@ export class CalendarService {
     return { client, calendar };
   }
 
-  // `timeZone` is the requesting user's own timezone (see chat.tools.ts) —
-  // event times are returned already formatted for it (explicit UTC
-  // offset, never raw UTC) so the model never has to convert timezones
-  // itself. See zoned-time.ts / devlog day 12.
+  // `timeZone` is the requesting user's own timezone — event times are
+  // returned already formatted for it (explicit UTC offset, never raw UTC).
+  // See zoned-time.ts / devlog day 12.
   async listEvents(userId: string, range: { start: Date; end: Date }, timeZone: string) {
     assertValidTimeZone(timeZone);
     const { client, calendar } = await this.connect(userId);
@@ -133,8 +131,7 @@ export class CalendarService {
     );
   }
 
-  // Used to build a human-readable confirmation preview before an
-  // update/delete executes — see pending-actions.ts.
+  // Used to build the event detail view for a single occurrence.
   async getEvent(userId: string, uid: string, timeZone: string, occurrence?: Date) {
     assertValidTimeZone(timeZone);
     const { client, calendar } = await this.connect(userId);

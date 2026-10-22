@@ -3,12 +3,10 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { CalendarModule } from './calendar/calendar.module';
-import { ChatModule } from './chat/chat.module';
-import { PushModule } from './push/push.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
-  imports: [PushModule, UsersModule, AuthModule, ChatModule, CalendarModule],
+  imports: [UsersModule, AuthModule, CalendarModule],
   controllers: [AppController],
   providers: [AppService],
 })

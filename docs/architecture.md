@@ -31,7 +31,7 @@ Scheduler ──▶ RabbitMQ ──▶ Worker ──▶ Backend API / push
 
 ## Write safety
 
-The LLM never calls write tools. It drafts a typed action; the user confirms it in the UI, and only that confirmation writes. Applies to sensitive domains, medical records included. Soft-deletes/versioning on all writes. Calendar command contract and confirm flow: [ADR 0001](adr/0001-calendar-command-contract.md).
+The LLM never calls write tools. It drafts a typed action; the user confirms it in the UI, and only that confirmation writes. Applies to sensitive domains, medical records included. Soft-deletes/versioning on all writes.
 
 ## Domains (decided)
 
