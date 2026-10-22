@@ -1,0 +1,28 @@
+:host {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  box-sizing: border-box;
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-w-thin) solid var(--color-ink);
+  background: var(--color-ink);
+  color: var(--color-inverse-ink);
+  font: 700 var(--text-xs) / 1.2 var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+}
+
+:host([data-variant='outline']) {
+  background: transparent;
+  color: var(--color-ink);
+}
+
+:host([data-variant='boxed']) {
+  border: var(--border-heavy);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-weight: 500;
+  font-size: var(--text-sm);
+  text-transform: none;
+  letter-spacing: 0;
+}

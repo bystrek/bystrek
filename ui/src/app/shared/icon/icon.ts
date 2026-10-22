@@ -1,32 +1,48 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
-import arrowLeft from 'pixelarticons/svg/arrow-left.svg';
-import arrowUp from 'pixelarticons/svg/arrow-up.svg';
-import calendar from 'pixelarticons/svg/calendar.svg';
-import chevronLeft from 'pixelarticons/svg/chevron-left.svg';
-import chevronRight from 'pixelarticons/svg/chevron-right.svg';
-import clock from 'pixelarticons/svg/clock.svg';
-import mapPin from 'pixelarticons/svg/map-pin.svg';
-import note from 'pixelarticons/svg/note.svg';
-import squareAlert from 'pixelarticons/svg/square-alert.svg';
+import {
+  ARROW_ELBOW_DOWN_RIGHT_BOLD,
+  ARROW_LEFT_BOLD,
+  ARROW_RIGHT_BOLD,
+  ARROW_UP_BOLD,
+  CALENDAR_BLANK_BOLD,
+  CARET_LEFT_BOLD,
+  CARET_RIGHT_BOLD,
+  CHECK_BOLD,
+  CLOCK_BOLD,
+  INFO_BOLD,
+  MAP_PIN_BOLD,
+  NOTE_BOLD,
+  STOP_FILL,
+  WARNING_BOLD,
+  X_BOLD,
+} from './icon-svgs';
 
 const ICONS = {
-  'square-alert': squareAlert,
-  'arrow-up': arrowUp,
-  'arrow-left': arrowLeft,
-  calendar,
-  'chevron-left': chevronLeft,
-  'chevron-right': chevronRight,
-  clock,
-  'map-pin': mapPin,
-  note,
+  'arrow-left': ARROW_LEFT_BOLD,
+  'arrow-right': ARROW_RIGHT_BOLD,
+  'arrow-up': ARROW_UP_BOLD,
+  calendar: CALENDAR_BLANK_BOLD,
+  'chevron-left': CARET_LEFT_BOLD,
+  'chevron-right': CARET_RIGHT_BOLD,
+  check: CHECK_BOLD,
+  clock: CLOCK_BOLD,
+  'corner-down-right': ARROW_ELBOW_DOWN_RIGHT_BOLD,
+  info: INFO_BOLD,
+  'map-pin': MAP_PIN_BOLD,
+  note: NOTE_BOLD,
+  stop: STOP_FILL,
+  warning: WARNING_BOLD,
+  x: X_BOLD,
 } as const;
 
 export type IconName = keyof typeof ICONS;
+export const ICON_NAMES = Object.keys(ICONS) as IconName[];
 
 @Component({
   selector: 'app-icon',
   template: `<span class="app-icon" [innerHTML]="svg()"></span>`,
+  host: { 'aria-hidden': 'true' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Icon {

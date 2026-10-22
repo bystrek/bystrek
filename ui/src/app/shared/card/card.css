@@ -1,0 +1,23 @@
+:host {
+  display: block;
+  box-sizing: border-box;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border: var(--border-heavy);
+  box-shadow: var(--elevation, var(--shadow));
+}
+
+:host([data-tone='primary']) {
+  background: var(--color-primary);
+}
+
+:host([data-tone='danger']) {
+  background: var(--color-danger);
+}
+
+/* Thin cards are calm: 1px border, no shadow. */
+:host([data-weight='thin']) {
+  border: var(--border-thin);
+  box-shadow: none;
+}

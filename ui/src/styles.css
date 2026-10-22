@@ -2,7 +2,13 @@
 
 * {
   border-radius: 0 !important;
-  box-shadow: none !important;
+}
+
+/* Quiet mode: the primitives drop their hard shadow and press travel. */
+[data-quiet] {
+  --elevation: none;
+  --elevation-press: none;
+  --press-offset: 0px;
 }
 
 body {
@@ -10,10 +16,16 @@ body {
   min-height: 100vh;
   background: var(--color-bg);
   color: var(--color-ink);
-  font-family: var(--font-text);
-  font-size: 26px;
+  font-family: var(--font-ui);
+  font-size: var(--text-md);
+  -webkit-tap-highlight-color: transparent;
 }
 
+/*
+ * Legacy element rules for screens that are not restyled yet. They are
+ * scoped (with :where, so specificity stays that of a bare element) to the
+ * existing containers so the new primitives are unaffected.
+ */
 .auth-shell {
   box-sizing: border-box;
   display: flex;
@@ -30,7 +42,7 @@ body {
 h1,
 h2,
 h3 {
-  font-family: var(--font-text);
+  font-family: var(--font-ui);
   font-weight: 700;
 }
 
@@ -41,32 +53,32 @@ h1 {
   text-transform: uppercase;
 }
 
-p {
+:where(.auth-shell, .page, .shell) p {
   color: var(--color-ink-muted);
   line-height: 1.5;
   margin: 0 0 28px;
 }
 
-button {
+:where(.auth-shell, .page, .shell) button {
   font: inherit;
-  font-family: var(--font-text);
+  font-family: var(--font-ui);
   font-size: 24px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.02em;
   padding: 13px 26px;
-  border: var(--border-width) solid var(--color-border);
-  background: var(--color-accent);
-  color: var(--color-accent-ink);
+  border: var(--border-heavy);
+  background: var(--color-primary);
+  color: var(--color-ink);
   cursor: pointer;
   margin: 0 6px 12px;
 }
 
-button:hover:not(:disabled) {
+:where(.auth-shell, .page, .shell) button:hover:not(:disabled) {
   filter: brightness(0.92);
 }
 
-button:disabled {
+:where(.auth-shell, .page, .shell) button:disabled {
   opacity: 0.45;
   cursor: default;
 }
@@ -77,7 +89,7 @@ button:disabled {
   color: var(--color-ink);
   text-decoration: underline;
   text-transform: none;
-  font-family: var(--font-text);
+  font-family: var(--font-ui);
   font-weight: 400;
   padding: 4px;
   margin: 0;
@@ -90,17 +102,15 @@ button:disabled {
   opacity: 0.7;
 }
 
-input,
-select {
+:where(.auth-shell, .page, .shell) :is(input, select) {
   font: inherit;
-  font-family: var(--font-text);
-  /* Comfortably above the 16px iOS Safari auto-zoom-on-focus threshold —
-     anything below that trips the built-in zoom, and disabling it via
-     `maximum-scale`/`user-scalable=no` would also block legitimate
-     pinch-zoom (accessibility regression). */
-  font-size: 26px;
+  font-family: var(--font-ui);
+  /* Keep at 16px or above: smaller sizes trip the iOS Safari
+     auto-zoom-on-focus, and disabling it via `maximum-scale` would also
+     block legitimate pinch-zoom (accessibility regression). */
+  font-size: 20px;
   padding: 10px 14px;
-  border: var(--border-width) solid var(--color-border);
+  border: var(--border-heavy);
   background: var(--color-surface);
   color: var(--color-ink);
 }
@@ -123,7 +133,7 @@ select {
   color: var(--color-ink);
   font-weight: 700;
   background: var(--color-surface);
-  border: var(--border-width) solid var(--color-border);
+  border: var(--border-heavy);
   border-left-width: 9px;
   border-left-color: var(--color-danger);
 }
@@ -133,7 +143,7 @@ select {
   flex-shrink: 0;
   width: 29px;
   height: 29px;
-  color: var(--color-danger);
+  color: var(--color-ink);
 }
 
 .app-icon {
