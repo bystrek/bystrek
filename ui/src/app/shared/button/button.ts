@@ -36,11 +36,14 @@ export class Button {
   constructor() {
     // Registered in the constructor so it runs before click handlers bound in the parent template.
     const el: HTMLElement = inject(ElementRef).nativeElement;
-    el.addEventListener('click', (event) => {
+    // Middle-click fires auxclick, not click, so block both.
+    const blockDisabledAnchor = (event: Event) => {
       if (el.tagName === 'A' && el.getAttribute('aria-disabled') === 'true') {
         event.preventDefault();
         event.stopImmediatePropagation();
       }
-    });
+    };
+    el.addEventListener('click', blockDisabledAnchor);
+    el.addEventListener('auxclick', blockDisabledAnchor);
   }
 }

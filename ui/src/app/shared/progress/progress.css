@@ -7,10 +7,12 @@
   overflow: hidden;
 }
 
+/* Ink edge at the fill endpoint keeps the progress amount visible (mint on white is 1.49:1). */
 .fill {
   display: block;
   height: 100%;
   background: var(--color-primary);
+  box-shadow: inset -2px 0 0 var(--color-ink);
 }
 
 /*
