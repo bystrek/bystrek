@@ -1,37 +1,39 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
-import arrowLeft from '@phosphor-icons/core/assets/bold/arrow-left-bold.svg';
-import arrowRight from '@phosphor-icons/core/assets/bold/arrow-right-bold.svg';
-import arrowUp from '@phosphor-icons/core/assets/bold/arrow-up-bold.svg';
-import calendar from '@phosphor-icons/core/assets/bold/calendar-blank-bold.svg';
-import caretLeft from '@phosphor-icons/core/assets/bold/caret-left-bold.svg';
-import caretRight from '@phosphor-icons/core/assets/bold/caret-right-bold.svg';
-import check from '@phosphor-icons/core/assets/bold/check-bold.svg';
-import clock from '@phosphor-icons/core/assets/bold/clock-bold.svg';
-import cornerDownRight from '@phosphor-icons/core/assets/bold/arrow-elbow-down-right-bold.svg';
-import info from '@phosphor-icons/core/assets/bold/info-bold.svg';
-import mapPin from '@phosphor-icons/core/assets/bold/map-pin-bold.svg';
-import note from '@phosphor-icons/core/assets/bold/note-bold.svg';
-import stop from '@phosphor-icons/core/assets/fill/stop-fill.svg';
-import warning from '@phosphor-icons/core/assets/bold/warning-bold.svg';
-import x from '@phosphor-icons/core/assets/bold/x-bold.svg';
+import {
+  ARROW_ELBOW_DOWN_RIGHT_BOLD,
+  ARROW_LEFT_BOLD,
+  ARROW_RIGHT_BOLD,
+  ARROW_UP_BOLD,
+  CALENDAR_BLANK_BOLD,
+  CARET_LEFT_BOLD,
+  CARET_RIGHT_BOLD,
+  CHECK_BOLD,
+  CLOCK_BOLD,
+  INFO_BOLD,
+  MAP_PIN_BOLD,
+  NOTE_BOLD,
+  STOP_FILL,
+  WARNING_BOLD,
+  X_BOLD,
+} from './icon-svgs';
 
 const ICONS = {
-  'arrow-left': arrowLeft,
-  'arrow-right': arrowRight,
-  'arrow-up': arrowUp,
-  calendar,
-  'chevron-left': caretLeft,
-  'chevron-right': caretRight,
-  check,
-  clock,
-  'corner-down-right': cornerDownRight,
-  info,
-  'map-pin': mapPin,
-  note,
-  stop,
-  warning,
-  x,
+  'arrow-left': ARROW_LEFT_BOLD,
+  'arrow-right': ARROW_RIGHT_BOLD,
+  'arrow-up': ARROW_UP_BOLD,
+  calendar: CALENDAR_BLANK_BOLD,
+  'chevron-left': CARET_LEFT_BOLD,
+  'chevron-right': CARET_RIGHT_BOLD,
+  check: CHECK_BOLD,
+  clock: CLOCK_BOLD,
+  'corner-down-right': ARROW_ELBOW_DOWN_RIGHT_BOLD,
+  info: INFO_BOLD,
+  'map-pin': MAP_PIN_BOLD,
+  note: NOTE_BOLD,
+  stop: STOP_FILL,
+  warning: WARNING_BOLD,
+  x: X_BOLD,
 } as const;
 
 export type IconName = keyof typeof ICONS;
