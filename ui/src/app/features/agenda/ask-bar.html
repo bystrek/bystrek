@@ -133,19 +133,15 @@
     </div>
   }
 
-  <form class="bar" (submit)="onSubmit($event)">
+  <form class="bar" [formRoot]="questionForm" (submit)="onSubmit($event)">
     <span class="prompt" aria-hidden="true">&gt;</span>
     <input
       class="field"
       type="text"
-      name="question"
       placeholder="ask your calendar…"
       aria-label="Ask your calendar"
       autocomplete="off"
-      maxlength="500"
-      [value]="question()"
-      [disabled]="phase() === 'thinking'"
-      (input)="onInput($event)"
+      [formField]="questionForm.question"
     />
     @if (phase() === 'thinking') {
       <button type="button" appButton shape="icon" aria-label="Stop" (click)="stop()">

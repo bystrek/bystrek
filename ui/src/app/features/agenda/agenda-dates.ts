@@ -1,48 +1,34 @@
 // Day keys ("YYYY-MM-DD") and wall-clock helpers for the agenda. The account
 // timezone decides which day an instant falls on; the browser timezone never does.
+// Temporal is imported from the polyfill because Safari has no native support yet.
+import { Temporal } from '@js-temporal/polyfill';
 
 // The account's calendar day (YYYY-MM-DD) for an instant.
 export function zonedDateKey(instant: Date, timeZone: string): string {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(instant);
-  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
-  return `${part('year')}-${part('month')}-${part('day')}`;
-}
-
-export function parseDateKey(key: string): Date {
-  const [y, m, d] = key.split('-').map(Number);
-  return new Date(y, m - 1, d);
+  return Temporal.Instant.fromEpochMilliseconds(instant.getTime())
+    .toZonedDateTimeISO(timeZone)
+    .toPlainDate()
+    .toString();
 }
 
 export function shiftDay(key: string, days: number): string {
-  const date = parseDateKey(key);
-  date.setDate(date.getDate() + days);
-  return localDateKey(date);
-}
-
-// Day arithmetic on keys runs in local time, so only the key format matters here.
-function localDateKey(date: Date): string {
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, '0'),
-    String(date.getDate()).padStart(2, '0'),
-  ].join('-');
+  return Temporal.PlainDate.from(key).add({ days }).toString();
 }
 
 // Wall-clock bounds without an offset: the API reads these in the user's timezone.
 export function dayBounds(key: string): { start: string; end: string } {
-  return { start: `${key}T00:00:00`, end: `${shiftDay(key, 1)}T00:00:00` };
+  const day = Temporal.PlainDate.from(key);
+  return {
+    start: day.toPlainDateTime().toString(),
+    end: day.add({ days: 1 }).toPlainDateTime().toString(),
+  };
 }
 
 // en-GB gives the day-first order used in the agenda design ("FRI 24 OCT"),
 // regardless of the browser's default locale.
 export function formatDayLabel(key: string): string {
-  return new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
-    .format(parseDateKey(key))
+  return Temporal.PlainDate.from(key)
+    .toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
     .toUpperCase();
 }
 

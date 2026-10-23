@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormField, FormRoot, disabled, form, maxLength, required } from '@angular/forms/signals';
 import { Subject, catchError, map, of, switchMap, takeUntil } from 'rxjs';
 import { AskResponse, CalendarAskService } from '../../core/calendar/calendar-ask.service';
 import { Button } from '../../shared/button/button';
@@ -18,7 +19,7 @@ type AskOutcome = { ok: true; response: AskResponse } | { ok: false };
 
 @Component({
   selector: 'app-ask-bar',
-  imports: [Button, Card, Chip, Icon, Progress, Tag],
+  imports: [Button, Card, Chip, FormField, FormRoot, Icon, Progress, Tag],
   templateUrl: './ask-bar.html',
   styleUrl: './ask-bar.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -32,7 +33,12 @@ export class AskBar {
   readonly busy = output<boolean>();
 
   readonly suggestions = SUGGESTIONS;
-  readonly question = signal('');
+  private readonly model = signal({ question: '' });
+  protected readonly questionForm = form(this.model, (path) => {
+    required(path.question);
+    maxLength(path.question, 500);
+    disabled(path.question, () => this.phase() === 'thinking');
+  });
   readonly phase = signal<AskPhase>('idle');
   readonly asked = signal('');
   readonly response = signal<AskResponse | null>(null);
@@ -56,13 +62,13 @@ export class AskBar {
       .subscribe((outcome) => this.finish(outcome));
   }
 
-  onInput(event: Event): void {
-    this.question.set((event.target as HTMLInputElement).value);
-  }
-
   onSubmit(event: Event): void {
     event.preventDefault();
-    this.submit(this.question());
+    if (this.questionForm().invalid()) {
+      this.questionForm().markAsTouched();
+      return;
+    }
+    this.submit(this.model().question);
   }
 
   submit(text: string): void {
@@ -70,7 +76,7 @@ export class AskBar {
     if (!question || this.phase() === 'thinking') return;
 
     this.asked.set(question);
-    this.question.set('');
+    this.model.update((m) => ({ ...m, question: '' }));
     this.response.set(null);
     this.thoughtSeconds.set(null);
     this.phase.set('thinking');
