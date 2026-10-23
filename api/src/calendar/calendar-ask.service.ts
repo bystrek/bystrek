@@ -1,6 +1,15 @@
-import { Inject, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { CHAT_MODEL, type ChatModel } from '../chat/chat.model';
-import { CalendarService } from './calendar.service';
+import {
+  CalendarNotConfiguredError,
+  CalendarService,
+  CalendarUrlMismatchError,
+} from './calendar.service';
 import type { ParsedEvent } from './ical-event';
 import {
   formatZonedIso,
@@ -45,24 +54,24 @@ const SYSTEM_PROMPT = [
   '',
   '<dt> is local time without offset: YYYY-MM-DDTHH:MM.',
   'Copy dates from the Dates line of the question. A weekday name means its date on the Weekdays line. A day of the month ("the 10th", "Oct 10th") means the entry with that date. Weeks run Monday to Sunday.',
-  'Ranges: whole day = 00:00 to 23:59. Morning = 06:00-12:00, afternoon = 12:00-18:00, evening = 18:00-23:59. A single time ("at 3pm") = that time to one hour later. "Next" event: from = Now, to = 23:59 on the last listed date.',
+  '"to" is exclusive: it is the next midnight after the last day, written as 00:00 of the following date. Whole day = 00:00 of that day to 00:00 of the next day. Morning = 06:00-12:00, afternoon = 12:00-18:00, evening = 18:00 to 00:00 of the next day. A single time ("at 3pm") = that time to one hour later. "Next" event: from = Now, to = 00:00 of the day after the last listed date.',
   '',
   'Examples (for a different date; use the real Dates line):',
   'Now: Mon 2026-03-02 09:00',
   'Dates: Mon 2026-03-02 (today), Tue 2026-03-03, Wed 2026-03-04, Thu 2026-03-05, Fri 2026-03-06, Sat 2026-03-07, Sun 2026-03-08, Mon 2026-03-09, Tue 2026-03-10, Wed 2026-03-11, Thu 2026-03-12, Fri 2026-03-13, Sat 2026-03-14, Sun 2026-03-15',
   'Next week: Mon 2026-03-09 to Sun 2026-03-15',
   'Q: when is my first event tomorrow?',
-  'A: {"kind":"event","pick":"first","from":"2026-03-03T00:00","to":"2026-03-03T23:59"}',
+  'A: {"kind":"event","pick":"first","from":"2026-03-03T00:00","to":"2026-03-04T00:00"}',
   'Q: am I free friday afternoon?',
   'A: {"kind":"availability","from":"2026-03-06T12:00","to":"2026-03-06T18:00"}',
   'Q: how many meetings next week?',
-  'A: {"kind":"count","from":"2026-03-09T00:00","to":"2026-03-15T23:59"}',
+  'A: {"kind":"count","from":"2026-03-09T00:00","to":"2026-03-16T00:00"}',
   'Q: what events do I have on Tuesday?',
-  'A: {"kind":"list","from":"2026-03-03T00:00","to":"2026-03-03T23:59"}',
+  'A: {"kind":"list","from":"2026-03-03T00:00","to":"2026-03-04T00:00"}',
   'Q: what is on the 10th?',
-  'A: {"kind":"list","from":"2026-03-10T00:00","to":"2026-03-10T23:59"}',
+  'A: {"kind":"list","from":"2026-03-10T00:00","to":"2026-03-11T00:00"}',
   "Q: what's my next event?",
-  'A: {"kind":"event","pick":"next","from":"2026-03-02T09:00","to":"2026-03-15T23:59"}',
+  'A: {"kind":"event","pick":"next","from":"2026-03-02T09:00","to":"2026-03-16T00:00"}',
   'Q: move my standup to 3pm',
   'A: {"kind":"cant_do","text":"I can only read your calendar."}',
 ].join('\n');
@@ -241,7 +250,10 @@ export class CalendarAskService {
         timezone,
       );
       return [...events].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
-    } catch {
+    } catch (err) {
+      if (err instanceof CalendarNotConfiguredError || err instanceof CalendarUrlMismatchError) {
+        throw new BadRequestException(err.message);
+      }
       throw new ServiceUnavailableException("Couldn't read your calendar.");
     }
   }

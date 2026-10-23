@@ -1,7 +1,7 @@
 import { describe, expect, it, mock } from 'bun:test';
-import { ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import type { ChatModel } from '../chat/chat.model';
-import type { CalendarService } from './calendar.service';
+import { CalendarNotConfiguredError, type CalendarService } from './calendar.service';
 import { CalendarAskService, parseQuery } from './calendar-ask.service';
 import type { ParsedEvent } from './ical-event';
 
@@ -218,5 +218,17 @@ describe('CalendarAskService', () => {
     await expect(ask.ask('user-1', TZ, 'anything?')).rejects.toBeInstanceOf(
       ServiceUnavailableException,
     );
+  });
+
+  it('maps a missing calendar configuration to a client error, not a service error', async () => {
+    const model = fakeModel('{"kind":"list","from":"2026-05-04T00:00","to":"2026-05-05T00:00"}');
+    const calendar = {
+      listEvents: mock(async () => {
+        throw new CalendarNotConfiguredError();
+      }),
+    } as unknown as CalendarService;
+    const ask = new CalendarAskService(model, calendar);
+
+    await expect(ask.ask('user-1', TZ, 'what is on?')).rejects.toBeInstanceOf(BadRequestException);
   });
 });
