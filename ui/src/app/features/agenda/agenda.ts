@@ -12,16 +12,8 @@ import { Icon } from '../../shared/icon/icon';
 import { Progress } from '../../shared/progress/progress';
 import { Tag } from '../../shared/tag/tag';
 import { AskBar } from './ask-bar';
-import {
-  AgendaRow,
-  buildAgendaRows,
-  dateKey,
-  dayBounds,
-  formatDayLabel,
-  formatDuration,
-  minutesUntil,
-  shiftDay,
-} from './agenda-model';
+import { dayBounds, formatDayLabel, shiftDay, zonedDateKey } from './agenda-dates';
+import { AgendaRow, buildAgendaRows, formatDuration, minutesUntil } from './agenda-model';
 
 @Component({
   selector: 'app-agenda',
@@ -35,7 +27,8 @@ export class Agenda {
   private requestId = 0;
 
   readonly now = signal(new Date());
-  readonly selectedDay = signal(dateKey(new Date()));
+  readonly timezone = signal<string | null>(null);
+  readonly selectedDay = signal('');
   readonly rows = signal<AgendaRow[]>([]);
   readonly eventCount = signal(0);
   readonly loading = signal(false);
@@ -43,8 +36,13 @@ export class Agenda {
   readonly askBusy = signal(false);
   private events: CalendarEvent[] = [];
 
-  readonly dayLabel = computed(() => formatDayLabel(this.selectedDay()));
-  readonly isToday = computed(() => this.selectedDay() === dateKey(this.now()));
+  readonly dayLabel = computed(() =>
+    this.selectedDay() ? formatDayLabel(this.selectedDay()) : '',
+  );
+  readonly isToday = computed(() => {
+    const timeZone = this.timezone();
+    return timeZone !== null && this.selectedDay() === zonedDateKey(this.now(), timeZone);
+  });
   readonly subtitle = computed(() => {
     const count = this.eventCount();
     const label = count === 1 ? '1 EVENT' : `${count} EVENTS`;
@@ -54,10 +52,11 @@ export class Agenda {
   constructor() {
     const timer = setInterval(() => this.tick(), 60_000);
     inject(DestroyRef).onDestroy(() => clearInterval(timer));
-    void this.load();
+    void this.init();
   }
 
   shift(days: number): void {
+    if (!this.selectedDay()) return;
     this.selectedDay.set(shiftDay(this.selectedDay(), days));
     void this.load();
   }
@@ -83,6 +82,21 @@ export class Agenda {
     const now = new Date();
     this.now.set(now);
     this.rows.set(buildAgendaRows(this.events, now));
+  }
+
+  // "Today" is the account's day, so the timezone must load before the first list.
+  private async init(): Promise<void> {
+    this.loading.set(true);
+    try {
+      const timeZone = await this.calendar.getTimezone();
+      this.timezone.set(timeZone);
+      this.selectedDay.set(zonedDateKey(new Date(), timeZone));
+    } catch (err) {
+      this.loading.set(false);
+      this.error.set(err instanceof Error ? err.message : 'Could not load your timezone.');
+      return;
+    }
+    await this.load();
   }
 
   private async load(): Promise<void> {

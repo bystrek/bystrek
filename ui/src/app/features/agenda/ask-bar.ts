@@ -1,12 +1,6 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  DestroyRef,
-  inject,
-  output,
-  signal,
-} from '@angular/core';
-import { Subscription } from 'rxjs';
+import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subject, catchError, map, of, switchMap, takeUntil } from 'rxjs';
 import { AskResponse, CalendarAskService } from '../../core/calendar/calendar-ask.service';
 import { Button } from '../../shared/button/button';
 import { Card } from '../../shared/card/card';
@@ -14,11 +8,13 @@ import { Chip } from '../../shared/chip/chip';
 import { Icon } from '../../shared/icon/icon';
 import { Progress } from '../../shared/progress/progress';
 import { Tag } from '../../shared/tag/tag';
-import { clockTime, formatDayLabel, formatDuration } from './agenda-model';
+import { clockTime, formatDayLabel } from './agenda-dates';
+import { formatDuration } from './agenda-model';
 
 export const SUGGESTIONS = ['first event tomorrow', 'am I free friday afternoon?', 'next meeting'];
 
 type AskPhase = 'idle' | 'thinking' | 'answer' | 'cant_do' | 'error';
+type AskOutcome = { ok: true; response: AskResponse } | { ok: false };
 
 @Component({
   selector: 'app-ask-bar',
@@ -29,7 +25,8 @@ type AskPhase = 'idle' | 'thinking' | 'answer' | 'cant_do' | 'error';
 })
 export class AskBar {
   private readonly ask = inject(CalendarAskService);
-  private subscription: Subscription | null = null;
+  private readonly questions = new Subject<string>();
+  private readonly stops = new Subject<void>();
 
   readonly jump = output<string>();
   readonly busy = output<boolean>();
@@ -43,7 +40,20 @@ export class AskBar {
   private startedAt = 0;
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => this.subscription?.unsubscribe());
+    // switchMap cancels a superseded question; takeUntil(stops) drops a stopped one silently.
+    this.questions
+      .pipe(
+        switchMap((question) => {
+          this.startedAt = performance.now();
+          return this.ask.ask(question).pipe(
+            map((response): AskOutcome => ({ ok: true, response })),
+            catchError(() => of<AskOutcome>({ ok: false })),
+            takeUntil(this.stops),
+          );
+        }),
+        takeUntilDestroyed(),
+      )
+      .subscribe((outcome) => this.finish(outcome));
   }
 
   onInput(event: Event): void {
@@ -63,28 +73,13 @@ export class AskBar {
     this.question.set('');
     this.response.set(null);
     this.thoughtSeconds.set(null);
-    this.startedAt = performance.now();
     this.phase.set('thinking');
     this.busy.emit(true);
-
-    this.subscription?.unsubscribe();
-    this.subscription = this.ask.ask(question).subscribe({
-      next: (response) => {
-        this.response.set(response);
-        this.thoughtSeconds.set(((performance.now() - this.startedAt) / 1000).toFixed(1));
-        this.phase.set(response.kind === 'cant_do' ? 'cant_do' : 'answer');
-        this.busy.emit(false);
-      },
-      error: () => {
-        this.phase.set('error');
-        this.busy.emit(false);
-      },
-    });
+    this.questions.next(question);
   }
 
   stop(): void {
-    this.subscription?.unsubscribe();
-    this.subscription = null;
+    this.stops.next();
     this.phase.set('idle');
     this.busy.emit(false);
   }
@@ -99,6 +94,7 @@ export class AskBar {
     this.close();
   }
 
+  // Template helpers.
   eventDay(start: string): string {
     return formatDayLabel(start.slice(0, 10));
   }
@@ -109,5 +105,16 @@ export class AskBar {
 
   duration(minutes: number): string {
     return formatDuration(minutes);
+  }
+
+  private finish(outcome: AskOutcome): void {
+    if (outcome.ok) {
+      this.response.set(outcome.response);
+      this.thoughtSeconds.set(((performance.now() - this.startedAt) / 1000).toFixed(1));
+      this.phase.set(outcome.response.kind === 'cant_do' ? 'cant_do' : 'answer');
+    } else {
+      this.phase.set('error');
+    }
+    this.busy.emit(false);
   }
 }
