@@ -17,6 +17,15 @@ export type CalendarOption = {
   displayName: string | null;
 };
 
+// `start`/`end` are ISO strings in the user's timezone (offset included).
+export type CalendarEvent = {
+  uid: string;
+  summary: string;
+  start: string;
+  end: string;
+  startWeekday: string;
+};
+
 @Injectable({ providedIn: 'root' })
 export class CalendarService {
   private readonly http = inject(HttpClient);
@@ -33,6 +42,20 @@ export class CalendarService {
       this.credentials.set(result);
     } catch {
       this.credentials.set(null);
+    }
+  }
+
+  // Wall-clock bounds (no offset) are read in the user's timezone by the API.
+  async listEvents(start: string, end: string): Promise<CalendarEvent[]> {
+    try {
+      const result = await firstValueFrom(
+        this.http.get<{ events: CalendarEvent[] }>(`${this.apiUrl}/calendar/events`, {
+          params: { start, end },
+        }),
+      );
+      return result.events;
+    } catch (err) {
+      throw new Error(errorMessage(err, 'Could not load events.'));
     }
   }
 

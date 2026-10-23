@@ -17,7 +17,7 @@ The app runs on the home server. See [Issues](https://github.com/bystrek/bystrek
 - Deploy pipeline: GitHub Actions builds `api`/`ui` images to GHCR. A reviewed `homelab` change pins the new image digests, and Flux rolls them out when the owner cuts a `homelab` release tag.
 
 **Not built yet:**
-- An agenda view and the daily digest for the calendar vertical slice.
+- The daily digest for the calendar vertical slice.
 - Notes/research/medical/nutrition/gym domains.
 
 ## Architecture

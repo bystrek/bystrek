@@ -1,0 +1,113 @@
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  inject,
+  output,
+  signal,
+} from '@angular/core';
+import { Subscription } from 'rxjs';
+import { AskResponse, CalendarAskService } from '../../core/calendar/calendar-ask.service';
+import { Button } from '../../shared/button/button';
+import { Card } from '../../shared/card/card';
+import { Chip } from '../../shared/chip/chip';
+import { Icon } from '../../shared/icon/icon';
+import { Progress } from '../../shared/progress/progress';
+import { Tag } from '../../shared/tag/tag';
+import { clockTime, formatDayLabel, formatDuration } from './agenda-model';
+
+export const SUGGESTIONS = ['first event tomorrow', 'am I free friday afternoon?', 'next meeting'];
+
+type AskPhase = 'idle' | 'thinking' | 'answer' | 'cant_do' | 'error';
+
+@Component({
+  selector: 'app-ask-bar',
+  imports: [Button, Card, Chip, Icon, Progress, Tag],
+  templateUrl: './ask-bar.html',
+  styleUrl: './ask-bar.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class AskBar {
+  private readonly ask = inject(CalendarAskService);
+  private subscription: Subscription | null = null;
+
+  readonly jump = output<string>();
+  readonly busy = output<boolean>();
+
+  readonly suggestions = SUGGESTIONS;
+  readonly question = signal('');
+  readonly phase = signal<AskPhase>('idle');
+  readonly asked = signal('');
+  readonly response = signal<AskResponse | null>(null);
+  readonly thoughtSeconds = signal<string | null>(null);
+  private startedAt = 0;
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => this.subscription?.unsubscribe());
+  }
+
+  onInput(event: Event): void {
+    this.question.set((event.target as HTMLInputElement).value);
+  }
+
+  onSubmit(event: Event): void {
+    event.preventDefault();
+    this.submit(this.question());
+  }
+
+  submit(text: string): void {
+    const question = text.trim();
+    if (!question || this.phase() === 'thinking') return;
+
+    this.asked.set(question);
+    this.question.set('');
+    this.response.set(null);
+    this.thoughtSeconds.set(null);
+    this.startedAt = performance.now();
+    this.phase.set('thinking');
+    this.busy.emit(true);
+
+    this.subscription?.unsubscribe();
+    this.subscription = this.ask.ask(question).subscribe({
+      next: (response) => {
+        this.response.set(response);
+        this.thoughtSeconds.set(((performance.now() - this.startedAt) / 1000).toFixed(1));
+        this.phase.set(response.kind === 'cant_do' ? 'cant_do' : 'answer');
+        this.busy.emit(false);
+      },
+      error: () => {
+        this.phase.set('error');
+        this.busy.emit(false);
+      },
+    });
+  }
+
+  stop(): void {
+    this.subscription?.unsubscribe();
+    this.subscription = null;
+    this.phase.set('idle');
+    this.busy.emit(false);
+  }
+
+  close(): void {
+    this.response.set(null);
+    this.phase.set('idle');
+  }
+
+  jumpTo(start: string): void {
+    this.jump.emit(start.slice(0, 10));
+    this.close();
+  }
+
+  eventDay(start: string): string {
+    return formatDayLabel(start.slice(0, 10));
+  }
+
+  time(start: string): string {
+    return clockTime(start);
+  }
+
+  duration(minutes: number): string {
+    return formatDuration(minutes);
+  }
+}
