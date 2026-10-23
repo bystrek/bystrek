@@ -12,7 +12,7 @@ The app runs on the home server. See [Issues](https://github.com/bystrek/bystrek
 - A home server behind a Cloudflare Tunnel.
 - `bystrek.dev` and `api.bystrek.dev` route through Cloudflare to Caddy on the home server.
 - `ui/` (Angular, zoneless) at `bystrek.dev`: login, profile, and settings.
-- `api/` (NestJS + Drizzle + Bun) at `api.bystrek.dev`: `better-auth`-backed login/invite/ban, and calendar event reads over CalDAV (Infomaniak kCalendar).
+- `api/` (NestJS + Drizzle + Bun) at `api.bystrek.dev`: `better-auth`-backed login/invite/ban, and calendar event reads over CalDAV (Infomaniak kCalendar). `POST /calendar/ask` answers one read-only question about the calendar through a local Ollama model (`LLM_BASE_URL`, `LLM_MODEL`); it returns a structured event, a `list` of events (with `count` answered as text), an `availability` answer (`busy` plus the overlapping `conflicts`, decided by the server from the listed events), a text answer, or `cant_do` for write requests.
 - Auth: email/password via `better-auth`, invite-gated (admin creates the row, no public signup), bearer tokens, admin plugin for invite/list/ban.
 - Deploy pipeline: GitHub Actions builds `api`/`ui` images to GHCR. A reviewed `homelab` change pins the new image digests, and Flux rolls them out when the owner cuts a `homelab` release tag.
 

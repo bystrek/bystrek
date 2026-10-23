@@ -33,6 +33,32 @@ const WEEKDAY_NAMES = [
   'Sunday',
 ] as const;
 
+// One line per day so a model can map "friday" or "tomorrow" to a date without arithmetic.
+export function upcomingDays(date: Date, timeZone: string, count: number): string[] {
+  const today = Temporal.Instant.fromEpochMilliseconds(date.getTime())
+    .toZonedDateTimeISO(timeZone)
+    .toPlainDate();
+  return Array.from({ length: count }, (_, offset) => {
+    const day = today.add({ days: offset });
+    const label = offset === 0 ? ' (today)' : offset === 1 ? ' (tomorrow)' : '';
+    return `${WEEKDAY_NAMES[day.dayOfWeek - 1]} ${day.toString()}${label}`;
+  });
+}
+
+// Start of today through the start of `days` later (end exclusive), in `timeZone`.
+export function upcomingWindow(
+  date: Date,
+  timeZone: string,
+  days: number,
+): { start: Date; end: Date } {
+  const today = Temporal.Instant.fromEpochMilliseconds(date.getTime())
+    .toZonedDateTimeISO(timeZone)
+    .toPlainDate();
+  const toDate = (day: Temporal.PlainDate): Date =>
+    new Date(day.toZonedDateTime({ timeZone }).epochMilliseconds);
+  return { start: toDate(today), end: toDate(today.add({ days })) };
+}
+
 export function weekdayName(date: Date, timeZone: string): string {
   // Temporal.dayOfWeek: 1 = Monday … 7 = Sunday (ISO), matches the
   // Mon-Sun week convention used throughout the app.
