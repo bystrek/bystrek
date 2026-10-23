@@ -45,6 +45,18 @@ export class CalendarService {
     }
   }
 
+  // The account timezone (IANA name) that the API uses for event times and day bounds.
+  async getTimezone(): Promise<string> {
+    try {
+      const result = await firstValueFrom(
+        this.http.get<{ timezone: string }>(`${this.apiUrl}/calendar/events/timezone`),
+      );
+      return result.timezone;
+    } catch (err) {
+      throw new Error(errorMessage(err, 'Could not load your timezone.'));
+    }
+  }
+
   // Wall-clock bounds (no offset) are read in the user's timezone by the API.
   async listEvents(start: string, end: string): Promise<CalendarEvent[]> {
     try {

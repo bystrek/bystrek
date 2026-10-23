@@ -1,5 +1,6 @@
 import { CalendarEvent } from '../../core/calendar/calendar.service';
-import { buildAgendaRows, dayBounds, formatDuration, shiftDay } from './agenda-model';
+import { buildAgendaRows, formatDuration } from './agenda-model';
+import { dayBounds, shiftDay, zonedDateKey } from './agenda-dates';
 
 const event = (uid: string, start: string, end: string, summary = uid): CalendarEvent => ({
   uid,
@@ -78,6 +79,12 @@ describe('agenda model', () => {
     });
     expect(shiftDay('2025-10-31', 1)).toBe('2025-11-01');
     expect(shiftDay('2025-01-01', -1)).toBe('2024-12-31');
+  });
+
+  it("takes the day from the account timezone, not the browser's", () => {
+    // 23:30 UTC on 24 Oct is 01:30 on 25 Oct in Warsaw (CEST, UTC+2).
+    expect(zonedDateKey(new Date('2026-10-24T23:30:00Z'), 'Europe/Warsaw')).toBe('2026-10-25');
+    expect(zonedDateKey(new Date('2026-10-24T21:30:00Z'), 'Europe/Warsaw')).toBe('2026-10-24');
   });
 
   it('formats durations for free gaps', () => {
