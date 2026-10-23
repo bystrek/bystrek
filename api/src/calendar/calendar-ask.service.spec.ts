@@ -2,7 +2,8 @@ import { describe, expect, it, mock } from 'bun:test';
 import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import type { ChatModel } from '../chat/chat.model';
 import { CalendarNotConfiguredError, type CalendarService } from './calendar.service';
-import { CalendarAskService, parseQuery } from './calendar-ask.service';
+import { CalendarAskService } from './calendar-ask.service';
+import { parseQuery } from './calendar-ask.query';
 import type { ParsedEvent } from './ical-event';
 
 const TZ = 'Europe/Warsaw';
