@@ -1,11 +1,6 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  DestroyRef,
-  computed,
-  inject,
-  signal,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { map, timer } from 'rxjs';
 import { CalendarEvent, CalendarService } from '../../core/calendar/calendar.service';
 import { Button } from '../../shared/button/button';
 import { Icon } from '../../shared/icon/icon';
@@ -26,15 +21,18 @@ export class Agenda {
   private readonly calendar = inject(CalendarService);
   private requestId = 0;
 
-  readonly now = signal(new Date());
+  // Emits the current time every minute; the "Next · in X min" labels follow it.
+  readonly now = toSignal(timer(0, 60_000).pipe(map(() => new Date())), {
+    initialValue: new Date(),
+  });
   readonly timezone = signal<string | null>(null);
   readonly selectedDay = signal('');
-  readonly rows = signal<AgendaRow[]>([]);
-  readonly eventCount = signal(0);
+  private readonly events = signal<CalendarEvent[]>([]);
+  readonly rows = computed(() => buildAgendaRows(this.events(), this.now()));
+  readonly eventCount = computed(() => this.events().length);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly askBusy = signal(false);
-  private events: CalendarEvent[] = [];
 
   readonly dayLabel = computed(() =>
     this.selectedDay() ? formatDayLabel(this.selectedDay()) : '',
@@ -50,8 +48,6 @@ export class Agenda {
   });
 
   constructor() {
-    const timer = setInterval(() => this.tick(), 60_000);
-    inject(DestroyRef).onDestroy(() => clearInterval(timer));
     void this.init();
   }
 
@@ -78,12 +74,6 @@ export class Agenda {
     return row.key;
   }
 
-  private tick(): void {
-    const now = new Date();
-    this.now.set(now);
-    this.rows.set(buildAgendaRows(this.events, now));
-  }
-
   // "Today" is the account's day, so the timezone must load before the first list.
   private async init(): Promise<void> {
     this.loading.set(true);
@@ -108,16 +98,10 @@ export class Agenda {
     try {
       const events = await this.calendar.listEvents(start, end);
       if (id !== this.requestId) return;
-      const now = new Date();
-      this.now.set(now);
-      this.events = events;
-      this.rows.set(buildAgendaRows(events, now));
-      this.eventCount.set(events.length);
+      this.events.set(events);
     } catch (err) {
       if (id !== this.requestId) return;
-      this.events = [];
-      this.rows.set([]);
-      this.eventCount.set(0);
+      this.events.set([]);
       this.error.set(err instanceof Error ? err.message : 'Could not load events.');
     } finally {
       if (id === this.requestId) this.loading.set(false);
