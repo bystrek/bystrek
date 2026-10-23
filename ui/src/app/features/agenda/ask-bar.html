@@ -1,97 +1,129 @@
 <section class="ask" aria-label="Ask your calendar">
-  @if (phase() === 'thinking') {
-    <div class="thinking">
-      <p class="asked">&gt; {{ asked() }}</p>
-      <app-progress label="Reading your calendar" />
-    </div>
-  } @else if (response(); as r) {
-    @if (r.kind === 'event') {
-      <app-card tone="primary" class="answer">
-        <div class="answer-head">
-          <app-tag variant="solid">Answer</app-tag>
-          <button type="button" appButton shape="icon" aria-label="Close answer" (click)="close()">
-            <app-icon name="x" />
+  <div class="ask-response" aria-live="polite">
+    @if (phase() === 'thinking') {
+      <div class="thinking">
+        <p class="asked">&gt; {{ asked() }}</p>
+        <app-progress label="Reading your calendar" />
+      </div>
+    } @else if (response(); as r) {
+      @if (r.kind === 'event') {
+        <app-card tone="primary" class="answer">
+          <div class="answer-head">
+            <app-tag variant="solid">Answer</app-tag>
+            <button
+              type="button"
+              appButton
+              shape="icon"
+              aria-label="Close answer"
+              (click)="close()"
+            >
+              <app-icon name="x" />
+            </button>
+          </div>
+          <p class="answer-thought">Thought for {{ thoughtSeconds() }} s</p>
+          <p class="answer-time">{{ time(r.event.start) }} {{ r.event.title }}</p>
+          <p class="answer-meta">
+            {{ eventDay(r.event.start) }} · {{ duration(r.event.durationMinutes) }}
+          </p>
+          <button type="button" appButton variant="inverse" block (click)="jumpTo(r.event.start)">
+            Jump to {{ eventDay(r.event.start) }} <app-icon name="arrow-right" />
           </button>
-        </div>
-        <p class="answer-thought">Thought for {{ thoughtSeconds() }} s</p>
-        <p class="answer-time">{{ time(r.event.start) }} {{ r.event.title }}</p>
-        <p class="answer-meta">
-          {{ eventDay(r.event.start) }} · {{ duration(r.event.durationMinutes) }}
-        </p>
-        <button type="button" appButton variant="inverse" block (click)="jumpTo(r.event.start)">
-          Jump to {{ eventDay(r.event.start) }} <app-icon name="arrow-right" />
-        </button>
-      </app-card>
-    } @else if (r.kind === 'availability') {
-      <app-card tone="primary" class="answer">
-        <div class="answer-head">
-          <app-tag variant="solid">Answer</app-tag>
-          <button type="button" appButton shape="icon" aria-label="Close answer" (click)="close()">
-            <app-icon name="x" />
-          </button>
-        </div>
-        <p class="answer-thought">Thought for {{ thoughtSeconds() }} s</p>
-        <p class="answer-text">{{ r.text }}</p>
-        @if (r.conflicts.length) {
-          <ul class="conflicts">
-            @for (c of r.conflicts; track c.uid) {
-              <li>{{ time(c.start) }} {{ c.title }}</li>
-            }
-          </ul>
-        }
-      </app-card>
-    } @else if (r.kind === 'list') {
-      <app-card tone="primary" class="answer">
-        <div class="answer-head">
-          <app-tag variant="solid">Answer</app-tag>
-          <button type="button" appButton shape="icon" aria-label="Close answer" (click)="close()">
-            <app-icon name="x" />
-          </button>
-        </div>
-        <p class="answer-thought">Thought for {{ thoughtSeconds() }} s</p>
-        <p class="answer-text">{{ r.text }}</p>
-        @if (r.events.length) {
-          <ul class="conflicts">
-            @for (e of r.events; track e.uid) {
-              <li>{{ eventDay(e.start) }} {{ time(e.start) }} {{ e.title }}</li>
-            }
-          </ul>
-        }
-      </app-card>
-    } @else if (r.kind === 'text') {
-      <app-card tone="primary" class="answer">
-        <div class="answer-head">
-          <app-tag variant="solid">Answer</app-tag>
-          <button type="button" appButton shape="icon" aria-label="Close answer" (click)="close()">
-            <app-icon name="x" />
-          </button>
-        </div>
-        <p class="answer-thought">Thought for {{ thoughtSeconds() }} s</p>
-        <p class="answer-text">{{ r.text }}</p>
-      </app-card>
-    } @else {
+        </app-card>
+      } @else if (r.kind === 'availability') {
+        <app-card tone="primary" class="answer">
+          <div class="answer-head">
+            <app-tag variant="solid">Answer</app-tag>
+            <button
+              type="button"
+              appButton
+              shape="icon"
+              aria-label="Close answer"
+              (click)="close()"
+            >
+              <app-icon name="x" />
+            </button>
+          </div>
+          <p class="answer-thought">Thought for {{ thoughtSeconds() }} s</p>
+          <p class="answer-text">{{ r.text }}</p>
+          @if (r.conflicts.length) {
+            <ul class="conflicts">
+              @for (c of r.conflicts; track c.uid + c.start) {
+                <li>{{ time(c.start) }} {{ c.title }}</li>
+              }
+            </ul>
+          }
+        </app-card>
+      } @else if (r.kind === 'list') {
+        <app-card tone="primary" class="answer">
+          <div class="answer-head">
+            <app-tag variant="solid">Answer</app-tag>
+            <button
+              type="button"
+              appButton
+              shape="icon"
+              aria-label="Close answer"
+              (click)="close()"
+            >
+              <app-icon name="x" />
+            </button>
+          </div>
+          <p class="answer-thought">Thought for {{ thoughtSeconds() }} s</p>
+          <p class="answer-text">{{ r.text }}</p>
+          @if (r.events.length) {
+            <ul class="conflicts">
+              @for (e of r.events; track e.uid + e.start) {
+                <li>{{ eventDay(e.start) }} {{ time(e.start) }} {{ e.title }}</li>
+              }
+            </ul>
+          }
+        </app-card>
+      } @else if (r.kind === 'text') {
+        <app-card tone="primary" class="answer">
+          <div class="answer-head">
+            <app-tag variant="solid">Answer</app-tag>
+            <button
+              type="button"
+              appButton
+              shape="icon"
+              aria-label="Close answer"
+              (click)="close()"
+            >
+              <app-icon name="x" />
+            </button>
+          </div>
+          <p class="answer-thought">Thought for {{ thoughtSeconds() }} s</p>
+          <p class="answer-text">{{ r.text }}</p>
+        </app-card>
+      } @else {
+        <app-card tone="danger" class="answer">
+          <div class="answer-head">
+            <app-tag variant="solid">Can't do that</app-tag>
+            <button
+              type="button"
+              appButton
+              shape="icon"
+              aria-label="Close answer"
+              (click)="close()"
+            >
+              <app-icon name="x" />
+            </button>
+          </div>
+          <p class="answer-thought">Thought for {{ thoughtSeconds() }} s</p>
+          <p class="answer-text">{{ r.text }}</p>
+        </app-card>
+      }
+    } @else if (phase() === 'error') {
       <app-card tone="danger" class="answer">
         <div class="answer-head">
-          <app-tag variant="solid">Can't do that</app-tag>
+          <app-tag variant="solid">Error</app-tag>
           <button type="button" appButton shape="icon" aria-label="Close answer" (click)="close()">
             <app-icon name="x" />
           </button>
         </div>
-        <p class="answer-thought">Thought for {{ thoughtSeconds() }} s</p>
-        <p class="answer-text">{{ r.text }}</p>
+        <p class="answer-text">Could not get an answer. Try again.</p>
       </app-card>
     }
-  } @else if (phase() === 'error') {
-    <app-card tone="danger" class="answer">
-      <div class="answer-head">
-        <app-tag variant="solid">Error</app-tag>
-        <button type="button" appButton shape="icon" aria-label="Close answer" (click)="close()">
-          <app-icon name="x" />
-        </button>
-      </div>
-      <p class="answer-text">Could not get an answer. Try again.</p>
-    </app-card>
-  }
+  </div>
 
   @if (phase() === 'idle') {
     <div class="chips">

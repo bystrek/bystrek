@@ -10,6 +10,19 @@ const event = (uid: string, start: string, end: string, summary = uid): Calendar
 });
 
 describe('agenda model', () => {
+  it('gives recurring occurrences that share a UID distinct row keys', () => {
+    const rows = buildAgendaRows(
+      [
+        event('series', '2026-05-04T09:00:00', '2026-05-04T10:00:00'),
+        event('series', '2026-05-05T09:00:00', '2026-05-05T10:00:00'),
+      ],
+      new Date('2026-05-04T08:00:00'),
+    );
+    const keys = rows.map((row) => row.key);
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(keys).toHaveLength(3);
+  });
+
   const now = new Date('2025-10-22T10:00:00+02:00');
 
   it('marks past, next and upcoming events and shows gaps only between events', () => {
@@ -25,6 +38,7 @@ describe('agenda model', () => {
     expect(rows).toEqual([
       {
         kind: 'event',
+        key: 'early@2025-10-22T09:00:00+02:00',
         uid: 'early',
         start: '2025-10-22T09:00:00+02:00',
         time: '09:00',
@@ -33,15 +47,21 @@ describe('agenda model', () => {
       },
       {
         kind: 'event',
+        key: 'tight@2025-10-22T09:35:00+02:00',
         uid: 'tight',
         start: '2025-10-22T09:35:00+02:00',
         time: '09:35',
         title: 'tight',
         status: 'past',
       },
-      { kind: 'gap', key: 'gap-late', minutes: 255 },
+      {
+        kind: 'gap',
+        key: 'gap-late@2025-10-22T14:00:00+02:00',
+        minutes: 255,
+      },
       {
         kind: 'event',
+        key: 'late@2025-10-22T14:00:00+02:00',
         uid: 'late',
         start: '2025-10-22T14:00:00+02:00',
         time: '14:00',
