@@ -7,6 +7,10 @@
   gap: var(--space-3);
 }
 
+.ask-response {
+  display: contents;
+}
+
 .thinking {
   display: grid;
   gap: var(--space-2);

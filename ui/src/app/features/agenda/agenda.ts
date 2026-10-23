@@ -6,7 +6,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { CalendarService } from '../../core/calendar/calendar.service';
+import { CalendarEvent, CalendarService } from '../../core/calendar/calendar.service';
 import { Button } from '../../shared/button/button';
 import { Icon } from '../../shared/icon/icon';
 import { Progress } from '../../shared/progress/progress';
@@ -41,6 +41,7 @@ export class Agenda {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly askBusy = signal(false);
+  private events: CalendarEvent[] = [];
 
   readonly dayLabel = computed(() => formatDayLabel(this.selectedDay()));
   readonly isToday = computed(() => this.selectedDay() === dateKey(this.now()));
@@ -51,7 +52,7 @@ export class Agenda {
   });
 
   constructor() {
-    const timer = setInterval(() => this.now.set(new Date()), 60_000);
+    const timer = setInterval(() => this.tick(), 60_000);
     inject(DestroyRef).onDestroy(() => clearInterval(timer));
     void this.load();
   }
@@ -75,7 +76,13 @@ export class Agenda {
   }
 
   trackRow(row: AgendaRow): string {
-    return row.kind === 'gap' ? row.key : row.uid;
+    return row.key;
+  }
+
+  private tick(): void {
+    const now = new Date();
+    this.now.set(now);
+    this.rows.set(buildAgendaRows(this.events, now));
   }
 
   private async load(): Promise<void> {
@@ -89,10 +96,12 @@ export class Agenda {
       if (id !== this.requestId) return;
       const now = new Date();
       this.now.set(now);
+      this.events = events;
       this.rows.set(buildAgendaRows(events, now));
       this.eventCount.set(events.length);
     } catch (err) {
       if (id !== this.requestId) return;
+      this.events = [];
       this.rows.set([]);
       this.eventCount.set(0);
       this.error.set(err instanceof Error ? err.message : 'Could not load events.');

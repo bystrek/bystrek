@@ -5,6 +5,7 @@ export const MIN_GAP_MINUTES = 15;
 export type AgendaRow =
   | {
       kind: 'event';
+      key: string;
       uid: string;
       start: string;
       time: string;
@@ -55,6 +56,11 @@ export function formatDuration(minutes: number): string {
   return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
 }
 
+// Recurring occurrences share a UID, so keys combine the UID with the start time.
+export function occurrenceKey(event: CalendarEvent): string {
+  return `${event.uid}@${event.start}`;
+}
+
 // Gaps are only shown between events, not before the first or after the last.
 export function buildAgendaRows(events: CalendarEvent[], now: Date): AgendaRow[] {
   const sorted = [...events].sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
@@ -69,11 +75,12 @@ export function buildAgendaRows(events: CalendarEvent[], now: Date): AgendaRow[]
     if (previousEnd !== null) {
       const gap = Math.round((startMs - previousEnd) / 60000);
       if (gap >= MIN_GAP_MINUTES) {
-        rows.push({ kind: 'gap', key: `gap-${event.uid}`, minutes: gap });
+        rows.push({ kind: 'gap', key: `gap-${occurrenceKey(event)}`, minutes: gap });
       }
     }
     rows.push({
       kind: 'event',
+      key: occurrenceKey(event),
       uid: event.uid,
       start: event.start,
       time: clockTime(event.start),
