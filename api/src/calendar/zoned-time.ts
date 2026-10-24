@@ -11,12 +11,14 @@ export function assertValidTimeZone(timeZone: string): void {
   }
 }
 
+export function zonedDateTime(date: Date, timeZone: string): Temporal.ZonedDateTime {
+  return Temporal.Instant.fromEpochMilliseconds(date.getTime()).toZonedDateTimeISO(timeZone);
+}
+
 // Formats a Date as an ISO 8601 string with the wall-clock time and UTC
 // offset for a given IANA timezone (e.g. "2026-08-24T06:00:00+02:00").
 export function formatZonedIso(date: Date, timeZone: string): string {
-  return Temporal.Instant.fromEpochMilliseconds(date.getTime())
-    .toZonedDateTimeISO(timeZone)
-    .toString({ smallestUnit: 'second', timeZoneName: 'never' });
+  return zonedDateTime(date, timeZone).toString({ smallestUnit: 'second', timeZoneName: 'never' });
 }
 
 // English weekday name ("Monday" … "Sunday") for a given instant in a
@@ -33,66 +35,13 @@ const WEEKDAY_NAMES = [
   'Sunday',
 ] as const;
 
-// One line per day so a model can map "friday" or "tomorrow" to a date without arithmetic.
-export function upcomingDays(date: Date, timeZone: string, count: number): string[] {
-  const today = Temporal.Instant.fromEpochMilliseconds(date.getTime())
-    .toZonedDateTimeISO(timeZone)
-    .toPlainDate();
-  return Array.from({ length: count }, (_, offset) => {
-    const day = today.add({ days: offset });
-    const label = offset === 0 ? ' (today)' : offset === 1 ? ' (tomorrow)' : '';
-    return `${WEEKDAY_NAMES[day.dayOfWeek - 1]} ${day.toString()}${label}`;
-  });
-}
-
-// Start of today through the start of `days` later (end exclusive), in `timeZone`.
-export function upcomingWindow(
-  date: Date,
-  timeZone: string,
-  days: number,
-): { start: Date; end: Date } {
-  const today = Temporal.Instant.fromEpochMilliseconds(date.getTime())
-    .toZonedDateTimeISO(timeZone)
-    .toPlainDate();
-  const toDate = (day: Temporal.PlainDate): Date =>
-    new Date(day.toZonedDateTime({ timeZone }).epochMilliseconds);
-  return { start: toDate(today), end: toDate(today.add({ days })) };
+// Temporal's dayOfWeek is ISO: 1 = Monday … 7 = Sunday, matching the Mon-Sun week used in the app.
+export function weekdayNameOf(dayOfWeek: number): string {
+  return WEEKDAY_NAMES[dayOfWeek - 1];
 }
 
 export function weekdayName(date: Date, timeZone: string): string {
-  // Temporal.dayOfWeek: 1 = Monday … 7 = Sunday (ISO), matches the
-  // Mon-Sun week convention used throughout the app.
-  const dow = Temporal.Instant.fromEpochMilliseconds(date.getTime()).toZonedDateTimeISO(
-    timeZone,
-  ).dayOfWeek;
-  return WEEKDAY_NAMES[dow - 1];
-}
-
-// Mon-Sun bounds of the ISO week containing `date`, plus the following
-// week — each returned as `YYYY-MM-DD (Weekday)` in the given timezone.
-// Used to hand the LLM week arithmetic already-computed instead of
-// having it derive "this week" / "next week" itself (issue #18).
-export interface WeekBounds {
-  thisWeekStart: string;
-  thisWeekEnd: string;
-  nextWeekStart: string;
-  nextWeekEnd: string;
-}
-
-export function weekBoundsAround(date: Date, timeZone: string): WeekBounds {
-  const zdt = Temporal.Instant.fromEpochMilliseconds(date.getTime()).toZonedDateTimeISO(timeZone);
-  const monday = zdt.subtract({ days: zdt.dayOfWeek - 1 }).startOfDay();
-  const label = (day: Temporal.ZonedDateTime): string => {
-    const plain = day.toPlainDate().toString();
-    const weekday = WEEKDAY_NAMES[day.dayOfWeek - 1];
-    return `${plain} (${weekday})`;
-  };
-  return {
-    thisWeekStart: label(monday),
-    thisWeekEnd: label(monday.add({ days: 6 })),
-    nextWeekStart: label(monday.add({ days: 7 })),
-    nextWeekEnd: label(monday.add({ days: 13 })),
-  };
+  return weekdayNameOf(zonedDateTime(date, timeZone).dayOfWeek);
 }
 
 const OFFSET_SUFFIX_RE = /(Z|[+-]\d{2}:\d{2})$/;

@@ -1,27 +1,29 @@
-import { parseZonedIso } from './zoned-time';
+import { assertValidTimeZone, parseZonedIso } from './zoned-time';
 
 // A read-only query the server runs against CalDAV. Times are epoch ms, end exclusive.
 export type ReadQuery =
   | { kind: 'event'; pick: 'first' | 'last' | 'next'; start: number; end: number }
   | { kind: 'availability' | 'count' | 'list'; start: number; end: number };
 
-export type Query = ReadQuery | { kind: 'cant_do' };
+export type ParsedQuery = ReadQuery | { kind: 'cant_do' };
 
 const DT_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
 function parseLocalTime(value: unknown, timezone: string): number | undefined {
   if (typeof value !== 'string' || !DT_PATTERN.test(value)) return undefined;
   try {
-    const time = parseZonedIso(value, timezone).getTime();
-    return Number.isNaN(time) ? undefined : time;
+    return parseZonedIso(value, timezone).getTime();
   } catch {
+    // Well-formed but impossible date, e.g. Feb 30.
     return undefined;
   }
 }
 
 // Validates the model's JSON. Anything malformed becomes undefined, which the
 // caller answers with the fallback text rather than guessing a query.
-export function parseQuery(content: string, timezone: string): Query | undefined {
+export function parseQuery(content: string, timezone: string): ParsedQuery | undefined {
+  // A bad timezone comes from our own user record, not the model, so it throws.
+  assertValidTimeZone(timezone);
   let value: unknown;
   try {
     value = JSON.parse(content);

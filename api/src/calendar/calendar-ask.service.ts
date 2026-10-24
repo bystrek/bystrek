@@ -39,6 +39,7 @@ export class CalendarAskService {
     if (!query) return { kind: 'text', text: FALLBACK_TEXT };
     if (query.kind === 'cant_do') return { kind: 'cant_do', text: CANT_DO_TEXT };
 
+    // Model -> query -> CalDAV read -> deterministic answer. The model never sees events.
     const events = await this.listEvents(userId, query, timezone);
     return buildAnswer(query, events, now);
   }
@@ -49,12 +50,11 @@ export class CalendarAskService {
     timezone: string,
   ): Promise<ParsedEvent[]> {
     try {
-      const events = await this.calendar.listEvents(
+      return await this.calendar.listEvents(
         userId,
         { start: new Date(query.start), end: new Date(query.end) },
         timezone,
       );
-      return [...events].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
     } catch (err) {
       if (err instanceof CalendarNotConfiguredError || err instanceof CalendarUrlMismatchError) {
         throw new BadRequestException(err.message);

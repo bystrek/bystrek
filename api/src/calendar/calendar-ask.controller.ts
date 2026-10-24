@@ -24,6 +24,15 @@ class AskDto {
   question!: string;
 }
 
+function normaliseQuestion(body: AskDto | undefined): string {
+  const question = typeof body?.question === 'string' ? body.question.trim() : '';
+  if (!question) throw new BadRequestException('"question" is required');
+  if (question.length > MAX_QUESTION_LENGTH) {
+    throw new BadRequestException(`"question" must be at most ${MAX_QUESTION_LENGTH} characters`);
+  }
+  return question;
+}
+
 @Controller('calendar/ask')
 @UseGuards(AuthGuard)
 export class CalendarAskController {
@@ -35,11 +44,7 @@ export class CalendarAskController {
   @Post()
   @HttpCode(200)
   async askQuestion(@Body() body: AskDto, @Req() req: Request) {
-    const question = typeof body?.question === 'string' ? body.question.trim() : '';
-    if (!question) throw new BadRequestException('"question" is required');
-    if (question.length > MAX_QUESTION_LENGTH) {
-      throw new BadRequestException(`"question" must be at most ${MAX_QUESTION_LENGTH} characters`);
-    }
+    const question = normaliseQuestion(body);
     const userId = req.session!.user.id;
     const timezone = await this.loadTimezone(userId);
     return this.ask.ask(userId, timezone, question);

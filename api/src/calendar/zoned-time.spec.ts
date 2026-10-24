@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import {
-  assertValidTimeZone,
-  formatZonedIso,
-  parseZonedIso,
-  weekBoundsAround,
-  weekdayName,
-} from './zoned-time';
+import { assertValidTimeZone, formatZonedIso, parseZonedIso, weekdayName } from './zoned-time';
 
 describe('formatZonedIso', () => {
   it('formats UTC as +00:00', () => {
@@ -100,32 +94,6 @@ describe('weekdayName', () => {
     const instant = new Date('2026-09-06T23:30:00Z');
     expect(weekdayName(instant, 'UTC')).toBe('Sunday');
     expect(weekdayName(instant, 'Europe/Warsaw')).toBe('Monday');
-  });
-});
-
-describe('weekBoundsAround', () => {
-  it('returns the Mon-Sun bounds of the ISO week containing the date', () => {
-    // 2026-09-02 is a Wednesday, so this week runs 08-31 (Mon) — 09-06 (Sun).
-    const bounds = weekBoundsAround(new Date('2026-09-02T10:00:00+02:00'), 'Europe/Warsaw');
-    expect(bounds.thisWeekStart).toBe('2026-08-31 (Monday)');
-    expect(bounds.thisWeekEnd).toBe('2026-09-06 (Sunday)');
-    expect(bounds.nextWeekStart).toBe('2026-09-07 (Monday)');
-    expect(bounds.nextWeekEnd).toBe('2026-09-13 (Sunday)');
-  });
-
-  it('treats a Sunday as the last day of "this week", not the first of "next"', () => {
-    // 2026-09-06 is Sunday — "next week" must start tomorrow (Mon 09-07),
-    // not later. Regression for the Mon-Sun convention.
-    const bounds = weekBoundsAround(new Date('2026-09-06T12:00:00+02:00'), 'Europe/Warsaw');
-    expect(bounds.thisWeekStart).toBe('2026-08-31 (Monday)');
-    expect(bounds.thisWeekEnd).toBe('2026-09-06 (Sunday)');
-    expect(bounds.nextWeekStart).toBe('2026-09-07 (Monday)');
-  });
-
-  it('treats a Monday as the first day of "this week"', () => {
-    const bounds = weekBoundsAround(new Date('2026-08-31T09:00:00+02:00'), 'Europe/Warsaw');
-    expect(bounds.thisWeekStart).toBe('2026-08-31 (Monday)');
-    expect(bounds.thisWeekEnd).toBe('2026-09-06 (Sunday)');
   });
 });
 

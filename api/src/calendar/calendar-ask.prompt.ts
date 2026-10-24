@@ -1,7 +1,4 @@
-import { formatZonedIso, upcomingDays, weekBoundsAround, weekdayName } from './zoned-time';
-
-// Days listed in the user message so the model can map weekday names to dates.
-export const DATES_AHEAD = 14;
+import { describeDates } from './calendar-ask.dates';
 
 // Byte-identical on every call so the Ollama prompt prefix stays cached.
 export const SYSTEM_PROMPT = `You turn a question about the user's calendar into one JSON query. You never see the events; the server runs your query. Reply with exactly one JSON object and nothing else.
@@ -50,33 +47,5 @@ export const QUERY_FORMAT = {
 };
 
 export function buildUserMessage(question: string, now: Date, timezone: string): string {
-  const week = weekBoundsAround(now, timezone);
-  const nowLabel = formatZonedIso(now, timezone).slice(0, 16).replace('T', ' ');
-  return [
-    `Now: ${weekdayName(now, timezone).slice(0, 3)} ${nowLabel}`,
-    `Dates: ${shortDates(now, timezone).join(', ')}`,
-    `Weekdays: ${nextWeekdays(now, timezone).join(', ')}`,
-    `This week: ${week.thisWeekStart} to ${week.thisWeekEnd}. Next week: ${week.nextWeekStart} to ${week.nextWeekEnd}.`,
-    `Q: ${question}`,
-  ].join('\n');
-}
-
-function shortDates(now: Date, timezone: string): string[] {
-  return upcomingDays(now, timezone, DATES_AHEAD).map((entry) => {
-    const weekday = entry.slice(0, 3);
-    return `${weekday} ${entry.slice(entry.indexOf(' ') + 1)}`;
-  });
-}
-
-// The next occurrence of each weekday, so a bare weekday name maps to one date.
-function nextWeekdays(now: Date, timezone: string): string[] {
-  const seen = new Set<string>();
-  const found: string[] = [];
-  for (const entry of upcomingDays(now, timezone, DATES_AHEAD)) {
-    const weekday = entry.slice(0, 3);
-    if (seen.has(weekday)) continue;
-    seen.add(weekday);
-    found.push(`${weekday}=${entry.match(/\d{4}-\d{2}-\d{2}/)?.[0]}`);
-  }
-  return found;
+  return [...describeDates(now, timezone), `Q: ${question}`].join('\n');
 }

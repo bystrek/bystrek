@@ -19,6 +19,14 @@ This repository contains the application code for bystrek:
 - If you change a public contract used by `homelab` manifests or runbooks,
   update the corresponding docs there too.
 
+## API code style (`api/`)
+
+- Keep pipeline invariants where they are enforced. For example, sort events inside `buildAnswer`, not in the caller.
+- Validate configuration once, up front (for example `assertValidTimeZone`). Keep `try/catch` around model-supplied input only.
+- New files that use `Temporal` need `/// <reference lib="esnext.temporal" />`.
+- Keep date and time logic in its own module, not in generic helpers.
+- `SYSTEM_PROMPT` in `calendar-ask.prompt.ts` must stay byte-identical for Ollama prefix caching. Check prompt changes with a before/after diff.
+
 ## Pull request reviews
 
 - When addressing review comments, resolve each thread once its fix is pushed.
