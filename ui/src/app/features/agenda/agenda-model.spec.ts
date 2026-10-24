@@ -1,6 +1,6 @@
+import { Temporal } from '@js-temporal/polyfill';
 import { CalendarEvent } from '../../core/calendar/calendar.service';
-import { buildAgendaRows, formatDuration } from './agenda-model';
-import { dayBounds, shiftDay, zonedDateKey } from './agenda-dates';
+import { buildAgendaRows, clockTime, formatDuration } from './agenda-model';
 
 const event = (uid: string, start: string, end: string, summary = uid): CalendarEvent => ({
   uid,
@@ -14,17 +14,17 @@ describe('agenda model', () => {
   it('gives recurring occurrences that share a UID distinct row keys', () => {
     const rows = buildAgendaRows(
       [
-        event('series', '2026-05-04T09:00:00', '2026-05-04T10:00:00'),
-        event('series', '2026-05-05T09:00:00', '2026-05-05T10:00:00'),
+        event('series', '2026-05-04T09:00:00+02:00', '2026-05-04T10:00:00+02:00'),
+        event('series', '2026-05-05T09:00:00+02:00', '2026-05-05T10:00:00+02:00'),
       ],
-      new Date('2026-05-04T08:00:00'),
+      Temporal.Instant.from('2026-05-04T08:00:00+02:00'),
     );
     const keys = rows.map((row) => row.key);
     expect(new Set(keys).size).toBe(keys.length);
     expect(keys).toHaveLength(3);
   });
 
-  const now = new Date('2025-10-22T10:00:00+02:00');
+  const now = Temporal.Instant.from('2025-10-22T10:00:00+02:00');
 
   it('marks past, next and upcoming events and shows gaps only between events', () => {
     const rows = buildAgendaRows(
@@ -72,24 +72,13 @@ describe('agenda model', () => {
     ]);
   });
 
-  it('computes wall-clock day bounds and crosses month boundaries', () => {
-    expect(dayBounds('2025-10-31')).toEqual({
-      start: '2025-10-31T00:00:00',
-      end: '2025-11-01T00:00:00',
-    });
-    expect(shiftDay('2025-10-31', 1)).toBe('2025-11-01');
-    expect(shiftDay('2025-01-01', -1)).toBe('2024-12-31');
-  });
-
-  it("takes the day from the account timezone, not the browser's", () => {
-    // 23:30 UTC on 24 Oct is 01:30 on 25 Oct in Warsaw (CEST, UTC+2).
-    expect(zonedDateKey(new Date('2026-10-24T23:30:00Z'), 'Europe/Warsaw')).toBe('2026-10-25');
-    expect(zonedDateKey(new Date('2026-10-24T21:30:00Z'), 'Europe/Warsaw')).toBe('2026-10-24');
-  });
-
   it('formats durations for free gaps', () => {
     expect(formatDuration(45)).toBe('45 min');
     expect(formatDuration(120)).toBe('2h');
     expect(formatDuration(150)).toBe('2h 30m');
+  });
+
+  it('reads the wall-clock time without converting the offset', () => {
+    expect(clockTime('2025-10-22T09:05:00+02:00')).toBe('09:05');
   });
 });

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { Temporal } from '@js-temporal/polyfill';
 import { map, timer } from 'rxjs';
 import { CalendarEvent, CalendarService } from '../../core/calendar/calendar.service';
 import { Button } from '../../shared/button/button';
@@ -7,8 +8,13 @@ import { Icon } from '../../shared/icon/icon';
 import { Progress } from '../../shared/progress/progress';
 import { Tag } from '../../shared/tag/tag';
 import { AskBar } from './ask-bar';
-import { dayBounds, formatDayLabel, shiftDay, zonedDateKey } from './agenda-dates';
-import { AgendaRow, buildAgendaRows, formatDuration, minutesUntil } from './agenda-model';
+import {
+  AgendaRow,
+  buildAgendaRows,
+  formatDayLabel,
+  formatDuration,
+  minutesUntil,
+} from './agenda-model';
 
 @Component({
   selector: 'app-agenda',
@@ -22,11 +28,11 @@ export class Agenda {
   private requestId = 0;
 
   // Emits the current time every minute; the "Next · in X min" labels follow it.
-  readonly now = toSignal(timer(0, 60_000).pipe(map(() => new Date())), {
-    initialValue: new Date(),
+  readonly now = toSignal(timer(0, 60_000).pipe(map(() => Temporal.Now.instant())), {
+    initialValue: Temporal.Now.instant(),
   });
   readonly timezone = signal<string | null>(null);
-  readonly selectedDay = signal('');
+  readonly selectedDay = signal<Temporal.PlainDate | null>(null);
   private readonly events = signal<CalendarEvent[]>([]);
   readonly rows = computed(() => buildAgendaRows(this.events(), this.now()));
   readonly eventCount = computed(() => this.events().length);
@@ -34,12 +40,14 @@ export class Agenda {
   readonly error = signal<string | null>(null);
   readonly askBusy = signal(false);
 
-  readonly dayLabel = computed(() =>
-    this.selectedDay() ? formatDayLabel(this.selectedDay()) : '',
-  );
+  readonly dayLabel = computed(() => {
+    const day = this.selectedDay();
+    return day ? formatDayLabel(day) : '';
+  });
   readonly isToday = computed(() => {
     const timeZone = this.timezone();
-    return timeZone !== null && this.selectedDay() === zonedDateKey(this.now(), timeZone);
+    const day = this.selectedDay();
+    return timeZone !== null && day !== null && this.today(timeZone).equals(day);
   });
   readonly subtitle = computed(() => {
     const count = this.eventCount();
@@ -52,12 +60,13 @@ export class Agenda {
   }
 
   shift(days: number): void {
-    if (!this.selectedDay()) return;
-    this.selectedDay.set(shiftDay(this.selectedDay(), days));
+    const day = this.selectedDay();
+    if (!day) return;
+    this.selectedDay.set(day.add({ days }));
     void this.load();
   }
 
-  jumpTo(day: string): void {
+  jumpTo(day: Temporal.PlainDate): void {
     this.selectedDay.set(day);
     void this.load();
   }
@@ -75,12 +84,16 @@ export class Agenda {
   }
 
   // "Today" is the account's day, so the timezone must load before the first list.
+  private today(timeZone: string): Temporal.PlainDate {
+    return this.now().toZonedDateTimeISO(timeZone).toPlainDate();
+  }
+
   private async init(): Promise<void> {
     this.loading.set(true);
     try {
       const timeZone = await this.calendar.getTimezone();
       this.timezone.set(timeZone);
-      this.selectedDay.set(zonedDateKey(new Date(), timeZone));
+      this.selectedDay.set(this.today(timeZone));
     } catch (err) {
       this.loading.set(false);
       this.error.set(err instanceof Error ? err.message : 'Could not load your timezone.');
@@ -92,7 +105,10 @@ export class Agenda {
   private async load(): Promise<void> {
     const id = ++this.requestId;
     const day = this.selectedDay();
-    const { start, end } = dayBounds(day);
+    if (!day) return;
+    // Wall-clock bounds without an offset: the API reads these in the user's timezone.
+    const start = day.toPlainDateTime().toString();
+    const end = day.add({ days: 1 }).toPlainDateTime().toString();
     this.loading.set(true);
     this.error.set(null);
     try {
