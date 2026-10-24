@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, output, signal } from '@ang
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormField, FormRoot, disabled, form, maxLength, required } from '@angular/forms/signals';
 import { Subject, catchError, map, of, switchMap, takeUntil } from 'rxjs';
+import { Temporal } from '@js-temporal/polyfill';
 import { AskResponse, CalendarAskService } from '../../core/calendar/calendar-ask.service';
 import { Button } from '../../shared/button/button';
 import { Card } from '../../shared/card/card';
@@ -9,8 +10,7 @@ import { Chip } from '../../shared/chip/chip';
 import { Icon } from '../../shared/icon/icon';
 import { Progress } from '../../shared/progress/progress';
 import { Tag } from '../../shared/tag/tag';
-import { clockTime, formatDayLabel } from './agenda-dates';
-import { formatDuration } from './agenda-model';
+import { clockTime, formatDayLabel, formatDuration } from './agenda-model';
 
 export const SUGGESTIONS = ['first event tomorrow', 'am I free friday afternoon?', 'next meeting'];
 
@@ -29,7 +29,7 @@ export class AskBar {
   private readonly questions = new Subject<string>();
   private readonly stops = new Subject<void>();
 
-  readonly jump = output<string>();
+  readonly jump = output<Temporal.PlainDate>();
   readonly busy = output<boolean>();
 
   readonly suggestions = SUGGESTIONS;
@@ -96,13 +96,13 @@ export class AskBar {
   }
 
   jumpTo(start: string): void {
-    this.jump.emit(start.slice(0, 10));
+    this.jump.emit(Temporal.PlainDate.from(start));
     this.close();
   }
 
   // Template helpers.
   eventDay(start: string): string {
-    return formatDayLabel(start.slice(0, 10));
+    return formatDayLabel(Temporal.PlainDate.from(start));
   }
 
   time(start: string): string {

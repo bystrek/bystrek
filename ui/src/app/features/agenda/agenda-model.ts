@@ -1,5 +1,5 @@
+import { Temporal } from '@js-temporal/polyfill';
 import type { CalendarEvent } from '../../core/calendar/calendar.service';
-import { clockTime } from './agenda-dates';
 
 export const MIN_GAP_MINUTES = 15;
 
@@ -22,8 +22,22 @@ export function formatDuration(minutes: number): string {
   return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
 }
 
-export function minutesUntil(iso: string, now: Date): number {
-  return Math.max(0, Math.round((Date.parse(iso) - now.getTime()) / 60000));
+// en-GB gives the day-first order used in the agenda design ("FRI 24 OCT"),
+// regardless of the browser's default locale.
+export function formatDayLabel(day: Temporal.PlainDate): string {
+  return day
+    .toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+    .toUpperCase();
+}
+
+// The API formats times in the account timezone, so the wall-clock digits are read as written.
+export function clockTime(iso: string): string {
+  return Temporal.PlainTime.from(iso).toString({ smallestUnit: 'minute' });
+}
+
+export function minutesUntil(iso: string, now: Temporal.Instant): number {
+  const minutes = now.until(Temporal.Instant.from(iso)).total({ unit: 'minutes' });
+  return Math.max(0, Math.round(minutes));
 }
 
 // Recurring occurrences share a UID, so keys combine the UID with the start time.
@@ -32,18 +46,21 @@ export function occurrenceKey(event: CalendarEvent): string {
 }
 
 // Gaps are only shown between events, not before the first or after the last.
-export function buildAgendaRows(events: CalendarEvent[], now: Date): AgendaRow[] {
-  const sorted = [...events].sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
-  const nowMs = now.getTime();
-  const nextIndex = sorted.findIndex((e) => Date.parse(e.start) >= nowMs);
+export function buildAgendaRows(events: CalendarEvent[], now: Temporal.Instant): AgendaRow[] {
+  const sorted = events
+    .map((event) => ({
+      event,
+      start: Temporal.Instant.from(event.start),
+      end: Temporal.Instant.from(event.end),
+    }))
+    .sort((a, b) => Temporal.Instant.compare(a.start, b.start));
+  const nextIndex = sorted.findIndex(({ start }) => Temporal.Instant.compare(start, now) >= 0);
 
   const rows: AgendaRow[] = [];
-  let previousEnd: number | null = null;
-  sorted.forEach((event, index) => {
-    const startMs = Date.parse(event.start);
-    const endMs = Date.parse(event.end);
+  let previousEnd: Temporal.Instant | null = null;
+  sorted.forEach(({ event, start, end }, index) => {
     if (previousEnd !== null) {
-      const gap = Math.round((startMs - previousEnd) / 60000);
+      const gap = Math.round(previousEnd.until(start).total({ unit: 'minutes' }));
       if (gap >= MIN_GAP_MINUTES) {
         rows.push({ kind: 'gap', key: `gap-${occurrenceKey(event)}`, minutes: gap });
       }
@@ -55,9 +72,14 @@ export function buildAgendaRows(events: CalendarEvent[], now: Date): AgendaRow[]
       start: event.start,
       time: clockTime(event.start),
       title: event.summary,
-      status: endMs <= nowMs ? 'past' : index === nextIndex ? 'next' : 'upcoming',
+      status:
+        Temporal.Instant.compare(end, now) <= 0
+          ? 'past'
+          : index === nextIndex
+            ? 'next'
+            : 'upcoming',
     });
-    previousEnd = endMs;
+    previousEnd = end;
   });
   return rows;
 }
