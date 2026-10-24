@@ -22,7 +22,11 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./features/layout/layout').then((m) => m.Layout),
     children: [
-      { path: '', pathMatch: 'full', redirectTo: 'settings' },
+      { path: '', pathMatch: 'full', redirectTo: 'agenda' },
+      {
+        path: 'agenda',
+        loadComponent: () => import('./features/agenda/agenda').then((m) => m.Agenda),
+      },
       {
         path: 'settings',
         loadComponent: () => import('./features/settings/settings').then((m) => m.Settings),

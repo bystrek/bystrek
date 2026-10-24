@@ -1,0 +1,50 @@
+<main class="agenda" [class.muted]="askBusy()">
+  <header class="head">
+    <h1>Agenda</h1>
+  </header>
+
+  <div class="day-nav">
+    <button type="button" appButton shape="icon" aria-label="Previous day" (click)="shift(-1)">
+      <app-icon name="chevron-left" />
+    </button>
+    <div class="day">
+      <p class="day-label">{{ dayLabel() }}</p>
+      <p class="day-sub">{{ subtitle() }}</p>
+    </div>
+    <button type="button" appButton shape="icon" aria-label="Next day" (click)="shift(1)">
+      <app-icon name="chevron-right" />
+    </button>
+  </div>
+
+  @if (error(); as message) {
+    <p class="error" role="alert">{{ message }}</p>
+  }
+
+  @if (loading()) {
+    <app-progress label="Loading events" />
+  }
+
+  <ol class="list">
+    @for (row of rows(); track trackRow(row)) {
+      @if (row.kind === 'gap') {
+        <li class="gap">·· free {{ duration(row.minutes) }} ··</li>
+      } @else {
+        <li class="event" [attr.data-status]="row.status">
+          <span class="time">{{ row.time }}</span>
+          <span class="title">{{ row.title }}</span>
+          @if (row.status === 'next') {
+            <app-tag variant="outline" icon="clock"
+              >Next · in {{ minutesAway(row.start) }} min</app-tag
+            >
+          }
+        </li>
+      }
+    }
+  </ol>
+
+  @if (!loading() && !error() && rows().length === 0) {
+    <p class="empty">Nothing scheduled.</p>
+  }
+
+  <app-ask-bar (jump)="jumpTo($event)" (busy)="askBusy.set($event)" />
+</main>
