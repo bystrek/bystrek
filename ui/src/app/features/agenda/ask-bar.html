@@ -1,11 +1,11 @@
 <section class="ask" aria-label="Ask your calendar">
   <div class="ask-response" aria-live="polite">
-    @if (phase() === 'thinking') {
+    @if (store.phase() === AskPhase.THINKING) {
       <div class="thinking">
-        <p class="asked">&gt; {{ asked() }}</p>
+        <p class="asked">&gt; {{ store.asked() }}</p>
         <app-progress label="Reading your calendar" />
       </div>
-    } @else if (response(); as r) {
+    } @else if (store.response(); as r) {
       @if (r.kind === 'event') {
         <app-card tone="primary" class="answer">
           <div class="answer-head">
@@ -15,18 +15,18 @@
               appButton
               shape="icon"
               aria-label="Close answer"
-              (click)="close()"
+              (click)="store.close()"
             >
               <app-icon name="x" />
             </button>
           </div>
-          <p class="answer-thought">Thought for {{ thoughtSeconds() }} s</p>
-          <p class="answer-time">{{ time(r.event.start) }} {{ r.event.title }}</p>
+          <p class="answer-thought">Thought for {{ store.thoughtSeconds() }} s</p>
+          <p class="answer-time">{{ r.event.start | clockTime }} {{ r.event.title }}</p>
           <p class="answer-meta">
-            {{ eventDay(r.event.start) }} · {{ duration(r.event.durationMinutes) }}
+            {{ r.event.start | weekdayAndDate }} · {{ r.event.durationMinutes | duration }}
           </p>
           <button type="button" appButton variant="inverse" block (click)="jumpTo(r.event.start)">
-            Jump to {{ eventDay(r.event.start) }} <app-icon name="arrow-right" />
+            Jump to {{ r.event.start | weekdayAndDate }} <app-icon name="arrow-right" />
           </button>
         </app-card>
       } @else if (r.kind === 'availability') {
@@ -38,17 +38,17 @@
               appButton
               shape="icon"
               aria-label="Close answer"
-              (click)="close()"
+              (click)="store.close()"
             >
               <app-icon name="x" />
             </button>
           </div>
-          <p class="answer-thought">Thought for {{ thoughtSeconds() }} s</p>
+          <p class="answer-thought">Thought for {{ store.thoughtSeconds() }} s</p>
           <p class="answer-text">{{ r.text }}</p>
           @if (r.conflicts.length) {
             <ul class="conflicts">
               @for (c of r.conflicts; track c.uid + c.start) {
-                <li>{{ time(c.start) }} {{ c.title }}</li>
+                <li>{{ c.start | clockTime }} {{ c.title }}</li>
               }
             </ul>
           }
@@ -62,17 +62,17 @@
               appButton
               shape="icon"
               aria-label="Close answer"
-              (click)="close()"
+              (click)="store.close()"
             >
               <app-icon name="x" />
             </button>
           </div>
-          <p class="answer-thought">Thought for {{ thoughtSeconds() }} s</p>
+          <p class="answer-thought">Thought for {{ store.thoughtSeconds() }} s</p>
           <p class="answer-text">{{ r.text }}</p>
           @if (r.events.length) {
             <ul class="conflicts">
               @for (e of r.events; track e.uid + e.start) {
-                <li>{{ eventDay(e.start) }} {{ time(e.start) }} {{ e.title }}</li>
+                <li>{{ e.start | weekdayAndDate }} {{ e.start | clockTime }} {{ e.title }}</li>
               }
             </ul>
           }
@@ -86,12 +86,12 @@
               appButton
               shape="icon"
               aria-label="Close answer"
-              (click)="close()"
+              (click)="store.close()"
             >
               <app-icon name="x" />
             </button>
           </div>
-          <p class="answer-thought">Thought for {{ thoughtSeconds() }} s</p>
+          <p class="answer-thought">Thought for {{ store.thoughtSeconds() }} s</p>
           <p class="answer-text">{{ r.text }}</p>
         </app-card>
       } @else {
@@ -103,20 +103,26 @@
               appButton
               shape="icon"
               aria-label="Close answer"
-              (click)="close()"
+              (click)="store.close()"
             >
               <app-icon name="x" />
             </button>
           </div>
-          <p class="answer-thought">Thought for {{ thoughtSeconds() }} s</p>
+          <p class="answer-thought">Thought for {{ store.thoughtSeconds() }} s</p>
           <p class="answer-text">{{ r.text }}</p>
         </app-card>
       }
-    } @else if (phase() === 'error') {
+    } @else if (store.phase() === AskPhase.ERROR) {
       <app-card tone="danger" class="answer">
         <div class="answer-head">
           <app-tag variant="solid">Error</app-tag>
-          <button type="button" appButton shape="icon" aria-label="Close answer" (click)="close()">
+          <button
+            type="button"
+            appButton
+            shape="icon"
+            aria-label="Close answer"
+            (click)="store.close()"
+          >
             <app-icon name="x" />
           </button>
         </div>
@@ -125,15 +131,15 @@
     }
   </div>
 
-  @if (phase() === 'idle') {
+  @if (store.phase() === AskPhase.IDLE) {
     <div class="chips">
       @for (s of suggestions; track s) {
-        <button type="button" appChip tone="secondary" (click)="submit(s)">{{ s }}</button>
+        <button type="button" appChip tone="secondary" (click)="useSuggestion(s)">{{ s }}</button>
       }
     </div>
   }
 
-  <form class="bar" [formRoot]="questionForm" (submit)="onSubmit($event)">
+  <form class="bar" [formRoot]="questionForm" (submit)="$event.preventDefault(); submitQuestion()">
     <span class="prompt" aria-hidden="true">&gt;</span>
     <input
       class="field"
@@ -143,8 +149,8 @@
       autocomplete="off"
       [formField]="questionForm.question"
     />
-    @if (phase() === 'thinking') {
-      <button type="button" appButton shape="icon" aria-label="Stop" (click)="stop()">
+    @if (store.phase() === AskPhase.THINKING) {
+      <button type="button" appButton shape="icon" aria-label="Stop" (click)="store.stop()">
         <app-icon name="stop" />
       </button>
     } @else {

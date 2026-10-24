@@ -3,59 +3,55 @@ import { of, Subject } from 'rxjs';
 import { APP_CONFIG } from '../../core/config/app-config';
 import { CalendarAskService, AskResponse } from '../../core/calendar/calendar-ask.service';
 import { AskBar } from './ask-bar';
+import { AskBarStore, AskPhase } from './ask-bar-store';
+
+const configure = (ask: () => unknown) => {
+  TestBed.configureTestingModule({
+    providers: [
+      { provide: APP_CONFIG, useValue: { apiUrl: '/api' } },
+      { provide: CalendarAskService, useValue: { ask } },
+      AskBarStore,
+    ],
+  });
+};
 
 describe('AskBar', () => {
   it("shows the can't-do card for a write request", () => {
     const response: AskResponse = { kind: 'cant_do', text: 'I can only read your calendar.' };
-    TestBed.configureTestingModule({
-      providers: [
-        { provide: APP_CONFIG, useValue: { apiUrl: '/api' } },
-        { provide: CalendarAskService, useValue: { ask: () => of(response) } },
-      ],
-    });
+    configure(() => of(response));
     const fixture = TestBed.createComponent(AskBar);
     fixture.detectChanges();
     const el: HTMLElement = fixture.nativeElement;
 
-    fixture.componentInstance.submit('delete my dentist appointment');
+    fixture.componentInstance.useSuggestion('delete my dentist appointment');
     fixture.detectChanges();
 
-    expect(fixture.componentInstance.phase()).toBe('cant_do');
+    expect(TestBed.inject(AskBarStore).phase()).toBe(AskPhase.CANT_DO);
     expect(el.querySelector<HTMLElement>('app-card')?.dataset['tone']).toBe('danger');
     expect(el.textContent).toContain('I can only read your calendar.');
   });
 
   it('cancels the in-flight question when stopped', () => {
     const pending = new Subject<AskResponse>();
-    TestBed.configureTestingModule({
-      providers: [
-        { provide: APP_CONFIG, useValue: { apiUrl: '/api' } },
-        { provide: CalendarAskService, useValue: { ask: () => pending.asObservable() } },
-      ],
-    });
+    configure(() => pending.asObservable());
     const fixture = TestBed.createComponent(AskBar);
-    const bar = fixture.componentInstance;
+    const store = TestBed.inject(AskBarStore);
 
-    bar.submit('next meeting');
-    expect(bar.phase()).toBe('thinking');
-    bar.stop();
+    fixture.componentInstance.useSuggestion('next meeting');
+    expect(store.phase()).toBe(AskPhase.THINKING);
+    store.stop();
 
-    expect(bar.phase()).toBe('idle');
+    expect(store.phase()).toBe(AskPhase.IDLE);
     expect(pending.observed).toBe(false);
   });
 
   it('shows how long the answer took', () => {
     const response: AskResponse = { kind: 'text', text: 'Nothing else today.' };
-    TestBed.configureTestingModule({
-      providers: [
-        { provide: APP_CONFIG, useValue: { apiUrl: '/api' } },
-        { provide: CalendarAskService, useValue: { ask: () => of(response) } },
-      ],
-    });
+    configure(() => of(response));
     const fixture = TestBed.createComponent(AskBar);
     fixture.detectChanges();
 
-    fixture.componentInstance.submit('anything else today?');
+    fixture.componentInstance.useSuggestion('anything else today?');
     fixture.detectChanges();
 
     const thought = fixture.nativeElement.querySelector('.answer-thought')?.textContent ?? '';
@@ -85,16 +81,11 @@ describe('AskBar', () => {
         },
       ],
     };
-    TestBed.configureTestingModule({
-      providers: [
-        { provide: APP_CONFIG, useValue: { apiUrl: '/api' } },
-        { provide: CalendarAskService, useValue: { ask: () => of(response) } },
-      ],
-    });
+    configure(() => of(response));
     const fixture = TestBed.createComponent(AskBar);
     fixture.detectChanges();
 
-    fixture.componentInstance.submit('what events do I have on Tuesday?');
+    fixture.componentInstance.useSuggestion('what events do I have on Tuesday?');
     fixture.detectChanges();
 
     const items = fixture.nativeElement.querySelectorAll('.conflicts li');

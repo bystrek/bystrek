@@ -1,40 +1,46 @@
-<main class="agenda" [class.muted]="askBusy()">
+<main class="agenda" [class.muted]="askStore.busy()">
   <header class="head">
     <h1>Agenda</h1>
   </header>
 
   <div class="day-nav">
-    <button type="button" appButton shape="icon" aria-label="Previous day" (click)="shift(-1)">
+    <button
+      type="button"
+      appButton
+      shape="icon"
+      aria-label="Previous day"
+      (click)="store.previousDay()"
+    >
       <app-icon name="chevron-left" />
     </button>
     <div class="day">
-      <p class="day-label">{{ dayLabel() }}</p>
-      <p class="day-sub">{{ subtitle() }}</p>
+      <p class="day-label">{{ store.selectedDay() | weekdayAndDate }}</p>
+      <p class="day-sub">{{ store.subtitle() }}</p>
     </div>
-    <button type="button" appButton shape="icon" aria-label="Next day" (click)="shift(1)">
+    <button type="button" appButton shape="icon" aria-label="Next day" (click)="store.nextDay()">
       <app-icon name="chevron-right" />
     </button>
   </div>
 
-  @if (error(); as message) {
+  @if (store.error(); as message) {
     <p class="error" role="alert">{{ message }}</p>
   }
 
-  @if (loading()) {
+  @if (store.loading()) {
     <app-progress label="Loading events" />
   }
 
   <ol class="list">
-    @for (row of rows(); track trackRow(row)) {
-      @if (row.kind === 'gap') {
-        <li class="gap">·· free {{ duration(row.minutes) }} ··</li>
+    @for (row of store.rows(); track trackRow(row)) {
+      @if (row.kind === AgendaRowKind.GAP) {
+        <li class="gap">·· free {{ row.minutes | duration }} ··</li>
       } @else {
         <li class="event" [attr.data-status]="row.status">
           <span class="time">{{ row.time }}</span>
           <span class="title">{{ row.title }}</span>
-          @if (row.status === 'next') {
+          @if (row.status === EventStatus.NEXT) {
             <app-tag variant="outline" icon="clock"
-              >Next · in {{ minutesAway(row.start) }} min</app-tag
+              >Next · in {{ row.start | minutesUntil: store.now() }} min</app-tag
             >
           }
         </li>
@@ -42,9 +48,9 @@
     }
   </ol>
 
-  @if (!loading() && !error() && rows().length === 0) {
+  @if (!store.loading() && !store.error() && store.rows().length === 0) {
     <p class="empty">Nothing scheduled.</p>
   }
 
-  <app-ask-bar (jump)="jumpTo($event)" (busy)="askBusy.set($event)" />
+  <app-ask-bar (jump)="store.jumpToDay($event)" />
 </main>

@@ -1,6 +1,6 @@
 import { Temporal } from '@js-temporal/polyfill';
 import { CalendarEvent } from '../../core/calendar/calendar.service';
-import { buildAgendaRows, clockTime, formatDuration } from './agenda-model';
+import { AgendaRowKind, buildAgendaRows, EventStatus } from './agenda-rows';
 
 const event = (uid: string, start: string, end: string, summary = uid): CalendarEvent => ({
   uid,
@@ -10,7 +10,7 @@ const event = (uid: string, start: string, end: string, summary = uid): Calendar
   startWeekday: 'THU',
 });
 
-describe('agenda model', () => {
+describe('agenda rows', () => {
   it('gives recurring occurrences that share a UID distinct row keys', () => {
     const rows = buildAgendaRows(
       [
@@ -26,6 +26,21 @@ describe('agenda model', () => {
 
   const now = Temporal.Instant.from('2025-10-22T10:00:00+02:00');
 
+  it('measures gaps from the latest earlier end, so an overlapping event does not shorten them', () => {
+    const rows = buildAgendaRows(
+      [
+        event('long', '2025-10-22T09:00:00+02:00', '2025-10-22T12:00:00+02:00'),
+        event('short', '2025-10-22T09:30:00+02:00', '2025-10-22T09:45:00+02:00'),
+        event('after', '2025-10-22T13:00:00+02:00', '2025-10-22T14:00:00+02:00'),
+      ],
+      now,
+    );
+
+    expect(rows.filter((row) => row.kind === AgendaRowKind.GAP)).toEqual([
+      { kind: AgendaRowKind.GAP, key: 'gap-after@2025-10-22T13:00:00+02:00', minutes: 60 },
+    ]);
+  });
+
   it('marks past, next and upcoming events and shows gaps only between events', () => {
     const rows = buildAgendaRows(
       [
@@ -38,47 +53,37 @@ describe('agenda model', () => {
 
     expect(rows).toEqual([
       {
-        kind: 'event',
+        kind: AgendaRowKind.EVENT,
         key: 'early@2025-10-22T09:00:00+02:00',
         uid: 'early',
         start: '2025-10-22T09:00:00+02:00',
         time: '09:00',
         title: 'early',
-        status: 'past',
+        status: EventStatus.PAST,
       },
       {
-        kind: 'event',
+        kind: AgendaRowKind.EVENT,
         key: 'tight@2025-10-22T09:35:00+02:00',
         uid: 'tight',
         start: '2025-10-22T09:35:00+02:00',
         time: '09:35',
         title: 'tight',
-        status: 'past',
+        status: EventStatus.PAST,
       },
       {
-        kind: 'gap',
+        kind: AgendaRowKind.GAP,
         key: 'gap-late@2025-10-22T14:00:00+02:00',
         minutes: 255,
       },
       {
-        kind: 'event',
+        kind: AgendaRowKind.EVENT,
         key: 'late@2025-10-22T14:00:00+02:00',
         uid: 'late',
         start: '2025-10-22T14:00:00+02:00',
         time: '14:00',
         title: 'late',
-        status: 'next',
+        status: EventStatus.NEXT,
       },
     ]);
-  });
-
-  it('formats durations for free gaps', () => {
-    expect(formatDuration(45)).toBe('45 min');
-    expect(formatDuration(120)).toBe('2h');
-    expect(formatDuration(150)).toBe('2h 30m');
-  });
-
-  it('reads the wall-clock time without converting the offset', () => {
-    expect(clockTime('2025-10-22T09:05:00+02:00')).toBe('09:05');
   });
 });
