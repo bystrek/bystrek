@@ -1,5 +1,5 @@
 import type { ParsedEvent } from './ical-event';
-import type { ReadQuery } from './calendar-ask.query';
+import type { ReadQuery, SearchQuery } from './calendar-ask.query';
 
 export interface AskEvent {
   uid: string;
@@ -22,11 +22,25 @@ export const FALLBACK_TEXT = "I couldn't work that out. Try rephrasing the quest
 const NO_EVENT_TEXT = 'No matching event.';
 
 // Answers are composed here, never by the model. Events may arrive in any order.
-export function buildAnswer(query: ReadQuery, events: ParsedEvent[], now: Date): AskResponse {
+export function buildAnswer(
+  query: ReadQuery | SearchQuery,
+  events: ParsedEvent[],
+  now: Date,
+): AskResponse {
   const timed = sortByStart(events);
   switch (query.kind) {
     case 'event':
       return pickEvent(query.pick, timed, now);
+    case 'next':
+      return pickEvent('next', timed, now);
+    case 'find': {
+      const search = query.search;
+      return pickEvent(
+        'next',
+        timed.filter((event) => matchesSearch(event, search)),
+        now,
+      );
+    }
     case 'availability':
       return availability(timed, query.start, query.end);
     case 'count':
@@ -47,6 +61,13 @@ export function buildAnswer(query: ReadQuery, events: ParsedEvent[], now: Date):
         events: timed.map(toAskEvent),
       };
   }
+}
+
+// Case-insensitive title match in either direction, so "dentist appointment" still finds
+// "Dentist". `search` is already lowercased by parseQuery.
+export function matchesSearch(event: ParsedEvent, search: string): boolean {
+  const title = event.summary.trim().toLowerCase();
+  return title !== '' && (title.includes(search) || search.includes(title));
 }
 
 type TimedEvent = ParsedEvent & { startMs: number; endMs: number };

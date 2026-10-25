@@ -8,10 +8,12 @@ import {
 } from './calendar.service';
 import { CalendarAskService } from './calendar-ask.service';
 import { parseQuery } from './calendar-ask.query';
-import { DISCOVERY_PROMPT, SYSTEM_PROMPT } from './calendar-ask.prompt';
+import { SYSTEM_PROMPT } from './calendar-ask.prompt';
 import type { ParsedEvent } from './ical-event';
 
 const TZ = 'Europe/Warsaw';
+// Monday 2026-05-04, 08:00 in Warsaw: the day the standup and lunch fixtures are on.
+const MONDAY = new Date('2026-05-04T08:00:00+02:00');
 
 const standup = {
   uid: 'standup-1',
@@ -48,49 +50,46 @@ function service(reply: string, events: ParsedEvent[] = []) {
 }
 
 describe('parseQuery', () => {
-  it('accepts a well-formed event query', () => {
-    expect(
-      parseQuery(
-        '{"kind":"event","pick":"first","from":"2026-05-04T00:00","to":"2026-05-04T23:59"}',
-        TZ,
-      ),
-    ).toEqual({
+  it('resolves the date words of a well-formed event query against now', () => {
+    expect(parseQuery('{"kind":"event","pick":"first","day":"today"}', TZ, MONDAY)).toEqual({
       kind: 'event',
       pick: 'first',
       start: new Date('2026-05-03T22:00:00Z').getTime(),
-      end: new Date('2026-05-04T21:59:00Z').getTime(),
+      end: new Date('2026-05-04T22:00:00Z').getTime(),
     });
   });
 
-  it('rejects a range that ends before it starts', () => {
+  it('rejects a last day before the first', () => {
     expect(
-      parseQuery('{"kind":"list","from":"2026-05-05T00:00","to":"2026-05-04T00:00"}', TZ),
+      parseQuery('{"kind":"list","day":"tomorrow","until":"today"}', TZ, MONDAY),
     ).toBeUndefined();
   });
 
-  it('rejects an impossible date', () => {
-    expect(
-      parseQuery('{"kind":"count","from":"2026-02-30T00:00","to":"2026-03-01T00:00"}', TZ),
-    ).toBeUndefined();
-  });
-
-  it('rejects a range longer than a year', () => {
-    expect(
-      parseQuery('{"kind":"list","from":"2026-05-04T00:00","to":"2027-06-04T00:00"}', TZ),
-    ).toBeUndefined();
+  it('rejects an unknown date word or an impossible date', () => {
+    expect(parseQuery('{"kind":"count","day":"someday"}', TZ, MONDAY)).toBeUndefined();
+    expect(parseQuery('{"kind":"count","day":"02-30"}', TZ, MONDAY)).toBeUndefined();
   });
 
   it('rejects a bare JSON array', () => {
-    expect(parseQuery('[{"uid":"x"}]', TZ)).toBeUndefined();
+    expect(parseQuery('[{"uid":"x"}]', TZ, MONDAY)).toBeUndefined();
+  });
+
+  it('accepts next and find without dates, lowercasing the search', () => {
+    expect(parseQuery('{"kind":"next"}', TZ, MONDAY)).toEqual({ kind: 'next' });
+    expect(parseQuery('{"kind":"find","search":" Sprint Review "}', TZ, MONDAY)).toEqual({
+      kind: 'find',
+      search: 'sprint review',
+    });
+  });
+
+  it('rejects a find query without a search', () => {
+    expect(parseQuery('{"kind":"find","search":"  "}', TZ, MONDAY)).toBeUndefined();
   });
 });
 
 describe('CalendarAskService', () => {
   it('returns the first event in the queried range', async () => {
-    const { ask } = service(
-      '{"kind":"event","pick":"first","from":"2026-05-04T00:00","to":"2026-05-04T23:59"}',
-      [standup, lunch],
-    );
+    const { ask } = service('{"kind":"event","pick":"first","day":"today"}', [standup, lunch]);
 
     expect(await ask.ask('user-1', TZ, 'first event today?')).toEqual({
       kind: 'event',
@@ -118,10 +117,7 @@ describe('CalendarAskService', () => {
       start: '2099-01-03T13:00:00+01:00',
       end: '2099-01-03T14:00:00+01:00',
     } as ParsedEvent;
-    const { ask } = service(
-      '{"kind":"event","pick":"next","from":"2000-01-01T00:00","to":"2000-01-08T00:00"}',
-      [past, future],
-    );
+    const { ask } = service('{"kind":"next"}', [past, future]);
 
     expect(await ask.ask('user-1', TZ, 'my next meeting?')).toMatchObject({
       kind: 'event',
@@ -130,24 +126,18 @@ describe('CalendarAskService', () => {
   });
 
   it('treats an event that ends exactly at the window start as not overlapping', async () => {
-    const { ask } = service(
-      '{"kind":"availability","from":"2026-05-04T09:30","to":"2026-05-04T10:00"}',
-      [standup],
-    );
+    const { ask } = service('{"kind":"availability","day":"today","time":"09:30"}', [standup]);
 
-    expect(await ask.ask('user-1', TZ, 'free at 9:30?')).toMatchObject({
+    expect(await ask.ask('user-1', TZ, 'free at 9:30?', MONDAY)).toMatchObject({
       kind: 'availability',
       busy: false,
     });
   });
 
   it('reports busy with the overlapping event as a conflict', async () => {
-    const { ask } = service(
-      '{"kind":"availability","from":"2026-05-04T09:15","to":"2026-05-04T10:00"}',
-      [standup],
-    );
+    const { ask } = service('{"kind":"availability","day":"today","time":"09:15"}', [standup]);
 
-    expect(await ask.ask('user-1', TZ, 'free at 9:15?')).toMatchObject({
+    expect(await ask.ask('user-1', TZ, 'free at 9:15?', MONDAY)).toMatchObject({
       kind: 'availability',
       busy: true,
       conflicts: [{ uid: 'standup-1' }],
@@ -155,19 +145,13 @@ describe('CalendarAskService', () => {
   });
 
   it('counts and lists events with server-written text', async () => {
-    const counted = service('{"kind":"count","from":"2026-05-04T00:00","to":"2026-05-04T23:59"}', [
-      standup,
-      lunch,
-    ]);
+    const counted = service('{"kind":"count","day":"today"}', [standup, lunch]);
     expect(await counted.ask.ask('user-1', TZ, 'how many today?')).toEqual({
       kind: 'text',
       text: 'You have 2 events in that time.',
     });
 
-    const listed = service('{"kind":"list","from":"2026-05-04T00:00","to":"2026-05-04T23:59"}', [
-      standup,
-      lunch,
-    ]);
+    const listed = service('{"kind":"list","day":"today"}', [standup, lunch]);
     expect(await listed.ask.ask('user-1', TZ, "what's on today?")).toEqual({
       kind: 'list',
       text: '2 events.',
@@ -200,45 +184,18 @@ describe('CalendarAskService', () => {
     expect(listEvents).not.toHaveBeenCalled();
   });
 
-  it('sends the same static system prompt on every query call, with the dynamic part last', async () => {
-    const { ask, generate } = service(
-      '{"kind":"count","from":"2026-05-04T00:00","to":"2026-05-04T23:59"}',
-    );
+  it('makes one model call per question with a static system prompt and only the question', async () => {
+    const { ask, generate } = service('{"kind":"count","day":"today"}');
 
     await ask.ask('user-1', TZ, 'how many today?');
     await ask.ask('user-1', TZ, 'what about tomorrow?');
 
-    const queryCalls = generate.mock.calls.filter(
-      ([system]) => system === SYSTEM_PROMPT,
-    ) as unknown as string[][];
-    const [[firstSystem, firstUser], [secondSystem, secondUser]] = queryCalls;
-    expect(queryCalls).toHaveLength(2);
-    expect(firstSystem).toBe(secondSystem);
-    expect(firstUser).toContain('Q: how many today?');
-    expect(secondUser).toContain('Q: what about tomorrow?');
-    expect(firstUser).toMatch(/^Now: \w{3} \d{4}-\d{2}-\d{2} \d{2}:\d{2}\nDates: \w{3} /);
-    expect(firstUser).toMatch(
-      /\nWeekdays: (\w{3}=\d{4}-\d{2}-\d{2}, ){6}\w{3}=\d{4}-\d{2}-\d{2}\n/,
-    );
-  });
-
-  it('asks a discovery call for explicit dates first and adds them to the query call', async () => {
-    const generate = mock(async (system: string) =>
-      system === DISCOVERY_PROMPT
-        ? '{"dates":["2099-01-10"]}'
-        : '{"kind":"list","from":"2099-01-10T00:00","to":"2099-01-11T00:00"}',
-    );
-    const calendar = { listEvents: mock(async () => []) } as unknown as CalendarService;
-    const ask = new CalendarAskService({ generate } as unknown as ChatModel, calendar);
-
-    await ask.ask('user-1', TZ, 'what is on the 10th?');
-
-    const [discoverySystem, discoveryUser] = generate.mock.calls[0] as unknown as string[];
-    const [querySystem, queryUser] = generate.mock.calls[1] as unknown as string[];
-    expect(discoverySystem).toBe(DISCOVERY_PROMPT);
-    expect(discoveryUser).toContain('Q: what is on the 10th?');
-    expect(querySystem).toBe(SYSTEM_PROMPT);
-    expect(queryUser).toContain('2099-01-10');
+    const calls = generate.mock.calls as unknown as string[][];
+    expect(calls).toHaveLength(2);
+    expect(calls[0][0]).toBe(SYSTEM_PROMPT);
+    expect(calls[1][0]).toBe(SYSTEM_PROMPT);
+    expect(calls[0][1]).toBe('Q: how many today?');
+    expect(calls[1][1]).toBe('Q: what about tomorrow?');
   });
 
   it('surfaces an unreachable model as a service error', async () => {
@@ -254,7 +211,7 @@ describe('CalendarAskService', () => {
     );
   });
 
-  it('searches beyond the model window for a next event and stops at the first match', async () => {
+  it('searches forward from now for a next event and stops at the first match', async () => {
     const inMarch = {
       ...lunch,
       uid: 'later',
@@ -269,37 +226,61 @@ describe('CalendarAskService', () => {
       ),
     );
     const calendar = { listEvents } as unknown as CalendarService;
-    const ask = new CalendarAskService(
-      fakeModel('{"kind":"event","pick":"next","from":"2026-05-04T00:00","to":"2026-05-18T00:00"}')
-        .model,
-      calendar,
-    );
+    const ask = new CalendarAskService(fakeModel('{"kind":"next"}').model, calendar);
 
+    const before = Date.now();
     expect(await ask.ask('user-1', TZ, 'my next meeting?')).toMatchObject({
       kind: 'event',
       event: { uid: 'later' },
     });
-    const lastRange = listEvents.mock.calls.at(-1)?.[1];
-    expect(lastRange?.end.getTime()).toBeGreaterThan(Date.parse(inMarch.start));
-    expect(lastRange?.end.getTime()).toBeLessThan(new Date('2027-05-04T00:00:00+02:00').getTime());
+    const ranges = listEvents.mock.calls.map(([, range]) => range);
+    expect(ranges[0].start.getTime()).toBeGreaterThanOrEqual(before);
+    expect(ranges.at(-1)?.end.getTime()).toBeGreaterThan(Date.parse(inMarch.start));
+    expect(ranges.at(-1)?.start.getTime()).toBeLessThan(Date.parse(inMarch.start));
+  });
+
+  it('searches forward from now for a keyword and skips events that do not match', async () => {
+    const dentist = {
+      ...lunch,
+      uid: 'dentist',
+      summary: 'Dentist',
+      start: '2027-06-10T10:00:00+02:00',
+      end: '2027-06-10T11:00:00+02:00',
+    } as ParsedEvent;
+    const listEvents = mock(async (_user: string, range: { start: Date; end: Date }) =>
+      [lunch, dentist].filter(
+        (event) =>
+          Date.parse(event.start) < range.end.getTime() &&
+          Date.parse(event.end) > range.start.getTime(),
+      ),
+    );
+    const calendar = { listEvents } as unknown as CalendarService;
+    const ask = new CalendarAskService(
+      fakeModel('{"kind":"find","search":"dentist appointment"}').model,
+      calendar,
+    );
+
+    expect(await ask.ask('user-1', TZ, 'when is my dentist appointment?')).toMatchObject({
+      kind: 'event',
+      event: { uid: 'dentist' },
+    });
   });
 
   it('answers no match once the search reaches its horizon', async () => {
-    const { ask, listEvents } = service(
-      '{"kind":"event","pick":"next","from":"2026-05-04T00:00","to":"2026-05-18T00:00"}',
-    );
+    const { ask, listEvents } = service('{"kind":"next"}');
 
+    const before = Date.now();
     expect(await ask.ask('user-1', TZ, 'my next meeting?')).toEqual({
       kind: 'text',
       text: 'No matching event.',
     });
     const lastRange = listEvents.mock.calls.at(-1)?.[1];
-    expect(lastRange?.end.getTime()).toBe(
-      new Date('2026-05-04T00:00:00+02:00').getTime() + 365 * 24 * 60 * 60 * 1000,
-    );
+    const yearMs = 365 * 24 * 60 * 60 * 1000;
+    expect(lastRange?.end.getTime()).toBeGreaterThanOrEqual(before + yearMs);
+    expect(lastRange?.end.getTime()).toBeLessThanOrEqual(Date.now() + yearMs);
   });
   it('maps a missing calendar configuration to a client error, not a service error', async () => {
-    const model = fakeModel('{"kind":"list","from":"2026-05-04T00:00","to":"2026-05-05T00:00"}');
+    const model = fakeModel('{"kind":"list","day":"today"}');
     const calendar = {
       listEvents: mock(async () => {
         throw new CalendarNotConfiguredError();
@@ -311,7 +292,7 @@ describe('CalendarAskService', () => {
   });
 
   it('maps a calendar URL mismatch to a client error', async () => {
-    const model = fakeModel('{"kind":"list","from":"2026-05-04T00:00","to":"2026-05-05T00:00"}');
+    const model = fakeModel('{"kind":"list","day":"today"}');
     const calendar = {
       listEvents: mock(async () => {
         throw new CalendarUrlMismatchError('https://old.example/cal', ['https://new.example/cal']);

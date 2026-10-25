@@ -21,7 +21,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "bun run scripts/seed.ts",
-    "db:seed:local": "bun run scripts/seed-local.ts"
+    "db:seed:local": "bun run scripts/seed-local.ts",
+    "eval:calendar-ask": "bun run eval/calendar-ask.eval.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

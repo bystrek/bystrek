@@ -23,7 +23,7 @@ export const AUTH_SECRET = required('AUTH_SECRET');
 export const UI_URL = process.env.UI_URL ?? 'http://localhost:5173';
 export const API_URL = process.env.API_URL ?? 'http://localhost:3000';
 export const LLM_BASE_URL = process.env.LLM_BASE_URL ?? 'http://localhost:11434';
-export const LLM_MODEL = process.env.LLM_MODEL ?? 'qwen2.5:3b';
+export const LLM_MODEL = process.env.LLM_MODEL ?? 'qwen2.5:7b';
 const rawLlmTimeout = process.env.LLM_TIMEOUT_MS ?? '120000';
 const configuredLlmTimeout = Number(rawLlmTimeout);
 if (

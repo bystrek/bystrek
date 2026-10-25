@@ -1,68 +1,128 @@
+/// <reference lib="esnext.temporal" />
 import { describe, expect, it } from 'bun:test';
-import { describeDates, parseReferencedDates, weekBoundsAround } from './calendar-ask.dates';
+import { resolveWhen, type WhenWords } from './calendar-ask.dates';
+import { parseZonedIso } from './zoned-time';
 
-describe('weekBoundsAround', () => {
-  it('returns the Mon-Sun bounds of the ISO week containing the date', () => {
-    // 2026-09-02 is a Wednesday, so this week runs 08-31 (Mon) — 09-06 (Sun).
-    const bounds = weekBoundsAround(new Date('2026-09-02T10:00:00+02:00'), 'Europe/Warsaw');
-    expect(bounds.thisWeekStart).toBe('2026-08-31 (Monday)');
-    expect(bounds.thisWeekEnd).toBe('2026-09-06 (Sunday)');
-    expect(bounds.nextWeekStart).toBe('2026-09-07 (Monday)');
-    expect(bounds.nextWeekEnd).toBe('2026-09-13 (Sunday)');
+const TZ = 'Europe/Warsaw';
+// Sunday 2026-10-25, 18:00 in Warsaw, the day DST ended.
+const NOW = new Date('2026-10-25T18:00:00+01:00');
+
+function resolve(words: WhenWords, now = NOW) {
+  const window = resolveWhen(words, now, TZ);
+  return window && { start: new Date(window.start), end: new Date(window.end) };
+}
+
+// Local midnight to the next local midnight, so the 25-hour DST day is exact.
+function day(date: string) {
+  const next = Temporal.PlainDate.from(date).add({ days: 1 }).toString();
+  return { start: parseZonedIso(`${date}T00:00`, TZ), end: parseZonedIso(`${next}T00:00`, TZ) };
+}
+
+describe('resolveWhen', () => {
+  it('defaults to today and counts today, tomorrow and offsets from today', () => {
+    expect(resolve({})).toEqual(day('2026-10-25'));
+    expect(resolve({ day: 'today' })).toEqual(day('2026-10-25'));
+    expect(resolve({ day: 'Tomorrow' })).toEqual(day('2026-10-26'));
+    expect(resolve({ day: '+2' })).toEqual(day('2026-10-27'));
+    expect(resolve({ day: 'day_after_tomorrow' })).toEqual(day('2026-10-27'));
+    expect(resolve({ day: 'the day after tomorrow' })).toEqual(day('2026-10-27'));
+    expect(resolve({ day: 'Jutro' })).toEqual(day('2026-10-26'));
+    expect(resolve({ day: 'pojutrze' })).toEqual(day('2026-10-27'));
+    expect(resolve({ day: 'dzisiaj' })).toEqual(day('2026-10-25'));
   });
 
-  it('treats a Sunday as the last day of "this week", not the first of "next"', () => {
-    // 2026-09-06 is Sunday — "next week" must start tomorrow (Mon 09-07),
-    // not later. Regression for the Mon-Sun convention.
-    const bounds = weekBoundsAround(new Date('2026-09-06T12:00:00+02:00'), 'Europe/Warsaw');
-    expect(bounds.thisWeekStart).toBe('2026-08-31 (Monday)');
-    expect(bounds.thisWeekEnd).toBe('2026-09-06 (Sunday)');
-    expect(bounds.nextWeekStart).toBe('2026-09-07 (Monday)');
+  it('starts today at local midnight across the DST change', () => {
+    expect(resolve({ day: 'today' })?.start).toEqual(new Date('2026-10-25T00:00:00+02:00'));
   });
 
-  it('treats a Monday as the first day of "this week"', () => {
-    const bounds = weekBoundsAround(new Date('2026-08-31T09:00:00+02:00'), 'Europe/Warsaw');
-    expect(bounds.thisWeekStart).toBe('2026-08-31 (Monday)');
-    expect(bounds.thisWeekEnd).toBe('2026-09-06 (Sunday)');
+  it('maps a weekday to its next occurrence, today included', () => {
+    expect(resolve({ day: 'sun' })).toEqual(day('2026-10-25'));
+    expect(resolve({ day: 'mon' })).toEqual(day('2026-10-26'));
+    expect(resolve({ day: 'thursday' })).toEqual(day('2026-10-29'));
   });
-});
 
-describe('describeDates', () => {
-  it('lists the first occurrence of each weekday with relative labels on the first two days', () => {
-    const lines = describeDates(new Date('2026-03-02T09:00:00+01:00'), 'Europe/Warsaw');
-    expect(lines[0]).toBe('Now: Mon 2026-03-02 09:00');
-    expect(lines[1].startsWith('Dates: Mon 2026-03-02 (today), Tue 2026-03-03 (tomorrow), ')).toBe(
-      true,
+  it('maps a day of the month to its next occurrence', () => {
+    expect(resolve({ day: '14' })).toEqual(day('2026-11-14'));
+    expect(resolve({ day: '25' })).toEqual(day('2026-10-25'));
+    // November has 30 days, so the next 31st after Nov 1 is Dec 31.
+    expect(resolve({ day: '31' }, new Date('2026-11-01T12:00:00+01:00'))).toEqual(
+      day('2026-12-31'),
     );
-    expect(lines[2].startsWith('Weekdays: Mon=2026-03-02, Tue=2026-03-03, Wed=2026-03-04')).toBe(
-      true,
+  });
+
+  it('rolls a month and day into next year once it has passed', () => {
+    expect(resolve({ day: '14 nov' })).toEqual(day('2026-11-14'));
+    expect(resolve({ day: 'March 3rd' })).toEqual(day('2027-03-03'));
+    expect(resolve({ day: '3 of march' })).toEqual(day('2027-03-03'));
+  });
+
+  it('reads a numeric day and month only when one order is the only valid one', () => {
+    expect(resolve({ day: '11-14' })).toEqual(day('2026-11-14'));
+    expect(resolve({ day: '14-11' })).toEqual(day('2026-11-14'));
+    expect(resolve({ day: '14.11' })).toEqual(day('2026-11-14'));
+    expect(resolve({ day: '05-11' })).toBeUndefined();
+  });
+
+  it('accepts abbreviated and misspelled day words, rejecting ambiguous ones', () => {
+    expect(resolve({ day: 'tommorow' })).toEqual(day('2026-10-26'));
+    expect(resolve({ day: 'tomor' })).toEqual(day('2026-10-26'));
+    expect(resolve({ day: 'thur' })).toEqual(day('2026-10-29'));
+    expect(resolve({ day: 'wensday' })).toEqual(day('2026-10-28'));
+    expect(resolve({ day: '14th' })).toEqual(day('2026-11-14'));
+    expect(resolve({ day: 'tu' })).toBeUndefined();
+    expect(resolve({ day: 'ju' })).toBeUndefined();
+    expect(resolve({ day: '14 ju' })).toBeUndefined();
+  });
+
+  it('narrows a day to a period or to one hour from a clock time', () => {
+    expect(resolve({ day: 'tomorrow', time: 'afternoon' })).toEqual({
+      start: new Date('2026-10-26T12:00:00+01:00'),
+      end: new Date('2026-10-26T18:00:00+01:00'),
+    });
+    expect(resolve({ day: 'tomorrow', time: 'evening' })?.end).toEqual(
+      new Date('2026-10-27T00:00:00+01:00'),
     );
-    expect(lines[3]).toBe(
-      'This week: 2026-03-02 (Monday) to 2026-03-08 (Sunday). Next week: 2026-03-09 (Monday) to 2026-03-15 (Sunday).',
-    );
+    expect(resolve({ day: 'tomorrow', time: '9:15' })).toEqual({
+      start: new Date('2026-10-26T09:15:00+01:00'),
+      end: new Date('2026-10-26T10:15:00+01:00'),
+    });
   });
 
-  it('appends referenced dates outside the window to the Dates line once', () => {
-    const lines = describeDates(new Date('2026-03-02T09:00:00+01:00'), 'Europe/Warsaw', [
-      '2026-04-10',
-      '2026-03-03',
-    ]);
-    expect(lines[1].endsWith(', Fri 2026-04-10')).toBe(true);
-    expect(lines[1].match(/2026-03-03/g)).toHaveLength(1);
-  });
-});
-
-describe('parseReferencedDates', () => {
-  it('keeps real, unique ISO dates and drops malformed or impossible ones', () => {
-    expect(
-      parseReferencedDates(
-        '{"dates":["2026-11-10","2026-11-10","2026-02-30","Oct 10","2026-12-01","2026-12-02"]}',
-      ),
-    ).toEqual(['2026-11-10', '2026-12-01', '2026-12-02']);
+  it('reads bare hours and 12-hour clock times', () => {
+    const tomorrowAt = (time: string) => resolve({ day: 'tomorrow', time })?.start;
+    expect(tomorrowAt('10')).toEqual(new Date('2026-10-26T10:00:00+01:00'));
+    expect(tomorrowAt('3pm')).toEqual(new Date('2026-10-26T15:00:00+01:00'));
+    expect(tomorrowAt('9:30 am')).toEqual(new Date('2026-10-26T09:30:00+01:00'));
+    expect(tomorrowAt('12am')).toEqual(new Date('2026-10-26T00:00:00+01:00'));
+    expect(tomorrowAt('12pm')).toEqual(new Date('2026-10-26T12:00:00+01:00'));
+    expect(tomorrowAt('13pm')).toBeUndefined();
   });
 
-  it('returns no dates for a malformed discovery reply', () => {
-    expect(parseReferencedDates('not json')).toEqual([]);
-    expect(parseReferencedDates('{"dates":"2026-11-10"}')).toEqual([]);
+  it('spans whole days until a last day resolved from the first', () => {
+    expect(resolve({ day: 'tomorrow', until: 'wed' })).toEqual({
+      start: day('2026-10-26').start,
+      end: day('2026-10-28').end,
+    });
+  });
+
+  it('resolves this and next Mon-Sun week', () => {
+    expect(resolve({ range: 'this_week' })).toEqual({
+      start: new Date('2026-10-19T00:00:00+02:00'),
+      end: day('2026-10-26').start,
+    });
+    expect(resolve({ range: 'next_week' })).toEqual({
+      start: day('2026-10-26').start,
+      end: day('2026-11-02').start,
+    });
+  });
+
+  it('rejects words it does not know and impossible dates', () => {
+    expect(resolve({ day: 'someday' })).toBeUndefined();
+    expect(resolve({ day: '02-30' })).toBeUndefined();
+    expect(resolve({ day: '+400' })).toBeUndefined();
+    expect(resolve({ day: 'today', time: '25:00' })).toBeUndefined();
+    expect(resolve({ day: 'today', time: 'noonish' })).toBeUndefined();
+    expect(resolve({ range: 'last_week' })).toBeUndefined();
+    expect(resolve({ day: 7 })).toBeUndefined();
   });
 });
