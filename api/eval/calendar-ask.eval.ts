@@ -68,6 +68,8 @@ const FIXTURES: FixtureEvent[] = [
   { uid: 'sprint', summary: 'Sprint review', dayOffset: 10, time: '15:00', minutes: 60 },
   // Beyond two weeks, asked for by day of the month.
   { uid: 'conference', summary: 'Conference', dayOffset: 20, time: '09:00', minutes: 480 },
+  // Over a year away: only a question that keeps the year it names reaches it.
+  { uid: 'reunion', summary: 'Class reunion', dayOffset: 400, time: '19:00', minutes: 180 },
 ];
 
 interface EvalCase {
@@ -87,6 +89,7 @@ function buildCases(today: Temporal.PlainDate): EvalCase[] {
   const polishWeekday = (offset: number) =>
     POLISH_WEEKDAYS_ACCUSATIVE[today.add({ days: offset }).dayOfWeek - 1];
   const conference = today.add({ days: 20 });
+  const reunion = today.add({ days: 400 });
   const nextWeekEvents = countNextWeek(today);
   return [
     {
@@ -183,6 +186,12 @@ function buildCases(today: Temporal.PlainDate): EvalCase[] {
       question: `What's on ${conference.day} ${MONTHS[conference.month - 1]}?`,
       expectKind: 'list',
       contains: ['Conference'],
+    },
+    {
+      id: 'list-dated-next-year',
+      question: `What's on ${reunion.day} ${MONTHS[reunion.month - 1]} ${reunion.year}?`,
+      expectKind: 'list',
+      contains: ['Class reunion'],
     },
     {
       id: 'day-after-tomorrow',

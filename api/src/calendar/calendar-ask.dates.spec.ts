@@ -56,6 +56,25 @@ describe('resolveWhen', () => {
     expect(resolve({ day: '3 of march' })).toEqual(day('2027-03-03'));
   });
 
+  it('finds the next Feb 29 in a later leap year', () => {
+    expect(resolve({ day: '29 feb' })).toEqual(day('2028-02-29'));
+    expect(resolve({ day: '30 feb' })).toBeUndefined();
+  });
+
+  it('keeps a year the question names, even in the past', () => {
+    expect(resolve({ day: '14 nov 2027' })).toEqual(day('2027-11-14'));
+    expect(resolve({ day: 'November 14th, 2027' })).toEqual(day('2027-11-14'));
+    expect(resolve({ day: '2027-11-14' })).toEqual(day('2027-11-14'));
+    expect(resolve({ day: '3 mar 2026' })).toEqual(day('2026-03-03'));
+    expect(resolve({ day: '14 nov 1066' })).toBeUndefined();
+  });
+
+  it('treats words that name Object.prototype members as unknown', () => {
+    expect(resolve({ day: 'constructor' })).toBeUndefined();
+    expect(resolve({ day: 'today', time: 'constructor' })).toBeUndefined();
+    expect(resolve({ day: 'today', time: 'toString' })).toBeUndefined();
+  });
+
   it('reads a numeric day and month only when one order is the only valid one', () => {
     expect(resolve({ day: '11-14' })).toEqual(day('2026-11-14'));
     expect(resolve({ day: '14-11' })).toEqual(day('2026-11-14'));

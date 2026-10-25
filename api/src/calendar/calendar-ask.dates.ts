@@ -20,12 +20,13 @@ export interface TimeWindow {
 const MAX_DAYS_AHEAD = 366;
 const HOUR_MS = 60 * 60 * 1000;
 
-const PERIODS: Record<string, [string, string | undefined]> = {
-  morning: ['06:00', '12:00'],
-  afternoon: ['12:00', '18:00'],
+// Maps, not object literals: a model word like "constructor" must not hit Object.prototype.
+const PERIODS = new Map<string, [string, string | undefined]>([
+  ['morning', ['06:00', '12:00']],
+  ['afternoon', ['12:00', '18:00']],
   // Ends at the next midnight.
-  evening: ['18:00', undefined],
-};
+  ['evening', ['18:00', undefined]],
+]);
 
 // Without a day the window is today. `until` makes it span several whole days; otherwise
 // `time` narrows the day to a period or to one hour from a clock time. `range` replaces
@@ -54,7 +55,7 @@ export function resolveWhen(words: WhenWords, now: Date, timeZone: string): Time
 
   if (words.time === undefined) return { start: at(first), end: at(first.add({ days: 1 })) };
   if (typeof words.time !== 'string') return undefined;
-  const period = PERIODS[words.time];
+  const period = PERIODS.get(words.time);
   if (period) {
     const [from, to] = period;
     return { start: at(first, from), end: to ? at(first, to) : at(first.add({ days: 1 })) };
@@ -81,7 +82,8 @@ function parseClock(text: string): string | undefined {
 }
 
 // "today", "tomorrow", "day after tomorrow" and "+N" count from today. A weekday, a day of
-// the month ("14") or a day and month ("14 nov") is its next occurrence on or after `notBefore`.
+// the month ("14") or a day and month ("14 nov") is its next occurrence on or after
+// `notBefore`; a date with a year ("14 nov 2027") is exactly that date.
 function resolveDay(
   value: unknown,
   today: Temporal.PlainDate,
@@ -94,7 +96,7 @@ function resolveDay(
     .replace(/[\s_]+/g, ' ');
   // Models write this phrase out instead of "+2", or copy the Polish word from the question.
   if (/^(?:the )?day after tomorrow$/.test(word)) return today.add({ days: 2 });
-  const polish = POLISH_DAYS[word];
+  const polish = POLISH_DAYS.get(word);
   if (polish !== undefined) return today.add({ days: polish });
 
   const offset = /^\+(\d{1,3})$/.exec(word);
@@ -106,8 +108,13 @@ function resolveDay(
   const dayOfMonth = /^(\d{1,2})(?:st|nd|rd|th)?$/.exec(word);
   if (dayOfMonth) return nextDayOfMonth(Number(dayOfMonth[1]), notBefore);
 
-  const dayAndMonth = parseDayAndMonth(word);
-  if (dayAndMonth) return nextMonthDay(dayAndMonth.month, dayAndMonth.day, notBefore);
+  const dated = parseNamedDate(word);
+  if (dated) {
+    // A year the question names is kept as asked, even in the past.
+    return dated.year === undefined
+      ? nextMonthDay(dated.month, dated.day, notBefore)
+      : exactDate(dated.year, dated.month, dated.day);
+  }
 
   const named = closestWord(word, DAY_WORDS);
   if (named === 'today') return today;
@@ -120,7 +127,13 @@ function resolveDay(
 }
 
 // Exact matches only: fuzzy matching would confuse "jutro" and "pojutrze".
-const POLISH_DAYS: Record<string, number> = { dziś: 0, dzis: 0, dzisiaj: 0, jutro: 1, pojutrze: 2 };
+const POLISH_DAYS = new Map([
+  ['dziś', 0],
+  ['dzis', 0],
+  ['dzisiaj', 0],
+  ['jutro', 1],
+  ['pojutrze', 2],
+]);
 
 // Index - 1 is the ISO day of week for the weekday names.
 const DAY_WORDS = [
@@ -144,21 +157,31 @@ const MONTH_NAMES = [
   'december',
 ];
 
-// "14 nov", "nov 14th", or a numeric pair when only one reading is a valid month: models
-// write both "11-14" and "14-11", so "05-11" is ambiguous and rejected.
-function parseDayAndMonth(word: string): { day: number; month: number } | undefined {
-  const dayFirst = /^(\d{1,2})(?:st|nd|rd|th)? (?:of )?([a-z]+)\.?$/.exec(word);
-  const monthFirst = /^([a-z]+)\.? (\d{1,2})(?:st|nd|rd|th)?$/.exec(word);
-  const [dayText, monthText] = dayFirst
-    ? [dayFirst[1], dayFirst[2]]
+interface NamedDate {
+  day: number;
+  month: number;
+  year?: number;
+}
+
+// "14 nov", "nov 14th", either with an optional year ("14 nov 2027"), ISO "2027-11-14", or
+// a numeric pair when only one reading is a valid month: models write both "11-14" and
+// "14-11", so "05-11" is ambiguous and rejected.
+function parseNamedDate(word: string): NamedDate | undefined {
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(word);
+  if (iso) return withYear(Number(iso[3]), Number(iso[2]), iso[1]);
+
+  const dayFirst = /^(\d{1,2})(?:st|nd|rd|th)? (?:of )?([a-z]+)\.?(?:,? (\d{4}))?$/.exec(word);
+  const monthFirst = /^([a-z]+)\.? (\d{1,2})(?:st|nd|rd|th)?(?:,? (\d{4}))?$/.exec(word);
+  const [dayText, monthText, yearText] = dayFirst
+    ? [dayFirst[1], dayFirst[2], dayFirst[3]]
     : monthFirst
-      ? [monthFirst[2], monthFirst[1]]
+      ? [monthFirst[2], monthFirst[1], monthFirst[3]]
       : [];
   if (dayText && monthText) {
     const month = closestWord(monthText, MONTH_NAMES);
     return month === undefined
       ? undefined
-      : { day: Number(dayText), month: MONTH_NAMES.indexOf(month) + 1 };
+      : withYear(Number(dayText), MONTH_NAMES.indexOf(month) + 1, yearText);
   }
 
   const pair = /^(\d{1,2})[-./](\d{1,2})$/.exec(word);
@@ -215,15 +238,25 @@ function nextDayOfMonth(day: number, from: Temporal.PlainDate): Temporal.PlainDa
   return undefined;
 }
 
-// This year's date, or next year's once it has passed. Impossible dates (Feb 30) yield undefined.
+// The first occurrence on or after `from`. Impossible dates (Feb 30) yield undefined.
 function nextMonthDay(
   month: number,
   day: number,
   from: Temporal.PlainDate,
 ): Temporal.PlainDate | undefined {
-  const thisYear = exactDate(from.year, month, day);
-  if (thisYear && Temporal.PlainDate.compare(thisYear, from) >= 0) return thisYear;
-  return exactDate(from.year + 1, month, day);
+  // Feb 29 can be up to 8 years away (2096 to 2104); nothing else is more than one.
+  for (let offset = 0; offset <= 8; offset++) {
+    const date = exactDate(from.year + offset, month, day);
+    if (date && Temporal.PlainDate.compare(date, from) >= 0) return date;
+  }
+  return undefined;
+}
+
+// Years outside this range are model noise, not dates anyone asks about.
+function withYear(day: number, month: number, yearText: string | undefined): NamedDate | undefined {
+  if (yearText === undefined) return { day, month };
+  const year = Number(yearText);
+  return year >= 1900 && year <= 2999 ? { day, month, year } : undefined;
 }
 
 function exactDate(year: number, month: number, day: number): Temporal.PlainDate | undefined {

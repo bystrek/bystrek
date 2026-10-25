@@ -63,11 +63,43 @@ export function buildAnswer(
   }
 }
 
-// Case-insensitive title match in either direction, so "dentist appointment" still finds
-// "Dentist". `search` is already lowercased by parseQuery.
+// Words a question puts around a title ("dentist appointment"); they never decide a match.
+const GENERIC_SEARCH_WORDS = new Set([
+  'a',
+  'an',
+  'the',
+  'my',
+  'appointment',
+  'appointments',
+  'meeting',
+  'meetings',
+  'event',
+  'events',
+  'call',
+  'calls',
+  'spotkanie',
+  'wizyta',
+  'wydarzenie',
+]);
+
+// Every distinctive search word must be a whole title word, or the start of one when it
+// has 4+ letters ("standup" finds "Standups"). So "sprint review" does not find "Review",
+// and "haircut" does not find "AI". `search` is already lowercased by parseQuery.
 export function matchesSearch(event: ParsedEvent, search: string): boolean {
-  const title = event.summary.trim().toLowerCase();
-  return title !== '' && (title.includes(search) || search.includes(title));
+  const titleWords = wordsOf(event.summary.toLowerCase());
+  const searchWords = wordsOf(search);
+  const distinctive = searchWords.filter((word) => !GENERIC_SEARCH_WORDS.has(word));
+  const required = distinctive.length > 0 ? distinctive : searchWords;
+  return (
+    required.length > 0 &&
+    required.every((word) =>
+      titleWords.some((title) => title === word || (word.length >= 4 && title.startsWith(word))),
+    )
+  );
+}
+
+function wordsOf(text: string): string[] {
+  return text.match(/[\p{L}\p{N}]+/gu) ?? [];
 }
 
 type TimedEvent = ParsedEvent & { startMs: number; endMs: number };
