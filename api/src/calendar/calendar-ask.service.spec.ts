@@ -221,6 +221,50 @@ describe('CalendarAskService', () => {
     );
   });
 
+  it('searches beyond the model window for a next event and stops at the first match', async () => {
+    const inMarch = {
+      ...lunch,
+      uid: 'later',
+      start: '2027-03-04T13:00:00+01:00',
+      end: '2027-03-04T14:00:00+01:00',
+    } as ParsedEvent;
+    const listEvents = mock(async (_user: string, range: { start: Date; end: Date }) =>
+      [inMarch].filter(
+        (event) =>
+          Date.parse(event.start) < range.end.getTime() &&
+          Date.parse(event.end) > range.start.getTime(),
+      ),
+    );
+    const calendar = { listEvents } as unknown as CalendarService;
+    const ask = new CalendarAskService(
+      fakeModel('{"kind":"event","pick":"next","from":"2026-05-04T00:00","to":"2026-05-18T00:00"}')
+        .model,
+      calendar,
+    );
+
+    expect(await ask.ask('user-1', TZ, 'my next meeting?')).toMatchObject({
+      kind: 'event',
+      event: { uid: 'later' },
+    });
+    const lastRange = listEvents.mock.calls.at(-1)?.[1];
+    expect(lastRange?.end.getTime()).toBeGreaterThan(Date.parse(inMarch.start));
+    expect(lastRange?.end.getTime()).toBeLessThan(new Date('2027-05-04T00:00:00+02:00').getTime());
+  });
+
+  it('answers no match once the search reaches its horizon', async () => {
+    const { ask, listEvents } = service(
+      '{"kind":"event","pick":"next","from":"2026-05-04T00:00","to":"2026-05-18T00:00"}',
+    );
+
+    expect(await ask.ask('user-1', TZ, 'my next meeting?')).toEqual({
+      kind: 'text',
+      text: 'No matching event.',
+    });
+    const lastRange = listEvents.mock.calls.at(-1)?.[1];
+    expect(lastRange?.end.getTime()).toBe(
+      new Date('2026-05-04T00:00:00+02:00').getTime() + 365 * 24 * 60 * 60 * 1000,
+    );
+  });
   it('maps a missing calendar configuration to a client error, not a service error', async () => {
     const model = fakeModel('{"kind":"list","from":"2026-05-04T00:00","to":"2026-05-05T00:00"}');
     const calendar = {

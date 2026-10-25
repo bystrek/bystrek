@@ -15,6 +15,10 @@ import { parseQuery, type ReadQuery } from './calendar-ask.query';
 import { buildUserMessage, QUERY_FORMAT, SYSTEM_PROMPT } from './calendar-ask.prompt';
 import type { ParsedEvent } from './ical-event';
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const NEXT_SEARCH_STEP_MS = 30 * DAY_MS;
+const NEXT_SEARCH_HORIZON_MS = 365 * DAY_MS;
+
 @Injectable()
 export class CalendarAskService {
   constructor(
@@ -40,8 +44,35 @@ export class CalendarAskService {
     if (query.kind === 'cant_do') return { kind: 'cant_do', text: CANT_DO_TEXT };
 
     // Model -> query -> CalDAV read -> deterministic answer. The model never sees events.
-    const events = await this.listEvents(userId, query, timezone);
+    const events =
+      query.kind === 'event' && query.pick === 'next'
+        ? await this.searchForward(userId, query, timezone, now)
+        : await this.listEvents(userId, query, timezone);
     return buildAnswer(query, events, now);
+  }
+
+  // The model's window only covers the dates it was shown, so "next" widens it
+  // forward in steps until an event at or after now turns up or the horizon is reached.
+  private async searchForward(
+    userId: string,
+    query: ReadQuery,
+    timezone: string,
+    now: Date,
+  ): Promise<ParsedEvent[]> {
+    const horizon = query.start + NEXT_SEARCH_HORIZON_MS;
+    let windowStart = query.start;
+    let windowEnd = query.end;
+    for (;;) {
+      const events = await this.listEvents(
+        userId,
+        { kind: 'list', start: windowStart, end: windowEnd },
+        timezone,
+      );
+      const found = events.some((event) => Date.parse(event.start) >= now.getTime());
+      if (found || windowEnd >= horizon) return events;
+      windowStart = windowEnd;
+      windowEnd = Math.min(windowEnd + NEXT_SEARCH_STEP_MS, horizon);
+    }
   }
 
   private async listEvents(
