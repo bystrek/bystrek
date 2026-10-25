@@ -26,6 +26,7 @@ This repository contains the application code for bystrek:
 - New files that use `Temporal` need `/// <reference lib="esnext.temporal" />`.
 - Keep date and time logic in its own module, not in generic helpers.
 - `SYSTEM_PROMPT` in `calendar-ask.prompt.ts` must stay byte-identical for Ollama prefix caching. Check prompt changes with a before/after diff.
+- For calendar-ask prompt, parsing or model changes, run `bun run eval:calendar-ask --days 7` before and after and compare. It needs a local Ollama, so it is not part of `bun run test` or CI.
 
 ## UI code style (`ui/`)
 
