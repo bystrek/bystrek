@@ -1,0 +1,56 @@
+import { assertValidTimeZone, parseZonedIso } from './zoned-time';
+
+// A read-only query the server runs against CalDAV. Times are epoch ms, end exclusive.
+export type ReadQuery =
+  | { kind: 'event'; pick: 'first' | 'last' | 'next'; start: number; end: number }
+  | { kind: 'availability' | 'count' | 'list'; start: number; end: number };
+
+export type ParsedQuery = ReadQuery | { kind: 'cant_do' };
+
+const DT_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+// Caps model-chosen ranges so CalDAV never expands an unbounded recurrence span.
+const MAX_RANGE_MS = 366 * 24 * 60 * 60 * 1000;
+
+function parseLocalTime(value: unknown, timezone: string): number | undefined {
+  if (typeof value !== 'string' || !DT_PATTERN.test(value)) return undefined;
+  try {
+    return parseZonedIso(value, timezone).getTime();
+  } catch {
+    // Well-formed but impossible date, e.g. Feb 30.
+    return undefined;
+  }
+}
+
+// Validates the model's JSON. Anything malformed becomes undefined, which the
+// caller answers with the fallback text rather than guessing a query.
+export function parseQuery(content: string, timezone: string): ParsedQuery | undefined {
+  // A bad timezone comes from our own user record, not the model, so it throws.
+  assertValidTimeZone(timezone);
+  let value: unknown;
+  try {
+    value = JSON.parse(content);
+  } catch {
+    return undefined;
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const query = value as Record<string, unknown>;
+
+  if (query.kind === 'cant_do') return { kind: 'cant_do' };
+
+  const start = parseLocalTime(query.from, timezone);
+  const end = parseLocalTime(query.to, timezone);
+  if (start === undefined || end === undefined || end <= start || end - start > MAX_RANGE_MS) {
+    return undefined;
+  }
+
+  if (
+    query.kind === 'event' &&
+    (query.pick === 'first' || query.pick === 'last' || query.pick === 'next')
+  ) {
+    return { kind: 'event', pick: query.pick, start, end };
+  }
+  if (query.kind === 'availability' || query.kind === 'count' || query.kind === 'list') {
+    return { kind: query.kind, start, end };
+  }
+  return undefined;
+}
