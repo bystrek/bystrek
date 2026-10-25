@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Local dev: Postgres + migrate + seed owner + api + ui. Needs api/.env (see api/.env.example).
+# Ollama comes from the cluster through an SSH tunnel, or with --local-ollama from an Ollama
+# already running on this machine at 127.0.0.1:11434.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -7,14 +9,35 @@ cd "$ROOT_DIR"
 
 fail() { echo "error: $*" >&2; exit 1; }
 
+local_ollama=0
+for arg in "$@"; do
+  case "$arg" in
+    --local-ollama) local_ollama=1 ;;
+    -h | --help)
+      echo "usage: scripts/dev.sh [--local-ollama]"
+      echo "  --local-ollama  use the Ollama on this machine instead of tunnelling to the cluster"
+      exit 0
+      ;;
+    *) fail "unknown option: $arg (see --help)" ;;
+  esac
+done
+
 echo "==> Checking prerequisites"
 [ -t 0 ] || fail "a terminal is required for the SSH tunnel and sudo"
 stty sane </dev/tty
 command -v bun >/dev/null 2>&1 || fail "bun not found — install from https://bun.sh"
 command -v docker >/dev/null 2>&1 || fail "docker not found — install Docker Desktop"
-command -v ssh >/dev/null 2>&1 || fail "ssh not found"
 command -v curl >/dev/null 2>&1 || fail "curl not found"
-[ -n "${BYSTREK_SSH_HOST:-}" ] || fail "set BYSTREK_SSH_HOST to your cluster SSH target"
+if [ "$local_ollama" = 1 ]; then
+  curl -fs --max-time 2 -o /dev/null http://127.0.0.1:11434/api/tags \
+    || fail "no Ollama at 127.0.0.1:11434 — start Ollama, or drop --local-ollama to use the cluster"
+else
+  command -v ssh >/dev/null 2>&1 || fail "ssh not found"
+  [ -n "${BYSTREK_SSH_HOST:-}" ] || fail "set BYSTREK_SSH_HOST to your cluster SSH target"
+  # The tunnel binds 11434 locally, so a running local Ollama would make it fail.
+  ! curl -fs --max-time 2 -o /dev/null http://127.0.0.1:11434/api/tags \
+    || fail "something already serves 127.0.0.1:11434 (local Ollama?) — stop it or pass --local-ollama"
+fi
 docker info >/dev/null 2>&1 || fail "docker daemon not running — start Docker Desktop"
 [ -f api/.env ] || fail "create api/.env from api/.env.example first"
 
@@ -69,31 +92,50 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-echo "==> Waiting for Ollama tunnel (enter SSH/sudo credentials when prompted)"
-tunnel_ready_file="$(mktemp)"
-ssh -tt -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
-  -L 127.0.0.1:11434:127.0.0.1:11435 \
-  "$BYSTREK_SSH_HOST" \
-  'sudo k3s kubectl -n apps port-forward svc/ollama 11435:11434 --address 127.0.0.1' \
-  > >(tee /dev/tty | while IFS= read -r line; do
-    if [[ "$line" == *"Forwarding from 127.0.0.1:11435 -> 11434"* ]]; then
-      printf 'ready\n' > "$tunnel_ready_file"
-    fi
-  done) 2>&1 </dev/tty &
-pids+=("$!")
-tunnel_pid="$!"
+start_ollama_tunnel() {
+  echo "==> Waiting for Ollama tunnel (enter SSH/sudo credentials when prompted)"
+  tunnel_ready_file="$(mktemp)"
+  ssh -tt -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+    -L 127.0.0.1:11434:127.0.0.1:11435 \
+    "$BYSTREK_SSH_HOST" \
+    'sudo k3s kubectl -n apps port-forward svc/ollama 11435:11434 --address 127.0.0.1' \
+    > >(tee /dev/tty | while IFS= read -r line; do
+      if [[ "$line" == *"Forwarding from 127.0.0.1:11435 -> 11434"* ]]; then
+        printf 'ready\n' > "$tunnel_ready_file"
+      fi
+    done) 2>&1 </dev/tty &
+  pids+=("$!")
+  tunnel_pid="$!"
 
-for _ in $(seq 1 120); do
-  stty opost onlcr isig </dev/tty
+  for _ in $(seq 1 120); do
+    stty opost onlcr isig </dev/tty
+    kill -0 "$tunnel_pid" 2>/dev/null || fail "Ollama tunnel exited"
+    if [ -s "$tunnel_ready_file" ] && curl -fs --max-time 2 -o /dev/null http://127.0.0.1:11434/api/tags; then
+      break
+    fi
+    sleep 1
+  done
   kill -0 "$tunnel_pid" 2>/dev/null || fail "Ollama tunnel exited"
-  if [ -s "$tunnel_ready_file" ] && curl -fs --max-time 2 -o /dev/null http://127.0.0.1:11434/api/tags; then
-    break
+  [ -s "$tunnel_ready_file" ] && curl -fs --max-time 2 -o /dev/null http://127.0.0.1:11434/api/tags \
+    || fail "Ollama tunnel didn't become ready in time"
+}
+
+# The model the API will ask for: api/.env's LLM_MODEL, else the API default.
+check_local_model() {
+  local model
+  model="$(sed -n 's/^LLM_MODEL=//p' api/.env | tail -n 1)"
+  model="${model:-qwen2.5:7b}"
+  if ! curl -fs --max-time 2 http://127.0.0.1:11434/api/tags | grep -q "\"name\":\"$model\""; then
+    echo "warning: local Ollama has no $model — run: ollama pull $model" >&2
   fi
-  sleep 1
-done
-kill -0 "$tunnel_pid" 2>/dev/null || fail "Ollama tunnel exited"
-[ -s "$tunnel_ready_file" ] && curl -fs --max-time 2 -o /dev/null http://127.0.0.1:11434/api/tags \
-  || fail "Ollama tunnel didn't become ready in time"
+}
+
+if [ "$local_ollama" = 1 ]; then
+  echo "==> Using local Ollama at 127.0.0.1:11434"
+  check_local_model
+else
+  start_ollama_tunnel
+fi
 
 # Bun runs the API: calendar code uses the Temporal API, which Node lacks.
 echo "==> Starting api (start:dev)"

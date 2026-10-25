@@ -45,6 +45,8 @@ docs/          architecture.md (direction) — live punch list is in GitHub Issu
 2. Set `SEED_OWNER_NAME`, `SEED_OWNER_EMAIL`, and `SEED_OWNER_PASSWORD` in `api/.env`.
 3. Set `BYSTREK_SSH_HOST` to your cluster SSH target. Run `./scripts/dev.sh`. It opens an SSH tunnel to Ollama, starts Postgres, migrates, creates the owner on first run, and starts the API and UI. Log in at `http://localhost:4200` with the seeded email and password. `Ctrl+C` stops the API and UI; Postgres keeps running.
 
+   To use an Ollama running on this machine instead, run `./scripts/dev.sh --local-ollama`; `BYSTREK_SSH_HOST` isn't needed then. The API asks for `LLM_MODEL` from `api/.env` (default `qwen2.5:7b`), so pull it first: `ollama pull qwen2.5:7b`.
+
 Add your test CalDAV account in Settings after signing in.
 
 Without `dev.sh`: `cd api && bun run db:migrate && bun run db:seed:local`, then `bun run start:dev` in `api/` and `bun run start` in `ui/`. Set `BYSTREK_LOCAL_DEV=1` so the API starts without `RESEND_API_KEY`. Use `bun run start:remote` in `ui/` to proxy to the deployed API.
