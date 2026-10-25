@@ -11,8 +11,16 @@ import {
   CalendarUrlMismatchError,
 } from './calendar.service';
 import { buildAnswer, CANT_DO_TEXT, FALLBACK_TEXT, type AskResponse } from './calendar-ask.answer';
+import { parseReferencedDates } from './calendar-ask.dates';
 import { parseQuery, type ReadQuery } from './calendar-ask.query';
-import { buildUserMessage, QUERY_FORMAT, SYSTEM_PROMPT } from './calendar-ask.prompt';
+import {
+  buildDiscoveryMessage,
+  buildUserMessage,
+  DISCOVERY_FORMAT,
+  DISCOVERY_PROMPT,
+  QUERY_FORMAT,
+  SYSTEM_PROMPT,
+} from './calendar-ask.prompt';
 import type { ParsedEvent } from './ical-event';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -28,16 +36,18 @@ export class CalendarAskService {
 
   async ask(userId: string, timezone: string, question: string): Promise<AskResponse> {
     const now = new Date();
-    let content: string;
-    try {
-      content = await this.model.generate(
-        SYSTEM_PROMPT,
-        buildUserMessage(question, now, timezone),
-        QUERY_FORMAT,
-      );
-    } catch {
-      throw new ServiceUnavailableException("Couldn't reach the calendar assistant.");
-    }
+    const referenced = parseReferencedDates(
+      await this.complete(
+        DISCOVERY_PROMPT,
+        buildDiscoveryMessage(question, now, timezone),
+        DISCOVERY_FORMAT,
+      ),
+    );
+    const content = await this.complete(
+      SYSTEM_PROMPT,
+      buildUserMessage(question, now, timezone, referenced),
+      QUERY_FORMAT,
+    );
 
     const query = parseQuery(content, timezone);
     if (!query) return { kind: 'text', text: FALLBACK_TEXT };
@@ -49,6 +59,14 @@ export class CalendarAskService {
         ? await this.searchForward(userId, query, timezone, now)
         : await this.listEvents(userId, query, timezone);
     return buildAnswer(query, events, now);
+  }
+
+  private async complete(system: string, user: string, format: Record<string, unknown>) {
+    try {
+      return await this.model.generate(system, user, format);
+    } catch {
+      throw new ServiceUnavailableException("Couldn't reach the calendar assistant.");
+    }
   }
 
   // The model's window only covers the dates it was shown, so "next" widens it

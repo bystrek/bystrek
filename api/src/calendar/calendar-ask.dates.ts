@@ -17,18 +17,58 @@ interface DayEntry {
   relative?: 'today' | 'tomorrow';
 }
 
+const MAX_REFERENCED_DATES = 3;
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+export function nowLine(now: Date, timeZone: string): string {
+  const today = zonedDateTime(now, timeZone);
+  return `Now: ${shortWeekday(today.dayOfWeek)} ${formatZonedIso(now, timeZone).slice(0, 16).replace('T', ' ')}`;
+}
+
 // Prompt lines describing "now" and the surrounding dates in `timeZone`, so the
-// model never does date arithmetic itself.
-export function describeDates(now: Date, timeZone: string): string[] {
+// model never does date arithmetic itself. `referenced` are explicit dates outside
+// the window that the discovery call found; they are appended to the Dates line.
+export function describeDates(now: Date, timeZone: string, referenced: string[] = []): string[] {
   const today = zonedDateTime(now, timeZone);
   const days = upcomingDays(today.toPlainDate(), DATES_AHEAD);
   const week = weekBoundsAround(now, timeZone);
+  const listed = new Set(days.map((day) => day.date));
+  const extra = [...new Set(referenced)]
+    .filter((date) => !listed.has(date))
+    .sort()
+    .map((date) =>
+      formatDayEntry({ weekday: shortWeekday(Temporal.PlainDate.from(date).dayOfWeek), date }),
+    );
   return [
-    `Now: ${shortWeekday(today.dayOfWeek)} ${formatZonedIso(now, timeZone).slice(0, 16).replace('T', ' ')}`,
-    `Dates: ${days.map(formatDayEntry).join(', ')}`,
+    nowLine(now, timeZone),
+    `Dates: ${[...days.map(formatDayEntry), ...extra].join(', ')}`,
     `Weekdays: ${firstOfEachWeekday(days).join(', ')}`,
     `This week: ${week.thisWeekStart} to ${week.thisWeekEnd}. Next week: ${week.nextWeekStart} to ${week.nextWeekEnd}.`,
   ];
+}
+
+// Keeps only well-formed, real calendar dates from the discovery reply. Malformed
+// output yields no dates rather than an error, since the main query can still run.
+export function parseReferencedDates(content: string): string[] {
+  let value: unknown;
+  try {
+    value = JSON.parse(content);
+  } catch {
+    return [];
+  }
+  const dates = (value as { dates?: unknown } | null)?.dates;
+  if (!Array.isArray(dates)) return [];
+
+  const valid = new Set<string>();
+  for (const item of dates) {
+    if (typeof item !== 'string' || !ISO_DATE_PATTERN.test(item)) continue;
+    try {
+      valid.add(Temporal.PlainDate.from(item).toString());
+    } catch {
+      // Well-formed but impossible date, e.g. Feb 30.
+    }
+  }
+  return [...valid].slice(0, MAX_REFERENCED_DATES);
 }
 
 // Mon-Sun bounds of the ISO week containing `date`, plus the following week,

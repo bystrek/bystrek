@@ -4,6 +4,7 @@ import type { ChatModel } from '../chat/chat.model';
 import { CalendarNotConfiguredError, type CalendarService } from './calendar.service';
 import { CalendarAskService } from './calendar-ask.service';
 import { parseQuery } from './calendar-ask.query';
+import { DISCOVERY_PROMPT, SYSTEM_PROMPT } from './calendar-ask.prompt';
 import type { ParsedEvent } from './ical-event';
 
 const TZ = 'Europe/Warsaw';
@@ -189,7 +190,7 @@ describe('CalendarAskService', () => {
     expect(listEvents).not.toHaveBeenCalled();
   });
 
-  it('sends the same static system prompt on every call, with the dynamic part last', async () => {
+  it('sends the same static system prompt on every query call, with the dynamic part last', async () => {
     const { ask, generate } = service(
       '{"kind":"count","from":"2026-05-04T00:00","to":"2026-05-04T23:59"}',
     );
@@ -197,8 +198,11 @@ describe('CalendarAskService', () => {
     await ask.ask('user-1', TZ, 'how many today?');
     await ask.ask('user-1', TZ, 'what about tomorrow?');
 
-    const [firstSystem, firstUser] = generate.mock.calls[0] as unknown as string[];
-    const [secondSystem, secondUser] = generate.mock.calls[1] as unknown as string[];
+    const queryCalls = generate.mock.calls.filter(
+      ([system]) => system === SYSTEM_PROMPT,
+    ) as unknown as string[][];
+    const [[firstSystem, firstUser], [secondSystem, secondUser]] = queryCalls;
+    expect(queryCalls).toHaveLength(2);
     expect(firstSystem).toBe(secondSystem);
     expect(firstUser).toContain('Q: how many today?');
     expect(secondUser).toContain('Q: what about tomorrow?');
@@ -206,6 +210,25 @@ describe('CalendarAskService', () => {
     expect(firstUser).toMatch(
       /\nWeekdays: (\w{3}=\d{4}-\d{2}-\d{2}, ){6}\w{3}=\d{4}-\d{2}-\d{2}\n/,
     );
+  });
+
+  it('asks a discovery call for explicit dates first and adds them to the query call', async () => {
+    const generate = mock(async (system: string) =>
+      system === DISCOVERY_PROMPT
+        ? '{"dates":["2099-01-10"]}'
+        : '{"kind":"list","from":"2099-01-10T00:00","to":"2099-01-11T00:00"}',
+    );
+    const calendar = { listEvents: mock(async () => []) } as unknown as CalendarService;
+    const ask = new CalendarAskService({ generate } as unknown as ChatModel, calendar);
+
+    await ask.ask('user-1', TZ, 'what is on the 10th?');
+
+    const [discoverySystem, discoveryUser] = generate.mock.calls[0] as unknown as string[];
+    const [querySystem, queryUser] = generate.mock.calls[1] as unknown as string[];
+    expect(discoverySystem).toBe(DISCOVERY_PROMPT);
+    expect(discoveryUser).toContain('Q: what is on the 10th?');
+    expect(querySystem).toBe(SYSTEM_PROMPT);
+    expect(queryUser).toContain('2099-01-10');
   });
 
   it('surfaces an unreachable model as a service error', async () => {

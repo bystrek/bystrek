@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { describeDates, weekBoundsAround } from './calendar-ask.dates';
+import { describeDates, parseReferencedDates, weekBoundsAround } from './calendar-ask.dates';
 
 describe('weekBoundsAround', () => {
   it('returns the Mon-Sun bounds of the ISO week containing the date', () => {
@@ -40,5 +40,29 @@ describe('describeDates', () => {
     expect(lines[3]).toBe(
       'This week: 2026-03-02 (Monday) to 2026-03-08 (Sunday). Next week: 2026-03-09 (Monday) to 2026-03-15 (Sunday).',
     );
+  });
+
+  it('appends referenced dates outside the window to the Dates line once', () => {
+    const lines = describeDates(new Date('2026-03-02T09:00:00+01:00'), 'Europe/Warsaw', [
+      '2026-04-10',
+      '2026-03-03',
+    ]);
+    expect(lines[1].endsWith(', Fri 2026-04-10')).toBe(true);
+    expect(lines[1].match(/2026-03-03/g)).toHaveLength(1);
+  });
+});
+
+describe('parseReferencedDates', () => {
+  it('keeps real, unique ISO dates and drops malformed or impossible ones', () => {
+    expect(
+      parseReferencedDates(
+        '{"dates":["2026-11-10","2026-11-10","2026-02-30","Oct 10","2026-12-01","2026-12-02"]}',
+      ),
+    ).toEqual(['2026-11-10', '2026-12-01', '2026-12-02']);
+  });
+
+  it('returns no dates for a malformed discovery reply', () => {
+    expect(parseReferencedDates('not json')).toEqual([]);
+    expect(parseReferencedDates('{"dates":"2026-11-10"}')).toEqual([]);
   });
 });

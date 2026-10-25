@@ -1,4 +1,4 @@
-import { describeDates } from './calendar-ask.dates';
+import { describeDates, nowLine } from './calendar-ask.dates';
 
 // Byte-identical on every call so the Ollama prompt prefix stays cached.
 export const SYSTEM_PROMPT = `You turn a question about the user's calendar into one JSON query. You never see the events; the server runs your query. Reply with exactly one JSON object and nothing else.
@@ -46,6 +46,29 @@ export const QUERY_FORMAT = {
   required: ['kind'],
 };
 
-export function buildUserMessage(question: string, now: Date, timezone: string): string {
-  return [...describeDates(now, timezone), `Q: ${question}`].join('\n');
+export function buildUserMessage(
+  question: string,
+  now: Date,
+  timezone: string,
+  referenced: string[] = [],
+): string {
+  return [...describeDates(now, timezone, referenced), `Q: ${question}`].join('\n');
+}
+
+// First call: names explicit dates so the server can add them to the main query's Dates line.
+// Kept separate from SYSTEM_PROMPT, which stays byte-identical for prefix caching.
+export const DISCOVERY_PROMPT = `You find explicit calendar dates in a question. Reply with exactly one JSON object: {"dates":["YYYY-MM-DD"]}.
+List a date only when the question names it by day of the month or by month and day, such as "the 10th", "Oct 10th" or "10 November". Use the Now line to choose the year and month: the next upcoming occurrence, unless the question clearly means another.
+Weekday names, "today", "tomorrow", "this week" and "next week" are not explicit dates, so never list them. Reply {"dates":[]} when no explicit date is named.`;
+
+export const DISCOVERY_FORMAT = {
+  type: 'object',
+  properties: {
+    dates: { type: 'array', items: { type: 'string' }, maxItems: 3 },
+  },
+  required: ['dates'],
+};
+
+export function buildDiscoveryMessage(question: string, now: Date, timezone: string): string {
+  return [nowLine(now, timezone), `Q: ${question}`].join('\n');
 }
