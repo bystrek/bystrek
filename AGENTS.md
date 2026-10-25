@@ -27,6 +27,11 @@ This repository contains the application code for bystrek:
 - Keep date and time logic in its own module, not in generic helpers.
 - `SYSTEM_PROMPT` in `calendar-ask.prompt.ts` must stay byte-identical for Ollama prefix caching. Check prompt changes with a before/after diff.
 
+## UI code style (`ui/`)
+
+- Don't use `computed()` only to call a function over a value for the template. Build a pipe instead; an internal pipe in the component file is fine.
+- Name value sets as an `as const` object plus a derived type with the same name. Don't use TypeScript `enum` or bare string literals.
+
 ## Pull request reviews
 
 - When addressing review comments, resolve each thread once its fix is pushed.

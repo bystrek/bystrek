@@ -57,6 +57,9 @@ test('edits first/last name and avatar, then saves via update-user', async ({ pa
   await page.getByPlaceholder('Password').fill('correct horse battery staple');
   await page.getByRole('button', { name: 'Sign in' }).click();
 
+  await expect(page).toHaveURL('/agenda');
+
+  await page.goto('/settings');
   await expect(page).toHaveURL('/settings');
 
   await expect(page.getByPlaceholder('First name')).toHaveValue('Michał');
