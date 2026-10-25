@@ -10,17 +10,15 @@ import {
   CalendarService,
   CalendarUrlMismatchError,
 } from './calendar.service';
-import { buildAnswer, CANT_DO_TEXT, FALLBACK_TEXT, type AskResponse } from './calendar-ask.answer';
-import { parseReferencedDates } from './calendar-ask.dates';
-import { parseQuery, type ReadQuery } from './calendar-ask.query';
 import {
-  buildDiscoveryMessage,
-  buildUserMessage,
-  DISCOVERY_FORMAT,
-  DISCOVERY_PROMPT,
-  QUERY_FORMAT,
-  SYSTEM_PROMPT,
-} from './calendar-ask.prompt';
+  buildAnswer,
+  CANT_DO_TEXT,
+  FALLBACK_TEXT,
+  matchesSearch,
+  type AskResponse,
+} from './calendar-ask.answer';
+import { parseQuery } from './calendar-ask.query';
+import { buildUserMessage, QUERY_FORMAT, SYSTEM_PROMPT } from './calendar-ask.prompt';
 import type { ParsedEvent } from './ical-event';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -34,30 +32,30 @@ export class CalendarAskService {
     private readonly calendar: CalendarService,
   ) {}
 
-  async ask(userId: string, timezone: string, question: string): Promise<AskResponse> {
-    const now = new Date();
-    const referenced = parseReferencedDates(
-      await this.complete(
-        DISCOVERY_PROMPT,
-        buildDiscoveryMessage(question, now, timezone),
-        DISCOVERY_FORMAT,
-      ),
-    );
-    const content = await this.complete(
-      SYSTEM_PROMPT,
-      buildUserMessage(question, now, timezone, referenced),
-      QUERY_FORMAT,
-    );
+  // `now` is only overridden by the model eval, which replays questions on other days.
+  async ask(
+    userId: string,
+    timezone: string,
+    question: string,
+    now = new Date(),
+  ): Promise<AskResponse> {
+    // One model call: the reply names dates in words, and parseQuery resolves them against now.
+    const content = await this.complete(SYSTEM_PROMPT, buildUserMessage(question), QUERY_FORMAT);
 
-    const query = parseQuery(content, timezone);
+    const query = parseQuery(content, timezone, now);
     if (!query) return { kind: 'text', text: FALLBACK_TEXT };
     if (query.kind === 'cant_do') return { kind: 'cant_do', text: CANT_DO_TEXT };
 
     // Model -> query -> CalDAV read -> deterministic answer. The model never sees events.
     const events =
-      query.kind === 'event' && query.pick === 'next'
-        ? await this.searchForward(userId, query, timezone, now)
-        : await this.listEvents(userId, query, timezone);
+      query.kind === 'next' || query.kind === 'find'
+        ? await this.searchForward(
+            userId,
+            query.kind === 'find' ? query.search : undefined,
+            timezone,
+            now,
+          )
+        : await this.listEvents(userId, query.start, query.end, timezone);
     return buildAnswer(query, events, now);
   }
 
@@ -69,39 +67,38 @@ export class CalendarAskService {
     }
   }
 
-  // The model's window only covers the dates it was shown, so "next" widens it
-  // forward in steps until an event at or after now turns up or the horizon is reached.
+  // Widens forward from now in steps until an event at or after now turns up, or,
+  // with a search keyword, one whose title matches. Stops at the horizon.
   private async searchForward(
     userId: string,
-    query: ReadQuery,
+    search: string | undefined,
     timezone: string,
     now: Date,
   ): Promise<ParsedEvent[]> {
-    const horizon = query.start + NEXT_SEARCH_HORIZON_MS;
-    let windowStart = query.start;
-    let windowEnd = query.end;
+    const horizon = now.getTime() + NEXT_SEARCH_HORIZON_MS;
+    let windowStart = now.getTime();
     for (;;) {
-      const events = await this.listEvents(
-        userId,
-        { kind: 'list', start: windowStart, end: windowEnd },
-        timezone,
+      const windowEnd = Math.min(windowStart + NEXT_SEARCH_STEP_MS, horizon);
+      const events = await this.listEvents(userId, windowStart, windowEnd, timezone);
+      const found = events.some(
+        (event) =>
+          Date.parse(event.start) >= now.getTime() && (!search || matchesSearch(event, search)),
       );
-      const found = events.some((event) => Date.parse(event.start) >= now.getTime());
       if (found || windowEnd >= horizon) return events;
       windowStart = windowEnd;
-      windowEnd = Math.min(windowEnd + NEXT_SEARCH_STEP_MS, horizon);
     }
   }
 
   private async listEvents(
     userId: string,
-    query: ReadQuery,
+    start: number,
+    end: number,
     timezone: string,
   ): Promise<ParsedEvent[]> {
     try {
       return await this.calendar.listEvents(
         userId,
-        { start: new Date(query.start), end: new Date(query.end) },
+        { start: new Date(start), end: new Date(end) },
         timezone,
       );
     } catch (err) {

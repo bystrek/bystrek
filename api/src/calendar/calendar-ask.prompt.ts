@@ -1,36 +1,43 @@
-import { describeDates, nowLine } from './calendar-ask.dates';
-
-// Byte-identical on every call so the Ollama prompt prefix stays cached.
-export const SYSTEM_PROMPT = `You turn a question about the user's calendar into one JSON query. You never see the events; the server runs your query. Reply with exactly one JSON object and nothing else.
+// Byte-identical on every call so the Ollama prompt prefix stays cached. The model never
+// sees today's date: it names dates in words, and resolveWhen turns them into a window.
+export const SYSTEM_PROMPT = `You turn a question about the user's calendar into one JSON query. You never see the events or today's date; the server runs your query and works out every date from the words you give. Reply with exactly one JSON object and nothing else.
 
 Shapes:
-{"kind":"event","pick":"first"|"last"|"next","from":"<dt>","to":"<dt>"} - one specific event ("first event tomorrow", "my next meeting")
-{"kind":"availability","from":"<dt>","to":"<dt>"} - free/busy questions
-{"kind":"count","from":"<dt>","to":"<dt>"} - how many events
-{"kind":"list","from":"<dt>","to":"<dt>"} - which events, what's on, or show the agenda. Use this for any question about several events or a whole day or week, never "event"
+{"kind":"event","pick":"first"|"last","day":"<day>"} - the first or last event on a day ("first event tomorrow"). Only when the question asks for the first or last event; otherwise use "list"
+{"kind":"next"} - the next upcoming event when no title is named ("my next meeting", "what's next?")
+{"kind":"find","search":"<title words>"} - the next event the question names by title ("when is my dentist appointment?"). search is the distinctive title words in lowercase ("dentist", "sprint review"), never generic words like "appointment", "meeting", "event" or "call"
+{"kind":"availability","day":"<day>","time":"<time>"} - free/busy questions
+{"kind":"count","day":"<day>"} - how many events
+{"kind":"list","day":"<day>"} - which events, what's on, or show the agenda. Use this for any question about several events or a whole day or week, never "event"
 {"kind":"cant_do","text":"I can only read your calendar."} - any request to create, move, change, rename or delete
 
-<dt> is local time without offset: YYYY-MM-DDTHH:MM.
-Copy dates from the Dates line of the question. A weekday name means its date on the Weekdays line. A day of the month ("the 10th", "Oct 10th") means the entry with that date. Weeks run Monday to Sunday.
-"to" is exclusive: it is the next midnight after the last day, written as 00:00 of the following date. Whole day = 00:00 of that day to 00:00 of the next day. Morning = 06:00-12:00, afternoon = 12:00-18:00, evening = 18:00 to 00:00 of the next day. A single time ("at 3pm") = that time to one hour later. "Next" event: from = Now, to = 00:00 of the day after the last listed date.
+<day> is "today", "tomorrow", a weekday "mon" to "sun" (its next occurrence), "+N" for N days from today ("in 3 days" = "+3"), a day of the month ("the 14th" = "14"), or a day and month ("14 November" = "14 nov"), with the year only when the question names one ("14 November 2027" = "14 nov 2027"). Leave "day" out for today. Keep relative days as the question says them: "tomorrow" stays "tomorrow", never a weekday. In Polish, "dziś" = "today", "jutro" = "tomorrow" and "pojutrze" = "+2".
+<time> narrows one day: "morning", "afternoon", "evening", or a clock time HH:MM in 24-hour form ("at 3pm" = "15:00"). Leave "time" out for the whole day.
+For several days, add "until":"<day>" with the last day. For a whole week, use "range":"this_week" or "range":"next_week" instead of "day". Weeks run Monday to Sunday.
 
-Examples (for a different date; use the real Dates line):
-Now: Mon 2026-03-02 09:00
-Dates: Mon 2026-03-02 (today), Tue 2026-03-03, Wed 2026-03-04, Thu 2026-03-05, Fri 2026-03-06, Sat 2026-03-07, Sun 2026-03-08, Mon 2026-03-09, Tue 2026-03-10, Wed 2026-03-11, Thu 2026-03-12, Fri 2026-03-13, Sat 2026-03-14, Sun 2026-03-15
-Weekdays: Mon=2026-03-02, Tue=2026-03-03, Wed=2026-03-04, Thu=2026-03-05, Fri=2026-03-06, Sat=2026-03-07, Sun=2026-03-08
-This week: 2026-03-02 to 2026-03-08. Next week: 2026-03-09 to 2026-03-15.
+Examples:
 Q: when is my first event tomorrow?
-A: {"kind":"event","pick":"first","from":"2026-03-03T00:00","to":"2026-03-04T00:00"}
+A: {"kind":"event","pick":"first","day":"tomorrow"}
 Q: am I free friday afternoon?
-A: {"kind":"availability","from":"2026-03-06T12:00","to":"2026-03-06T18:00"}
+A: {"kind":"availability","day":"fri","time":"afternoon"}
 Q: how many meetings next week?
-A: {"kind":"count","from":"2026-03-09T00:00","to":"2026-03-16T00:00"}
+A: {"kind":"count","range":"next_week"}
 Q: what events do I have on Tuesday?
-A: {"kind":"list","from":"2026-03-03T00:00","to":"2026-03-04T00:00"}
-Q: what is on the 10th?
-A: {"kind":"list","from":"2026-03-10T00:00","to":"2026-03-11T00:00"}
-Q: what's my next event?
-A: {"kind":"event","pick":"next","from":"2026-03-02T09:00","to":"2026-03-16T00:00"}
+A: {"kind":"list","day":"tue"}
+Q: what is on the 20th?
+A: {"kind":"list","day":"20"}
+Q: what do I have from today until sunday?
+A: {"kind":"list","day":"today","until":"sun"}
+Q: co mam w piątek?
+A: {"kind":"list","day":"fri"}
+Q: czy jestem wolny jutro rano?
+A: {"kind":"availability","day":"tomorrow","time":"morning"}
+Q: what's my next meeting?
+A: {"kind":"next"}
+Q: when is my haircut appointment?
+A: {"kind":"find","search":"haircut"}
+Q: when do I have the quarterly planning meeting?
+A: {"kind":"find","search":"quarterly planning"}
 Q: move my standup to 3pm
 A: {"kind":"cant_do","text":"I can only read your calendar."}`;
 
@@ -38,38 +45,22 @@ A: {"kind":"cant_do","text":"I can only read your calendar."}`;
 export const QUERY_FORMAT = {
   type: 'object',
   properties: {
-    kind: { type: 'string', enum: ['event', 'availability', 'count', 'list', 'cant_do'] },
-    pick: { type: 'string', enum: ['first', 'last', 'next'] },
-    from: { type: 'string' },
-    to: { type: 'string' },
+    kind: {
+      type: 'string',
+      enum: ['event', 'next', 'find', 'availability', 'count', 'list', 'cant_do'],
+    },
+    pick: { type: 'string', enum: ['first', 'last'] },
+    day: { type: 'string' },
+    until: { type: 'string' },
+    time: { type: 'string' },
+    range: { type: 'string', enum: ['this_week', 'next_week'] },
+    search: { type: 'string' },
     text: { type: 'string' },
   },
   required: ['kind'],
 };
 
-export function buildUserMessage(
-  question: string,
-  now: Date,
-  timezone: string,
-  referenced: string[] = [],
-): string {
-  return [...describeDates(now, timezone, referenced), `Q: ${question}`].join('\n');
-}
-
-// First call: names explicit dates so the server can add them to the main query's Dates line.
-// Kept separate from SYSTEM_PROMPT, which stays byte-identical for prefix caching.
-export const DISCOVERY_PROMPT = `You find explicit calendar dates in a question. Reply with exactly one JSON object: {"dates":["YYYY-MM-DD"]}.
-List a date only when the question names it by day of the month or by month and day, such as "the 10th", "Oct 10th" or "10 November". Use the Now line to choose the year and month: the next upcoming occurrence, unless the question clearly means another.
-Weekday names, "today", "tomorrow", "this week" and "next week" are not explicit dates, so never list them. Reply {"dates":[]} when no explicit date is named.`;
-
-export const DISCOVERY_FORMAT = {
-  type: 'object',
-  properties: {
-    dates: { type: 'array', items: { type: 'string' }, maxItems: 3 },
-  },
-  required: ['dates'],
-};
-
-export function buildDiscoveryMessage(question: string, now: Date, timezone: string): string {
-  return [nowLine(now, timezone), `Q: ${question}`].join('\n');
+// Only the question: nothing per-day or per-minute, so the whole prompt stays cacheable.
+export function buildUserMessage(question: string): string {
+  return `Q: ${question}`;
 }
