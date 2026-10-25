@@ -1,7 +1,11 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import type { ChatModel } from '../chat/chat.model';
-import { CalendarNotConfiguredError, type CalendarService } from './calendar.service';
+import {
+  CalendarNotConfiguredError,
+  CalendarUrlMismatchError,
+  type CalendarService,
+} from './calendar.service';
 import { CalendarAskService } from './calendar-ask.service';
 import { parseQuery } from './calendar-ask.query';
 import { DISCOVERY_PROMPT, SYSTEM_PROMPT } from './calendar-ask.prompt';
@@ -70,6 +74,12 @@ describe('parseQuery', () => {
     ).toBeUndefined();
   });
 
+  it('rejects a range longer than a year', () => {
+    expect(
+      parseQuery('{"kind":"list","from":"2026-05-04T00:00","to":"2027-06-04T00:00"}', TZ),
+    ).toBeUndefined();
+  });
+
   it('rejects a bare JSON array', () => {
     expect(parseQuery('[{"uid":"x"}]', TZ)).toBeUndefined();
   });
@@ -109,7 +119,7 @@ describe('CalendarAskService', () => {
       end: '2099-01-03T14:00:00+01:00',
     } as ParsedEvent;
     const { ask } = service(
-      '{"kind":"event","pick":"next","from":"2000-01-01T00:00","to":"2099-12-31T23:59"}',
+      '{"kind":"event","pick":"next","from":"2000-01-01T00:00","to":"2000-01-08T00:00"}',
       [past, future],
     );
 
@@ -293,6 +303,18 @@ describe('CalendarAskService', () => {
     const calendar = {
       listEvents: mock(async () => {
         throw new CalendarNotConfiguredError();
+      }),
+    } as unknown as CalendarService;
+    const ask = new CalendarAskService(model, calendar);
+
+    await expect(ask.ask('user-1', TZ, 'what is on?')).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('maps a calendar URL mismatch to a client error', async () => {
+    const model = fakeModel('{"kind":"list","from":"2026-05-04T00:00","to":"2026-05-05T00:00"}');
+    const calendar = {
+      listEvents: mock(async () => {
+        throw new CalendarUrlMismatchError('https://old.example/cal', ['https://new.example/cal']);
       }),
     } as unknown as CalendarService;
     const ask = new CalendarAskService(model, calendar);

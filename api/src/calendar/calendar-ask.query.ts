@@ -8,6 +8,8 @@ export type ReadQuery =
 export type ParsedQuery = ReadQuery | { kind: 'cant_do' };
 
 const DT_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+// Caps model-chosen ranges so CalDAV never expands an unbounded recurrence span.
+const MAX_RANGE_MS = 366 * 24 * 60 * 60 * 1000;
 
 function parseLocalTime(value: unknown, timezone: string): number | undefined {
   if (typeof value !== 'string' || !DT_PATTERN.test(value)) return undefined;
@@ -37,7 +39,9 @@ export function parseQuery(content: string, timezone: string): ParsedQuery | und
 
   const start = parseLocalTime(query.from, timezone);
   const end = parseLocalTime(query.to, timezone);
-  if (start === undefined || end === undefined || end <= start) return undefined;
+  if (start === undefined || end === undefined || end <= start || end - start > MAX_RANGE_MS) {
+    return undefined;
+  }
 
   if (
     query.kind === 'event' &&

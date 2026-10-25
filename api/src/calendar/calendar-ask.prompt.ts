@@ -17,7 +17,8 @@ Copy dates from the Dates line of the question. A weekday name means its date on
 Examples (for a different date; use the real Dates line):
 Now: Mon 2026-03-02 09:00
 Dates: Mon 2026-03-02 (today), Tue 2026-03-03, Wed 2026-03-04, Thu 2026-03-05, Fri 2026-03-06, Sat 2026-03-07, Sun 2026-03-08, Mon 2026-03-09, Tue 2026-03-10, Wed 2026-03-11, Thu 2026-03-12, Fri 2026-03-13, Sat 2026-03-14, Sun 2026-03-15
-Next week: Mon 2026-03-09 to Sun 2026-03-15
+Weekdays: Mon=2026-03-02, Tue=2026-03-03, Wed=2026-03-04, Thu=2026-03-05, Fri=2026-03-06, Sat=2026-03-07, Sun=2026-03-08
+This week: 2026-03-02 to 2026-03-08. Next week: 2026-03-09 to 2026-03-15.
 Q: when is my first event tomorrow?
 A: {"kind":"event","pick":"first","from":"2026-03-03T00:00","to":"2026-03-04T00:00"}
 Q: am I free friday afternoon?
