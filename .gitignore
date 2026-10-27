@@ -2,6 +2,10 @@
 api/scripts/*.d.ts
 api/scripts/*.js
 api/scripts/*.js.map
+api/eval/*.d.ts
+api/eval/*.js
+api/eval/*.js.map
+/.angular/
 .DS_Store
 
 api/node_modules
