@@ -10,11 +10,12 @@
   --page-head-inset: calc(var(--tap) + var(--space-3));
 }
 
+/* Safe-area insets keep it clear of the notch with viewport-fit=cover. */
 .account {
   anchor-name: --account;
   position: fixed;
-  top: var(--space-4);
-  right: var(--space-4);
+  top: calc(var(--space-4) + env(safe-area-inset-top));
+  right: calc(var(--space-4) + env(safe-area-inset-right));
   z-index: 20;
 }
 
@@ -86,8 +87,8 @@
 @supports not (anchor-name: --a) {
   .menu {
     position: fixed;
-    top: calc(var(--space-4) + var(--tap) + var(--space-2));
-    right: var(--space-4);
+    top: calc(var(--space-4) + env(safe-area-inset-top) + var(--tap) + var(--space-2));
+    right: calc(var(--space-4) + env(safe-area-inset-right));
     margin: 0;
   }
 }
