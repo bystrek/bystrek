@@ -91,6 +91,27 @@ describe('baselineMigrations', () => {
     }
   });
 
+  it('turns a database at old 0013 into exactly what 0000_initial creates', async () => {
+    const old = await scratchDatabase();
+    try {
+      // Apply old 0013 the way drizzle's migrator would have: run the file,
+      // then record its hash and `when`.
+      await migrateWith(old, PRE_SQUASH);
+      const query = await Bun.file(`${__dirname}/fixtures/0013_drop_chat_push.sql`).text();
+      await old.unsafe(query.replaceAll('--> statement-breakpoint', ''));
+      await old`
+        insert into drizzle.__drizzle_migrations (hash, created_at)
+        values (${new Bun.CryptoHasher('sha256').update(query).digest('hex')}, 1792674352638)`;
+
+      expect(await baselineMigrations(old, SQUASHED)).toBe('baselined');
+
+      expect(await describeSchema(old)).toEqual(freshSchema);
+      expect(await history(old)).toEqual(await history(fresh));
+    } finally {
+      await old.end();
+    }
+  });
+
   it('leaves db:migrate nothing to run and keeps existing rows', async () => {
     const old = await scratchDatabase();
     try {
