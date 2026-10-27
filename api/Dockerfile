@@ -16,6 +16,7 @@ RUN bun install --frozen-lockfile --production
 COPY --from=builder /app/dist ./dist
 COPY drizzle ./drizzle
 COPY drizzle.config.ts ./
+COPY scripts/baseline-migrations.ts ./scripts/
 COPY docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
 
