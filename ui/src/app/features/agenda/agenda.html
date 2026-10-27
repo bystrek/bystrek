@@ -26,31 +26,33 @@
     <p class="error" role="alert">{{ message }}</p>
   }
 
-  @if (store.loading()) {
-    <app-progress label="Loading events" />
-  }
-
-  <ol class="list">
-    @for (row of store.rows(); track trackRow(row)) {
-      @if (row.kind === AgendaRowKind.GAP) {
-        <li class="gap">·· free {{ row.minutes | duration }} ··</li>
-      } @else {
-        <li class="event" [attr.data-status]="row.status">
-          <span class="time">{{ row.time }}</span>
-          <span class="title">{{ row.title }}</span>
-          @if (row.status === EventStatus.NEXT) {
-            <app-tag variant="outline" icon="clock"
-              >Next · in {{ row.start | minutesUntil: store.now() }} min</app-tag
-            >
-          }
-        </li>
-      }
+  <div class="scroll">
+    @if (store.loading()) {
+      <app-progress label="Loading events" />
     }
-  </ol>
 
-  @if (!store.loading() && !store.error() && store.rows().length === 0) {
-    <p class="empty">Nothing scheduled.</p>
-  }
+    <ol class="list">
+      @for (row of store.rows(); track trackRow(row)) {
+        @if (row.kind === AgendaRowKind.GAP) {
+          <li class="gap">·· free {{ row.minutes | duration }} ··</li>
+        } @else {
+          <li class="event" [attr.data-status]="row.status">
+            <span class="time">{{ row.time }}</span>
+            <span class="title">{{ row.title }}</span>
+            @if (row.status === EventStatus.NEXT) {
+              <app-tag variant="outline" icon="clock"
+                >Next · in {{ row.start | minutesUntil: store.now() }} min</app-tag
+              >
+            }
+          </li>
+        }
+      }
+    </ol>
+
+    @if (!store.loading() && !store.error() && store.rows().length === 0) {
+      <p class="empty">Nothing scheduled.</p>
+    }
+  </div>
 
   <app-ask-bar (jump)="store.jumpToDay($event)" />
 </main>

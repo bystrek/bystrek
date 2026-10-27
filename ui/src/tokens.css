@@ -19,9 +19,6 @@
   --color-secondary: #ff86c0;
   --color-danger: #ff4d4d;
   --color-border: var(--color-ink);
-  --color-sidebar-bg: #121212;
-  --color-sidebar-ink: #eef5f2;
-  --color-sidebar-border: #eef5f2;
 
   /* borders */
   --border-w-heavy: 2px;

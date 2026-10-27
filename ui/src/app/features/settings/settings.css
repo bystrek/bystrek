@@ -1,8 +1,13 @@
 .page {
   box-sizing: border-box;
   max-width: 480px;
-  padding: 32px 24px;
+  padding: calc(32px + env(safe-area-inset-top)) 24px 32px;
   text-align: center;
+}
+
+/* Symmetric, so the title stays centred while clearing the menu button. */
+.page > h1 {
+  padding-inline: var(--page-head-inset, 0);
 }
 
 .settings-section {

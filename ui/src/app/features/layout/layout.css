@@ -1,130 +1,148 @@
 .shell {
-  display: flex;
   height: 100dvh;
 }
 
-.menu-toggle {
+.content {
+  height: 100%;
+  overflow: auto;
+  /* Pages inset their heading row by this much so it shares a line with
+     the floating .account button instead of sitting under it. */
+  --page-head-inset: calc(var(--tap) + var(--space-3));
+}
+
+/* Safe-area insets keep it clear of the notch with viewport-fit=cover. */
+.account {
+  anchor-name: --account;
+  position: fixed;
+  top: calc(var(--space-4) + env(safe-area-inset-top));
+  right: calc(var(--space-4) + env(safe-area-inset-right));
+  z-index: 20;
+}
+
+/* Explicit margin/padding/font: the legacy `.shell button` rules in
+   styles.css would otherwise apply. */
+.avatar {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap);
+  height: var(--tap);
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: var(--border-heavy);
+  background: var(--color-secondary);
+  box-shadow: var(--shadow-sm);
+  color: var(--color-ink);
+  cursor: pointer;
+  font: 700 var(--text-sm) / 1 var(--font-mono);
+  letter-spacing: 0;
+  transition:
+    transform var(--motion-fast),
+    box-shadow var(--motion-fast);
+}
+
+.avatar:active,
+.account:has(.menu:popover-open) .avatar {
+  box-shadow: var(--shadow-press);
+  transform: translate(2px, 2px);
+}
+
+.avatar:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* A popover: the browser puts it in the top layer (no z-index or overflow
+   clipping), light-dismisses it on outside click / Escape and returns focus
+   to the avatar. Anchor positioning hangs it under the avatar, right-aligned. */
+.menu {
+  position-anchor: --account;
+  position-area: bottom span-left;
+  position-try-fallbacks: flip-block;
+  inset: auto;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  color: var(--color-ink);
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  border: var(--border-heavy);
+  background: var(--color-surface);
+  box-shadow: var(--shadow);
+}
+
+.menu:not(:popover-open) {
   display: none;
 }
 
-.sidebar {
-  width: 220px;
-  flex-shrink: 0;
-  background: var(--color-sidebar-bg);
-  color: var(--color-sidebar-ink);
-  border-right: var(--border-width) solid var(--color-border);
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  padding: 20px 16px;
-  overflow-y: auto;
+/* Without anchor positioning, pin it under the fixed avatar by hand. */
+@supports not (anchor-name: --a) {
+  .menu {
+    position: fixed;
+    top: calc(var(--space-4) + env(safe-area-inset-top) + var(--tap) + var(--space-2));
+    right: calc(var(--space-4) + env(safe-area-inset-right));
+    margin: 0;
+  }
 }
 
-.brand {
-  font-family: var(--font-text);
-  font-size: 32px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+.who {
+  margin: 0;
+  padding: var(--space-3);
+  border-bottom: var(--border-heavy);
+  color: var(--color-ink-muted);
+  font: 400 var(--text-xs) / 1.2 var(--font-mono);
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
-.sidebar nav {
+.menu a,
+.sign-out {
+  box-sizing: border-box;
   display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.sidebar nav a {
-  border: var(--border-width) solid transparent;
-  color: inherit;
-  font-family: var(--font-text);
-  font-weight: 700;
-  font-size: 24px;
-  padding: 10px 12px;
+  align-items: center;
+  min-height: var(--tap);
+  margin: 0;
+  padding: 0 var(--space-3);
+  border: 0;
+  background: none;
+  color: var(--color-ink);
+  cursor: pointer;
+  font: 700 var(--text-md) / 1 var(--font-mono);
+  letter-spacing: var(--tracking-caps);
+  text-align: left;
   text-decoration: none;
   text-transform: uppercase;
 }
 
-.sidebar nav a.active,
-.sidebar nav a:hover {
-  border-color: var(--color-sidebar-border);
+.menu a.active {
+  background: var(--color-primary);
+}
+
+.menu a::after {
+  content: '→';
+  margin-left: auto;
+}
+
+.menu a:hover,
+.sign-out:hover {
+  background: color-mix(in srgb, var(--color-surface), var(--color-ink) 8%);
+}
+
+.menu a:focus-visible,
+.sign-out:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: calc(-1 * var(--focus-offset) - 3px);
 }
 
 .sign-out {
-  background: none;
-  border: var(--border-width) solid var(--color-sidebar-border);
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-  font-family: var(--font-text);
-  font-weight: 400;
-  font-size: 22px;
-  padding: 10px 12px;
-}
-
-.scrim {
-  display: none;
-}
-
-.content {
-  flex: 1;
-  min-width: 0;
-  overflow: auto;
-}
-
-@media (max-width: 768px) {
-  .menu-toggle {
-    align-items: center;
-    background: var(--color-sidebar-bg);
-    border: var(--border-width) solid var(--color-border);
-    color: var(--color-sidebar-ink);
-    cursor: pointer;
-    display: flex;
-    font-size: 18px;
-    height: 40px;
-    justify-content: center;
-    left: 12px;
-    line-height: 1;
-    padding: 0;
-    position: fixed;
-    top: 12px;
-    width: 40px;
-    z-index: 20;
-  }
-
-  .sidebar {
-    bottom: 0;
-    left: 0;
-    /* Leaves room below the always-visible, higher-stacked .menu-toggle so
-       the drawer's own content never sits underneath it. */
-    padding-top: 68px;
-    position: fixed;
-    top: 0;
-    transform: translateX(-100%);
-    transition: transform 0.2s ease;
-    z-index: 15;
-  }
-
-  .sidebar.open {
-    transform: translateX(0);
-  }
-
-  .scrim {
-    appearance: none;
-    background: rgba(0, 0, 0, 0.4);
-    border: none;
-    border-radius: 0;
-    cursor: default;
-    display: block;
-    inset: 0;
-    margin: 0;
-    padding: 0;
-    position: fixed;
-    z-index: 10;
-  }
-
-  .content {
-    padding-top: 56px;
-  }
+  border-top: var(--border-heavy);
 }
