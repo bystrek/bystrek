@@ -1,27 +1,24 @@
 <div class="shell">
-  <button
-    type="button"
-    class="menu-toggle"
-    (click)="sidebarOpen.set(!sidebarOpen())"
-    aria-label="Toggle menu"
-    aria-controls="sidebar"
-    [attr.aria-expanded]="sidebarOpen()"
-  >
-    {{ sidebarOpen() ? '✕' : '☰' }}
-  </button>
+  <div class="account">
+    <button type="button" class="avatar" aria-label="Account menu" popovertarget="account-menu">
+      @if (auth.session()?.user?.image; as src) {
+        <img [src]="src" alt="" />
+      } @else {
+        {{ auth.session()?.user | initials }}
+      }
+    </button>
 
-  <aside id="sidebar" class="sidebar" [class.open]="sidebarOpen()">
-    <div class="brand">bystrek</div>
-    <nav>
-      <a routerLink="/agenda" routerLinkActive="active" (click)="closeSidebar()">Agenda</a>
-      <a routerLink="/settings" routerLinkActive="active" (click)="closeSidebar()">Settings</a>
+    <nav id="account-menu" class="menu" popover #menu>
+      @if (auth.session()?.user?.name; as name) {
+        <p class="who">{{ name }}</p>
+      }
+      <a routerLink="/agenda" routerLinkActive="active" (click)="menu.hidePopover()">Agenda</a>
+      <a routerLink="/settings" routerLinkActive="active" (click)="menu.hidePopover()">Settings</a>
+      <button type="button" class="sign-out" (click)="menu.hidePopover(); signOut()">
+        Sign out
+      </button>
     </nav>
-    <button type="button" class="sign-out" (click)="signOut()">Sign out</button>
-  </aside>
-
-  @if (sidebarOpen()) {
-    <button type="button" class="scrim" aria-label="Close menu" (click)="closeSidebar()"></button>
-  }
+  </div>
 
   <div class="content">
     <router-outlet></router-outlet>

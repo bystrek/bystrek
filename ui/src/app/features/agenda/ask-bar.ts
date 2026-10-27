@@ -10,7 +10,7 @@ import { Tag } from '../../shared/tag/tag';
 import { ClockTimePipe, DurationPipe, WeekdayAndDatePipe } from './agenda-pipes';
 import { AskBarStore, AskPhase } from './ask-bar-store';
 
-export const SUGGESTIONS = ['first event tomorrow', 'am I free friday afternoon?', 'next meeting'];
+export const SUGGESTIONS = ['next meeting'];
 
 @Component({
   selector: 'app-ask-bar',

@@ -5,6 +5,11 @@
   text-align: center;
 }
 
+/* Symmetric, so the title stays centred while clearing the menu button. */
+.page > h1 {
+  padding-inline: var(--page-head-inset, 0);
+}
+
 .settings-section {
   margin-top: 28px;
   padding-top: 24px;
