@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
-import { OllamaChatModel } from './ollama.provider';
+import { OllamaLlmClient } from './ollama.client';
 
 const originalFetch = globalThis.fetch;
-const QUERY_FORMAT = { type: 'object', required: ['kind'] };
+const SCHEMA = { type: 'object', required: ['kind'] };
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
@@ -16,11 +16,15 @@ function stubFetch(body: unknown, init?: ResponseInit) {
   return fetchMock;
 }
 
-describe('OllamaChatModel.generate', () => {
+describe('OllamaLlmClient.generateJson', () => {
   it('sends one non-streaming, tool-free request with the JSON format and fixed options', async () => {
     const fetchMock = stubFetch({ message: { content: '{"kind":"count"}' } });
 
-    const content = await new OllamaChatModel(false).generate('SYS', 'USER', QUERY_FORMAT);
+    const content = await new OllamaLlmClient(false).generateJson({
+      system: 'SYS',
+      user: 'USER',
+      schema: SCHEMA,
+    });
 
     expect(content).toBe('{"kind":"count"}');
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -29,7 +33,7 @@ describe('OllamaChatModel.generate', () => {
       stream: false,
       keep_alive: '24h',
       think: false,
-      format: QUERY_FORMAT,
+      format: SCHEMA,
       options: { temperature: 0, num_ctx: 2048, num_predict: 80 },
       messages: [
         { role: 'system', content: 'SYS' },
@@ -42,16 +46,16 @@ describe('OllamaChatModel.generate', () => {
   it('rejects an unsuccessful Ollama response', async () => {
     stubFetch({}, { status: 503 });
 
-    await expect(new OllamaChatModel().generate('s', 'u', QUERY_FORMAT)).rejects.toThrow(
-      'Ollama chat request failed with HTTP 503',
-    );
+    await expect(
+      new OllamaLlmClient().generateJson({ system: 's', user: 'u', schema: SCHEMA }),
+    ).rejects.toThrow('Ollama chat request failed with HTTP 503');
   });
 
   it('rejects a response that carries an Ollama error', async () => {
     stubFetch({ error: 'model not found' });
 
-    await expect(new OllamaChatModel().generate('s', 'u', QUERY_FORMAT)).rejects.toThrow(
-      'Ollama chat request failed: model not found',
-    );
+    await expect(
+      new OllamaLlmClient().generateJson({ system: 's', user: 'u', schema: SCHEMA }),
+    ).rejects.toThrow('Ollama chat request failed: model not found');
   });
 });

@@ -41,8 +41,8 @@ A: {"kind":"find","search":"quarterly planning"}
 Q: move my standup to 3pm
 A: {"kind":"cant_do","text":"I can only read your calendar."}`;
 
-// Ollama `format` schema: guarantees valid JSON; field-level rules are checked in parseQuery.
-export const QUERY_FORMAT = {
+// Reply schema: guarantees valid JSON; field-level rules are checked in parseQuery.
+export const QUERY_SCHEMA = {
   type: 'object',
   properties: {
     kind: {

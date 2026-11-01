@@ -4,7 +4,7 @@ import {
   Injectable,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { CHAT_MODEL, type ChatModel } from '../chat/chat.model';
+import { LLM_CLIENT, type LlmClient, type LlmJsonRequest } from '../llm/llm.client';
 import {
   CalendarNotConfiguredError,
   CalendarService,
@@ -19,7 +19,7 @@ import {
 } from './calendar-ask.answer';
 import { parseQuery } from './calendar-ask.query';
 import { currentDate, fromEpochMs, parseOffsetIso } from './zoned-time';
-import { buildUserMessage, QUERY_FORMAT, SYSTEM_PROMPT } from './calendar-ask.prompt';
+import { buildUserMessage, QUERY_SCHEMA, SYSTEM_PROMPT } from './calendar-ask.prompt';
 import type { ParsedEvent } from './ical-event';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -29,7 +29,7 @@ const NEXT_SEARCH_HORIZON_MS = 365 * DAY_MS;
 @Injectable()
 export class CalendarAskService {
   constructor(
-    @Inject(CHAT_MODEL) private readonly model: ChatModel,
+    @Inject(LLM_CLIENT) private readonly llm: LlmClient,
     private readonly calendar: CalendarService,
   ) {}
 
@@ -41,7 +41,11 @@ export class CalendarAskService {
     now = currentDate(),
   ): Promise<AskResponse> {
     // One model call: the reply names dates in words, and parseQuery resolves them against now.
-    const content = await this.complete(SYSTEM_PROMPT, buildUserMessage(question), QUERY_FORMAT);
+    const content = await this.generateJson({
+      system: SYSTEM_PROMPT,
+      user: buildUserMessage(question),
+      schema: QUERY_SCHEMA,
+    });
 
     const query = parseQuery(content, timezone, now);
     if (!query) return { kind: 'text', text: FALLBACK_TEXT };
@@ -60,9 +64,9 @@ export class CalendarAskService {
     return buildAnswer(query, events, now);
   }
 
-  private async complete(system: string, user: string, format: Record<string, unknown>) {
+  private async generateJson(request: LlmJsonRequest) {
     try {
-      return await this.model.generate(system, user, format);
+      return await this.llm.generateJson(request);
     } catch {
       throw new ServiceUnavailableException("Couldn't reach the calendar assistant.");
     }

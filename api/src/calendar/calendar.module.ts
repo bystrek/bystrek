@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
-import { ollamaProvider } from '../chat/ollama.provider';
+import { ollamaProvider } from '../llm/ollama.client';
 import { DbModule } from '../db/db.module';
 import { CalendarAskController } from './calendar-ask.controller';
 import { CalendarAskService } from './calendar-ask.service';
