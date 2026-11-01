@@ -64,14 +64,19 @@ function isExcluded(series: ICAL.Event, time: ICAL.Time): boolean {
 
 // ical.js yields DTSTART only through an RRULE iterator, so a series made of
 // RDATEs alone would lose its first instance. RFC 5545 §3.8.5.2 counts
-// DTSTART as part of every recurrence set.
+// DTSTART as part of every recurrence set. Such a set is finite and may hold
+// RDATEs before DTSTART, so it is sorted before the caller stops at the
+// range end.
 function* seriesStarts(series: ICAL.Event): Generator<ICAL.Time> {
-  if (!series.component.hasProperty('rrule') && !isExcluded(series, series.startDate)) {
-    yield series.startDate;
-  }
   const iterator = series.iterator();
   let occurrence: ICAL.Time | null;
-  while ((occurrence = iterator.next())) yield occurrence;
+  if (series.component.hasProperty('rrule')) {
+    while ((occurrence = iterator.next())) yield occurrence;
+    return;
+  }
+  const starts = isExcluded(series, series.startDate) ? [] : [series.startDate];
+  while ((occurrence = iterator.next())) starts.push(occurrence.clone());
+  yield* starts.sort((a, b) => a.compare(b));
 }
 
 // Sorted by start. `timeZone` must already be a valid IANA name.

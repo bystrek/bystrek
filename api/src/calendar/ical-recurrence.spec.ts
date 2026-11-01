@@ -91,6 +91,22 @@ describe('expandOccurrences: RDATE', () => {
     expect(expand(calendar).map(([, start]) => start)).toEqual(['2026-10-12T12:00:00+02:00']);
   });
 
+  it('includes an in-range RDATE that comes before a DTSTART past the range end', () => {
+    const calendar = calendarWith(
+      eventWith(
+        'UID:rdate',
+        'SUMMARY:Lecture',
+        'DTSTART:20261203T100000Z',
+        'DTEND:20261203T110000Z',
+        'RDATE:20261020T150000Z,20261005T100000Z',
+      ),
+    );
+    expect(expand(calendar).map(([, start]) => start)).toEqual([
+      '2026-10-05T12:00:00+02:00',
+      '2026-10-20T17:00:00+02:00',
+    ]);
+  });
+
   it('applies an override to an RDATE instance', () => {
     const calendar = calendarWith(
       eventWith(
