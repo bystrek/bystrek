@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
-import { ollamaProvider } from '../chat/ollama.provider';
+import { llmClientProvider } from '../llm/llm.provider';
 import { DbModule } from '../db/db.module';
 import { CalendarAskController } from './calendar-ask.controller';
 import { CalendarAskService } from './calendar-ask.service';
@@ -12,6 +12,6 @@ import { CalendarService } from './calendar.service';
 @Module({
   imports: [DbModule, AuthModule],
   controllers: [CalendarCredentialsController, CalendarEventsController, CalendarAskController],
-  providers: [CalendarCredentialsService, CalendarService, CalendarAskService, ollamaProvider],
+  providers: [CalendarCredentialsService, CalendarService, CalendarAskService, llmClientProvider],
 })
 export class CalendarModule {}

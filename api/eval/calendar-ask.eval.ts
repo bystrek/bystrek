@@ -1,6 +1,6 @@
 /// <reference lib="esnext.temporal" />
 
-// Model-quality eval for "ask your calendar": the real OllamaChatModel and the real
+// Model-quality eval for "ask your calendar": the configured LlmClient (LLM_PROVIDER) and the real
 // CalendarAskService, with CalDAV replaced by in-memory events. Records latency and
 // whether each answer matches the expected kind and content.
 //
@@ -15,9 +15,9 @@ import { CalendarAskService } from '../src/calendar/calendar-ask.service';
 import type { CalendarService } from '../src/calendar/calendar.service';
 import { buildEventIcs, parseEventIcs, type ParsedEvent } from '../src/calendar/ical-event';
 import { parseZonedIso, weekdayNameOf, zonedDateTime } from '../src/calendar/zoned-time';
-import type { ChatModel } from '../src/chat/chat.model';
-import { OllamaChatModel } from '../src/chat/ollama.provider';
-import { LLM_MODEL } from '../src/env';
+import type { LlmClient, LlmJsonRequest } from '../src/llm/llm.client';
+import { createLlmClient } from '../src/llm/llm.provider';
+import { LLM_MODEL, LLM_PROVIDER } from '../src/env';
 
 const TZ = 'Europe/Warsaw';
 const USER_ID = 'eval-user';
@@ -313,13 +313,13 @@ function fakeCalendar(events: () => ParsedEvent[]): CalendarService {
 }
 
 // Records each completion's latency and raw reply.
-class TimedChatModel implements ChatModel {
+class TimedLlmClient implements LlmClient {
   readonly timings: number[] = [];
   // CalendarAskService replaces model errors with a generic message, so keep the originals.
   readonly errors: string[] = [];
   readonly outputs: string[] = [];
 
-  constructor(private readonly inner: ChatModel) {}
+  constructor(private readonly inner: LlmClient) {}
 
   reset(): void {
     this.timings.length = 0;
@@ -327,10 +327,10 @@ class TimedChatModel implements ChatModel {
     this.outputs.length = 0;
   }
 
-  async generate(system: string, user: string, format: Record<string, unknown>): Promise<string> {
+  async generateJson(request: LlmJsonRequest): Promise<string> {
     const started = performance.now();
     try {
-      const output = await this.inner.generate(system, user, format);
+      const output = await this.inner.generateJson(request);
       this.outputs.push(output);
       return output;
     } catch (err) {
@@ -407,7 +407,7 @@ function groupBy(results: Result[], key: (r: Result) => string): Map<string, Res
 async function main() {
   const days = intFlag('--days', 1);
   const trials = intFlag('--trials', 1);
-  const model = new TimedChatModel(new OllamaChatModel());
+  const model = new TimedLlmClient(createLlmClient());
   let events: ParsedEvent[] = [];
   const ask = new CalendarAskService(
     model,
@@ -416,7 +416,7 @@ async function main() {
   const results: Result[] = [];
   const realToday = zonedDateTime(new Date(), TZ).toPlainDate();
 
-  console.log(`model=${LLM_MODEL} tz=${TZ} days=${days} trials=${trials}`);
+  console.log(`provider=${LLM_PROVIDER} model=${LLM_MODEL} tz=${TZ} days=${days} trials=${trials}`);
 
   for (let offset = 0; offset < days; offset++) {
     const today = realToday.add({ days: offset });

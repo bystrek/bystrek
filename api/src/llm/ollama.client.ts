@@ -1,6 +1,6 @@
-import { Logger, type Provider } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { LLM_BASE_URL, LLM_MODEL, LLM_THINK, LLM_TIMEOUT_MS } from '../env';
-import { CHAT_MODEL, type ChatModel } from './chat.model';
+import type { LlmClient, LlmJsonRequest } from './llm.client';
 
 interface OllamaChatResponse {
   error?: string;
@@ -15,12 +15,12 @@ interface OllamaChatResponse {
 
 const NANOSECONDS_PER_MS = 1_000_000;
 
-export class OllamaChatModel implements ChatModel {
-  private readonly logger = new Logger(OllamaChatModel.name);
+export class OllamaLlmClient implements LlmClient {
+  private readonly logger = new Logger(OllamaLlmClient.name);
 
   constructor(private readonly think: boolean | undefined = LLM_THINK) {}
 
-  async generate(system: string, user: string, format: Record<string, unknown>): Promise<string> {
+  async generateJson({ system, user, schema }: LlmJsonRequest): Promise<string> {
     const response = await fetch(new URL('/api/chat', LLM_BASE_URL), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -30,7 +30,7 @@ export class OllamaChatModel implements ChatModel {
         stream: false,
         keep_alive: '24h',
         ...(this.think === undefined ? {} : { think: this.think }),
-        format,
+        format: schema,
         options: { temperature: 0, num_ctx: 2048, num_predict: 80 },
         messages: [
           { role: 'system', content: system },
@@ -64,8 +64,3 @@ export class OllamaChatModel implements ChatModel {
     );
   }
 }
-
-export const ollamaProvider: Provider = {
-  provide: CHAT_MODEL,
-  useFactory: () => new OllamaChatModel(),
-};

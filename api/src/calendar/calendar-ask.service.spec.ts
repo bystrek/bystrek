@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
-import type { ChatModel } from '../chat/chat.model';
+import type { LlmClient, LlmJsonRequest } from '../llm/llm.client';
 import {
   CalendarNotConfiguredError,
   CalendarUrlMismatchError,
@@ -33,9 +33,9 @@ const lunch = {
   endWeekday: 'Monday',
 } as ParsedEvent;
 
-function fakeModel(reply: string) {
-  const generate = mock(async () => reply);
-  return { model: { generate } as unknown as ChatModel, generate };
+function fakeLlm(reply: string) {
+  const generateJson = mock(async () => reply);
+  return { llm: { generateJson } as unknown as LlmClient, generateJson };
 }
 
 function fakeCalendar(events: ParsedEvent[]) {
@@ -44,9 +44,9 @@ function fakeCalendar(events: ParsedEvent[]) {
 }
 
 function service(reply: string, events: ParsedEvent[] = []) {
-  const { model, generate } = fakeModel(reply);
+  const { llm, generateJson } = fakeLlm(reply);
   const { calendar, listEvents } = fakeCalendar(events);
-  return { ask: new CalendarAskService(model, calendar), generate, listEvents };
+  return { ask: new CalendarAskService(llm, calendar), generateJson, listEvents };
 }
 
 describe('parseQuery', () => {
@@ -185,26 +185,26 @@ describe('CalendarAskService', () => {
   });
 
   it('makes one model call per question with a static system prompt and only the question', async () => {
-    const { ask, generate } = service('{"kind":"count","day":"today"}');
+    const { ask, generateJson } = service('{"kind":"count","day":"today"}');
 
     await ask.ask('user-1', TZ, 'how many today?');
     await ask.ask('user-1', TZ, 'what about tomorrow?');
 
-    const calls = generate.mock.calls as unknown as string[][];
+    const calls = generateJson.mock.calls as unknown as [LlmJsonRequest][];
     expect(calls).toHaveLength(2);
-    expect(calls[0][0]).toBe(SYSTEM_PROMPT);
-    expect(calls[1][0]).toBe(SYSTEM_PROMPT);
-    expect(calls[0][1]).toBe('Q: how many today?');
-    expect(calls[1][1]).toBe('Q: what about tomorrow?');
+    expect(calls[0][0].system).toBe(SYSTEM_PROMPT);
+    expect(calls[1][0].system).toBe(SYSTEM_PROMPT);
+    expect(calls[0][0].user).toBe('Q: how many today?');
+    expect(calls[1][0].user).toBe('Q: what about tomorrow?');
   });
 
   it('surfaces an unreachable model as a service error', async () => {
-    const model = {
-      generate: mock(async () => {
+    const llm = {
+      generateJson: mock(async () => {
         throw new Error('connect ECONNREFUSED');
       }),
-    } as unknown as ChatModel;
-    const ask = new CalendarAskService(model, fakeCalendar([]).calendar);
+    } as unknown as LlmClient;
+    const ask = new CalendarAskService(llm, fakeCalendar([]).calendar);
 
     await expect(ask.ask('user-1', TZ, 'anything?')).rejects.toBeInstanceOf(
       ServiceUnavailableException,
@@ -226,7 +226,7 @@ describe('CalendarAskService', () => {
       ),
     );
     const calendar = { listEvents } as unknown as CalendarService;
-    const ask = new CalendarAskService(fakeModel('{"kind":"next"}').model, calendar);
+    const ask = new CalendarAskService(fakeLlm('{"kind":"next"}').llm, calendar);
 
     const before = Date.now();
     expect(await ask.ask('user-1', TZ, 'my next meeting?')).toMatchObject({
@@ -256,7 +256,7 @@ describe('CalendarAskService', () => {
     );
     const calendar = { listEvents } as unknown as CalendarService;
     const ask = new CalendarAskService(
-      fakeModel('{"kind":"find","search":"dentist appointment"}').model,
+      fakeLlm('{"kind":"find","search":"dentist appointment"}').llm,
       calendar,
     );
 
@@ -280,25 +280,25 @@ describe('CalendarAskService', () => {
     expect(lastRange?.end.getTime()).toBeLessThanOrEqual(Date.now() + yearMs);
   });
   it('maps a missing calendar configuration to a client error, not a service error', async () => {
-    const model = fakeModel('{"kind":"list","day":"today"}');
+    const { llm } = fakeLlm('{"kind":"list","day":"today"}');
     const calendar = {
       listEvents: mock(async () => {
         throw new CalendarNotConfiguredError();
       }),
     } as unknown as CalendarService;
-    const ask = new CalendarAskService(model, calendar);
+    const ask = new CalendarAskService(llm, calendar);
 
     await expect(ask.ask('user-1', TZ, 'what is on?')).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('maps a calendar URL mismatch to a client error', async () => {
-    const model = fakeModel('{"kind":"list","day":"today"}');
+    const { llm } = fakeLlm('{"kind":"list","day":"today"}');
     const calendar = {
       listEvents: mock(async () => {
         throw new CalendarUrlMismatchError('https://old.example/cal', ['https://new.example/cal']);
       }),
     } as unknown as CalendarService;
-    const ask = new CalendarAskService(model, calendar);
+    const ask = new CalendarAskService(llm, calendar);
 
     await expect(ask.ask('user-1', TZ, 'what is on?')).rejects.toBeInstanceOf(BadRequestException);
   });
