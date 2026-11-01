@@ -1,23 +1,11 @@
 import { describe, expect, it, mock } from 'bun:test';
-import type {
-  CalendarCredentials,
-  CalendarCredentialsService,
-} from './calendar-credentials.service';
-
-interface FakeCalendarObject {
-  url: string;
-  data: string;
-}
-
-interface FakeDAVCalendar {
-  url: string;
-  displayName: string;
-}
-
-const fakeCalendar: FakeDAVCalendar = {
-  url: 'https://dav.example.com/cal/personal/',
-  displayName: 'Personal',
-};
+import type { CaldavTransport } from './caldav-transport';
+import { CaldavPreconditionFailedError } from './caldav-transport';
+import type { CalendarCredentialsService } from './calendar-credentials.service';
+import type { CalendarDiscovery } from './calendar-discovery';
+import type { CalendarSyncService, StoredObject } from './calendar-sync.service';
+import { CalendarChangedError } from './calendar.errors';
+import { CalendarService } from './calendar.service';
 
 function icsFor(uid: string, summary: string): string {
   return [
@@ -33,90 +21,67 @@ function icsFor(uid: string, summary: string): string {
   ].join('\r\n');
 }
 
-function fakeCredentials(overrides: Partial<CalendarCredentials> = {}): CalendarCredentialsService {
-  const creds: CalendarCredentials = {
-    caldavUrl: 'https://dav.example.com',
-    username: 'user',
-    password: 'pass',
-    calendarUrl: null,
-    ...overrides,
+function stored(uid: string, ics: string): StoredObject {
+  return { href: `/cal/personal/${uid}.ics`, etag: `"${uid}-1"`, uid, ics };
+}
+
+// The local copy, already checked against the server: the sync engine filters by uid.
+function fakeSync(objects: StoredObject[]) {
+  const checkedObjects = mock((_userId: string, filter: { uid?: string } = {}) =>
+    Promise.resolve(objects.filter((o) => filter.uid === undefined || o.uid === filter.uid)),
+  );
+  const target = {
+    calendarUrl: 'https://dav.example.com/cal/personal/',
+    username: 'u',
+    password: 'p',
   };
-  return { getInternal: () => Promise.resolve(creds) } as unknown as CalendarCredentialsService;
+  const write = mock((_userId: string, send: (t: typeof target) => Promise<void>) => send(target));
+  const writeObject = mock(
+    (_userId: string, uid: string, send: (t: typeof target, o: StoredObject) => Promise<void>) =>
+      send(
+        target,
+        objects.find((o) => o.uid === uid)!,
+      ),
+  );
+  return {
+    sync: { checkedObjects, write, writeObject } as unknown as CalendarSyncService,
+    checkedObjects,
+  };
 }
 
-interface FakeClient {
-  fetchCalendars: () => Promise<FakeDAVCalendar[]>;
-  fetchCalendarObjects: (params: unknown) => Promise<FakeCalendarObject[]>;
-}
-
-// tsdav is mocked at the module level so CalendarService's actual CalDAV
-// boundary logic (calendar selection, UID-based lookup, not just the ICS
-// helpers) gets exercised — see devlog day 12: the UID-by-filename bug this
-// catches would have passed CI with only mocked-tool-handler tests.
-async function loadCalendarModule(createClient: () => Promise<FakeClient>) {
-  await mock.module('tsdav', () => ({ createDAVClient: createClient }));
-  // Dynamic `import()` resolves to `any` under this project's
-  // sourceType:'commonjs' ESLint config vs. tsconfig's module:'nodenext' —
-  // a tooling mismatch, not an actual unsafe value (the explicit type
-  // annotation above doesn't clear it, since the rule checks the source
-  // expression's inferred type, not the assignment target).
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const calendarServiceModule: typeof import('./calendar.service') =
-    await import('./calendar.service');
-  return calendarServiceModule;
-}
-
-async function loadCalendarService(
-  createClient: () => Promise<FakeClient>,
-  credentials: CalendarCredentialsService,
-) {
-  const { CalendarService } = await loadCalendarModule(createClient);
-  return new CalendarService(credentials);
+function service(objects: StoredObject[], transport: Partial<CaldavTransport> = {}) {
+  const { sync, checkedObjects } = fakeSync(objects);
+  return {
+    service: new CalendarService(
+      {} as CalendarCredentialsService,
+      {} as CalendarDiscovery,
+      sync,
+      transport as CaldavTransport,
+    ),
+    checkedObjects,
+  };
 }
 
 describe('CalendarService', () => {
-  it('finds an event by its actual iCalendar UID, not by resource filename', async () => {
-    // Deliberately named so the filename does NOT contain the UID —
-    // reproduces the bug where matching by `${uid}.ics` silently failed
-    // for events not created by this service.
-    const objects: FakeCalendarObject[] = [
-      {
-        url: 'https://dav.example.com/cal/personal/imported-event-1.ics',
-        data: icsFor('real-uid-1', 'Dentist'),
-      },
-    ];
-    const service = await loadCalendarService(
-      () =>
-        Promise.resolve({
-          fetchCalendars: () => Promise.resolve([fakeCalendar]),
-          fetchCalendarObjects: () => Promise.resolve(objects),
-        }),
-      fakeCredentials(),
-    );
+  it('looks an event up by its iCalendar UID in the checked copy', async () => {
+    const { service: calendar, checkedObjects } = service([
+      stored('real-uid-1', icsFor('real-uid-1', 'Dentist')),
+    ]);
 
-    const event = await service.getEvent('user-1', 'real-uid-1', 'UTC');
+    const event = await calendar.getEvent('user-1', 'real-uid-1', 'UTC');
     expect(event.summary).toBe('Dentist');
+    expect(checkedObjects).toHaveBeenCalledWith('user-1', { uid: 'real-uid-1' });
   });
 
   it('formats getEvent/listEvents times in the requested timezone, not raw UTC', async () => {
     // DTSTART/DTEND in icsFor are 10:00/11:00 UTC — confirms the timezone
     // argument is actually applied, not just accepted and ignored.
-    const objects: FakeCalendarObject[] = [
-      { url: 'https://dav.example.com/cal/personal/e.ics', data: icsFor('e1', 'Standup') },
-    ];
-    const service = await loadCalendarService(
-      () =>
-        Promise.resolve({
-          fetchCalendars: () => Promise.resolve([fakeCalendar]),
-          fetchCalendarObjects: () => Promise.resolve(objects),
-        }),
-      fakeCredentials(),
-    );
+    const { service: calendar } = service([stored('e1', icsFor('e1', 'Standup'))]);
 
-    const event = await service.getEvent('user-1', 'e1', 'Europe/Warsaw');
+    const event = await calendar.getEvent('user-1', 'e1', 'Europe/Warsaw');
     expect(event.start).toBe('2026-09-01T12:00:00+02:00');
 
-    const [listed] = await service.listEvents(
+    const [listed] = await calendar.listEvents(
       'user-1',
       { start: new Date('2026-09-01T00:00:00Z'), end: new Date('2026-09-02T00:00:00Z') },
       'Europe/Warsaw',
@@ -124,7 +89,7 @@ describe('CalendarService', () => {
     expect(listed.start).toBe('2026-09-01T12:00:00+02:00');
   });
 
-  it('expands recurring objects even when the CalDAV server returns the series master', async () => {
+  it('expands a stored series master into its occurrences', async () => {
     const ics = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
@@ -137,26 +102,18 @@ describe('CalendarService', () => {
       'END:VEVENT',
       'END:VCALENDAR',
     ].join('\r\n');
-    const service = await loadCalendarService(
-      () =>
-        Promise.resolve({
-          fetchCalendars: () => Promise.resolve([fakeCalendar]),
-          fetchCalendarObjects: () =>
-            Promise.resolve([{ url: `${fakeCalendar.url}weekly.ics`, data: ics }]),
-        }),
-      fakeCredentials(),
-    );
+    const { service: calendar } = service([stored('weekly', ics)]);
 
     const range = {
       start: new Date('2026-10-17T00:00:00Z'),
       end: new Date('2026-10-19T00:00:00Z'),
     };
-    const events = await service.listEvents('user-1', range, 'Europe/Warsaw');
+    const events = await calendar.listEvents('user-1', range, 'Europe/Warsaw');
     expect(events).toHaveLength(1);
     expect(events[0].start).toBe('2026-10-17T12:00:00+02:00');
     expect(events[0].startWeekday).toBe('Saturday');
 
-    const occurrence = await service.getEvent(
+    const occurrence = await calendar.getEvent(
       'user-1',
       'weekly',
       'Europe/Warsaw',
@@ -165,7 +122,7 @@ describe('CalendarService', () => {
     expect(occurrence.start).toBe(events[0].start);
 
     await expect(
-      service.getEvent('user-1', 'weekly', 'Europe/Warsaw', new Date('2026-10-18T10:00:00Z')),
+      calendar.getEvent('user-1', 'weekly', 'Europe/Warsaw', new Date('2026-10-18T10:00:00Z')),
     ).rejects.toThrow('no event found with uid "weekly"');
   });
 
@@ -196,17 +153,9 @@ describe('CalendarService', () => {
       'END:VEVENT',
       'END:VCALENDAR',
     ].join('\r\n');
-    const service = await loadCalendarService(
-      () =>
-        Promise.resolve({
-          fetchCalendars: () => Promise.resolve([fakeCalendar]),
-          fetchCalendarObjects: () =>
-            Promise.resolve([{ url: `${fakeCalendar.url}weekly.ics`, data: ics }]),
-        }),
-      fakeCredentials(),
-    );
+    const { service: calendar } = service([stored('weekly', ics)]);
 
-    const moved = await service.getEvent(
+    const moved = await calendar.getEvent(
       'user-1',
       'weekly',
       'Europe/Warsaw',
@@ -215,195 +164,74 @@ describe('CalendarService', () => {
     expect(moved).toMatchObject({ summary: 'Moved sync', start: '2026-10-17T14:00:00+02:00' });
 
     await expect(
-      service.getEvent('user-1', 'weekly', 'Europe/Warsaw', new Date('2026-10-17T10:00:00Z')),
+      calendar.getEvent('user-1', 'weekly', 'Europe/Warsaw', new Date('2026-10-17T10:00:00Z')),
     ).rejects.toThrow('no event found with uid "weekly"');
     await expect(
-      service.getEvent('user-1', 'weekly', 'Europe/Warsaw', new Date('2026-10-24T10:00:00Z')),
+      calendar.getEvent('user-1', 'weekly', 'Europe/Warsaw', new Date('2026-10-24T10:00:00Z')),
     ).rejects.toThrow('no event found with uid "weekly"');
   });
 
   it('throws CalendarEventNotFoundError when no object matches the UID', async () => {
-    const objects: FakeCalendarObject[] = [
-      {
-        url: 'https://dav.example.com/cal/personal/other.ics',
-        data: icsFor('some-other-uid', 'Other'),
-      },
-    ];
-    const service = await loadCalendarService(
-      () =>
-        Promise.resolve({
-          fetchCalendars: () => Promise.resolve([fakeCalendar]),
-          fetchCalendarObjects: () => Promise.resolve(objects),
-        }),
-      fakeCredentials(),
-    );
+    const { service: calendar } = service([stored('other', icsFor('other', 'Other'))]);
 
-    await expect(service.getEvent('user-1', 'missing-uid', 'UTC')).rejects.toThrow(
+    await expect(calendar.getEvent('user-1', 'missing-uid', 'UTC')).rejects.toThrow(
       'no event found with uid "missing-uid"',
     );
   });
 
-  it('rejects a stored caldavUrl that is not https (defense-in-depth check at use-time)', async () => {
-    const service = await loadCalendarService(
-      () =>
-        Promise.resolve({
-          fetchCalendars: () => Promise.resolve([fakeCalendar]),
-          fetchCalendarObjects: () => Promise.resolve([]),
-        }),
-      fakeCredentials({ caldavUrl: 'http://dav.example.com' }),
-    );
+  it('rejects an invalid timeZone up front, before reading the calendar, and never masks it as an empty list', async () => {
+    const { service: calendar, checkedObjects } = service([]);
 
     await expect(
-      service.listEvents('user-1', { start: new Date(), end: new Date() }, 'UTC'),
-    ).rejects.toThrow('caldavUrl must use https');
-  });
-
-  it('rejects an invalid timeZone up front, before any CalDAV work, and never masks it as an empty list', async () => {
-    const fetchCalendars = mock(() => Promise.resolve([fakeCalendar]));
-    const service = await loadCalendarService(
-      () => Promise.resolve({ fetchCalendars, fetchCalendarObjects: () => Promise.resolve([]) }),
-      fakeCredentials(),
-    );
-
-    await expect(
-      service.listEvents('user-1', { start: new Date(), end: new Date() }, 'Not/A_Real_Zone'),
+      calendar.listEvents('user-1', { start: new Date(), end: new Date() }, 'Not/A_Real_Zone'),
     ).rejects.toThrow('invalid IANA timezone');
-    // Not a CalDAV problem — should fail before ever connecting.
-    expect(fetchCalendars).not.toHaveBeenCalled();
-  });
-
-  it('getEvent also rejects an invalid timeZone up front', async () => {
-    const fetchCalendars = mock(() => Promise.resolve([fakeCalendar]));
-    const service = await loadCalendarService(
-      () => Promise.resolve({ fetchCalendars, fetchCalendarObjects: () => Promise.resolve([]) }),
-      fakeCredentials(),
-    );
-
-    await expect(service.getEvent('user-1', 'e1', 'Not/A_Real_Zone')).rejects.toThrow(
+    await expect(calendar.getEvent('user-1', 'e1', 'Not/A_Real_Zone')).rejects.toThrow(
       'invalid IANA timezone',
     );
-    expect(fetchCalendars).not.toHaveBeenCalled();
+    expect(checkedObjects).not.toHaveBeenCalled();
   });
 
-  it('selects the calendar matching calendarUrl when one is configured', async () => {
-    const other: FakeDAVCalendar = {
-      url: 'https://dav.example.com/cal/other/',
-      displayName: 'Other',
-    };
-    const fetchCalendarObjects = mock(() => Promise.resolve([] as FakeCalendarObject[]));
-    const service = await loadCalendarService(
-      () =>
-        Promise.resolve({
-          fetchCalendars: () => Promise.resolve([other, fakeCalendar]),
-          fetchCalendarObjects,
-        }),
-      fakeCredentials({ calendarUrl: fakeCalendar.url }),
-    );
+  it('expands every window of a snapshot from one check of the copy', async () => {
+    const { service: calendar, checkedObjects } = service([stored('e1', icsFor('e1', 'Standup'))]);
 
-    await service.listEvents('user-1', { start: new Date(), end: new Date() }, 'UTC');
-    expect(fetchCalendarObjects).toHaveBeenCalledWith(
-      expect.objectContaining({ calendar: fakeCalendar }),
-    );
+    const snapshot = await calendar.openSnapshot('user-1', 'UTC');
+    snapshot.listEvents({ start: new Date('2026-08-01Z'), end: new Date('2026-09-01Z') });
+    const [event] = snapshot.listEvents({
+      start: new Date('2026-09-01Z'),
+      end: new Date('2026-10-01Z'),
+    });
+    expect(event.uid).toBe('e1');
+    expect(checkedObjects).toHaveBeenCalledTimes(1);
   });
 
-  it('lists calendars with the requesting user’s saved credentials', async () => {
-    const fetchCalendars = mock(() => Promise.resolve([fakeCalendar]));
-    const service = await loadCalendarService(
-      () => Promise.resolve({ fetchCalendars, fetchCalendarObjects: () => Promise.resolve([]) }),
-      fakeCredentials(),
+  it('sends an update with the stored etag and reports a lost race as a changed event', async () => {
+    const updateObject = mock(() => Promise.reject(new CaldavPreconditionFailedError()));
+    const { service: calendar } = service([stored('e1', icsFor('e1', 'Standup'))], {
+      updateObject,
+    });
+
+    await expect(calendar.updateEvent('user-1', 'e1', { summary: 'Renamed' })).rejects.toThrow(
+      CalendarChangedError,
     );
-
-    expect(await service.listConfiguredCalendars('user-1')).toEqual([fakeCalendar]);
-    expect(fetchCalendars).toHaveBeenCalledTimes(1);
-  });
-
-  it('rejects listing configured calendars when the user has none', async () => {
-    const service = await loadCalendarService(
-      () =>
-        Promise.resolve({
-          fetchCalendars: () => Promise.resolve([fakeCalendar]),
-          fetchCalendarObjects: () => Promise.resolve([]),
-        }),
-      { getInternal: () => Promise.resolve(null) } as unknown as CalendarCredentialsService,
-    );
-
-    await expect(service.listConfiguredCalendars('user-1')).rejects.toThrow(
-      'no calendar connected',
+    expect(updateObject).toHaveBeenCalledWith(
+      expect.anything(),
+      '/cal/personal/e1.ics',
+      '"e1-1"',
+      expect.stringContaining('SUMMARY:Renamed'),
     );
   });
 
-  // Real bug hit in production: a configured calendarName that didn't
-  // match any calendar's actual displayName was silently treated the same
-  // as "nothing configured at all" — a deeply misleading error when
-  // credentials were, in fact, saved and correct. Matching moved from
-  // displayName (human-typed, encoding-fragile) to url (server-assigned,
-  // stable) to remove that whole bug class, but the mismatch case itself
-  // (e.g. a calendar since deleted) still needs a distinct, actionable
-  // error rather than the generic not-configured one.
-  it('gives a distinct, actionable error when calendarUrl matches nothing, not the generic not-configured error', async () => {
-    const service = await loadCalendarService(
-      () =>
-        Promise.resolve({
-          fetchCalendars: () => Promise.resolve([fakeCalendar]),
-          fetchCalendarObjects: () => Promise.resolve([]),
-        }),
-      fakeCredentials({ calendarUrl: 'https://dav.example.com/cal/gone/' }),
+  it('skips a malformed object instead of failing the whole read', async () => {
+    const { service: calendar } = service([
+      stored('broken', 'BEGIN:VCALENDAR\r\nnot an event'),
+      stored('e1', icsFor('e1', 'Standup')),
+    ]);
+
+    const events = await calendar.listEvents(
+      'user-1',
+      { start: new Date('2026-09-01Z'), end: new Date('2026-09-02Z') },
+      'UTC',
     );
-
-    await expect(
-      service.listEvents('user-1', { start: new Date(), end: new Date() }, 'UTC'),
-    ).rejects.toThrow(/gone.*personal/s);
-  });
-
-  it('uses the first calendar when no calendarUrl is configured', async () => {
-    const fetchCalendarObjects = mock(() => Promise.resolve([] as FakeCalendarObject[]));
-    const service = await loadCalendarService(
-      () =>
-        Promise.resolve({
-          fetchCalendars: () => Promise.resolve([fakeCalendar]),
-          fetchCalendarObjects,
-        }),
-      fakeCredentials({ calendarUrl: null }),
-    );
-
-    await service.listEvents('user-1', { start: new Date(), end: new Date() }, 'UTC');
-    expect(fetchCalendarObjects).toHaveBeenCalledWith(
-      expect.objectContaining({ calendar: fakeCalendar }),
-    );
-  });
-});
-
-describe('CalendarService.previewCalendars', () => {
-  it('connects with the given raw credentials and lists calendars, without touching stored credentials', async () => {
-    const fetchCalendars = mock(() => Promise.resolve([fakeCalendar]));
-    const createClient = mock(() =>
-      Promise.resolve({ fetchCalendars, fetchCalendarObjects: () => Promise.resolve([]) }),
-    );
-    const { CalendarService } = await loadCalendarModule(createClient);
-    const credentials = {
-      getInternal: mock(() => Promise.reject(new Error('should never be called'))),
-    } as unknown as CalendarCredentialsService;
-    const service = new CalendarService(credentials);
-
-    const result = await service.previewCalendars('https://dav.example.com', 'user', 'pass');
-
-    expect(result).toEqual([{ url: fakeCalendar.url, displayName: 'Personal' }]);
-    expect(createClient).toHaveBeenCalledWith(
-      expect.objectContaining({
-        serverUrl: 'https://dav.example.com',
-        credentials: { username: 'user', password: 'pass' },
-      }),
-    );
-  });
-
-  it('rejects a non-https URL before ever connecting', async () => {
-    const createClient = mock(() => Promise.reject(new Error('should never be called')));
-    const { CalendarService } = await loadCalendarModule(createClient);
-    const service = new CalendarService({} as CalendarCredentialsService);
-
-    await expect(
-      service.previewCalendars('http://dav.example.com', 'user', 'pass'),
-    ).rejects.toThrow('caldavUrl must use https');
-    expect(createClient).not.toHaveBeenCalled();
+    expect(events.map((e) => e.summary)).toEqual(['Standup']);
   });
 });

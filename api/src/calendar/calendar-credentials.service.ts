@@ -1,11 +1,12 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { assertSafeCaldavUrl } from './caldav-url';
+import { lockCalendarCopy, type Db, type Tx } from './calendar-copy-lock';
 import { decryptField, encryptField } from '../crypto/field-encryption';
 import { DRIZZLE } from '../db/drizzle.provider';
 import * as schema from '../db/schema';
-import { calendarCredentials } from '../db/schema';
+import { calendarCredentials, calendarSyncState } from '../db/schema';
 
 export interface CalendarCredentials {
   caldavUrl: string;
@@ -31,10 +32,10 @@ export class CalendarCredentialsService {
   constructor(@Inject(DRIZZLE) private readonly db: PostgresJsDatabase<typeof schema>) {}
 
   // Full record including the decrypted password — internal use only
-  // (CalendarService connecting to CalDAV), never returned from an
-  // endpoint.
-  async getInternal(userId: string): Promise<CalendarCredentials | null> {
-    const [row] = await this.db
+  // (the calendar copy connecting to CalDAV), never returned from an
+  // endpoint. `db` lets a sync read them inside its own transaction.
+  async getInternal(userId: string, db: Db | Tx = this.db): Promise<CalendarCredentials | null> {
+    const [row] = await db
       .select()
       .from(calendarCredentials)
       .where(eq(calendarCredentials.userId, userId));
@@ -93,36 +94,48 @@ export class CalendarCredentialsService {
     }
     assertSafeCaldavUrl(input.caldavUrl);
 
-    let password = input.password ? encryptField(input.password) : null;
-    if (!password) {
-      const [existing] = await this.db
-        .select({ password: calendarCredentials.password })
+    await this.db.transaction(async (tx) => {
+      await lockCalendarCopy(tx, userId);
+      const [existing] = await tx
+        .select()
         .from(calendarCredentials)
         .where(eq(calendarCredentials.userId, userId));
-      if (!existing) throw new BadRequestException('password is required to connect a calendar');
-      password = existing.password;
-    }
 
-    await this.db
-      .insert(calendarCredentials)
-      .values({
-        userId,
+      let password = input.password ? encryptField(input.password) : null;
+      if (!password) {
+        if (!existing) throw new BadRequestException('password is required to connect a calendar');
+        password = existing.password;
+      }
+
+      const values = {
         caldavUrl: input.caldavUrl,
         username: input.username,
         password,
         calendarUrl: input.calendarUrl,
         calendarDisplayName: input.calendarDisplayName,
-      })
-      .onConflictDoUpdate({
-        target: calendarCredentials.userId,
-        set: {
-          caldavUrl: input.caldavUrl,
-          username: input.username,
-          password,
-          calendarUrl: input.calendarUrl,
-          calendarDisplayName: input.calendarDisplayName,
-        },
-      });
+      };
+      await tx
+        .insert(calendarCredentials)
+        .values({ userId, ...values })
+        .onConflictDoUpdate({ target: calendarCredentials.userId, set: values });
+
+      // Another account or calendar makes the local copy someone else's data: wipe it, and
+      // the next read starts a fresh sync. A new password alone keeps it.
+      if (
+        existing &&
+        (existing.caldavUrl !== input.caldavUrl ||
+          existing.username !== input.username ||
+          existing.calendarUrl !== input.calendarUrl)
+      ) {
+        await tx.delete(calendarSyncState).where(eq(calendarSyncState.userId, userId));
+      } else if (input.password) {
+        // A sync that failed on the old password picks up where it stopped.
+        await tx
+          .update(calendarSyncState)
+          .set({ status: 'pending', error: null })
+          .where(and(eq(calendarSyncState.userId, userId), eq(calendarSyncState.status, 'error')));
+      }
+    });
   }
 
   async remove(userId: string): Promise<void> {

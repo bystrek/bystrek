@@ -16,12 +16,8 @@ import { AuthGuard } from '../auth/auth.guard';
 import { DRIZZLE } from '../db/drizzle.provider';
 import * as schema from '../db/schema';
 import { users } from '../db/schema';
-import {
-  CalendarEventNotFoundError,
-  CalendarNotConfiguredError,
-  CalendarService,
-  CalendarUrlMismatchError,
-} from './calendar.service';
+import { withCalendarErrors } from './calendar-http-errors';
+import { CalendarService } from './calendar.service';
 import { parseZonedIso } from './zoned-time';
 
 @Controller('calendar/events')
@@ -36,7 +32,7 @@ export class CalendarEventsController {
   async list(@Query('start') start: string, @Query('end') end: string, @Req() req: Request) {
     const timezone = await this.loadTimezone(req.session!.user.id);
     const range = this.parseRange(start, end, timezone);
-    const events = await this.withErrorMapping(() =>
+    const events = await withCalendarErrors(() =>
       this.calendar.listEvents(req.session!.user.id, range, timezone),
     );
     return { events };
@@ -60,7 +56,7 @@ export class CalendarEventsController {
     } catch (err) {
       throw new BadRequestException(err instanceof Error ? err.message : String(err));
     }
-    return this.withErrorMapping(() =>
+    return withCalendarErrors(() =>
       this.calendar.getEvent(req.session!.user.id, uid, timezone, occurrenceDate),
     );
   }
@@ -88,16 +84,5 @@ export class CalendarEventsController {
       .where(eq(users.id, userId));
     if (!row) throw new NotFoundException(`user ${userId} not found`);
     return row.timezone;
-  }
-
-  private async withErrorMapping<T>(fn: () => Promise<T>): Promise<T> {
-    try {
-      return await fn();
-    } catch (err) {
-      if (err instanceof CalendarEventNotFoundError) throw new NotFoundException(err.message);
-      if (err instanceof CalendarNotConfiguredError) throw new BadRequestException(err.message);
-      if (err instanceof CalendarUrlMismatchError) throw new BadRequestException(err.message);
-      throw err;
-    }
   }
 }

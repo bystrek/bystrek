@@ -303,12 +303,14 @@ function buildCalendar(today: Temporal.PlainDate): ParsedEvent[] {
 
 function fakeCalendar(events: () => ParsedEvent[]): CalendarService {
   return {
-    listEvents: async (_userId: string, range: { start: Date; end: Date }) =>
-      events().filter(
-        (event) =>
-          Date.parse(event.start) < range.end.getTime() &&
-          Date.parse(event.end) > range.start.getTime(),
-      ),
+    openSnapshot: async () => ({
+      listEvents: (range: { start: Date; end: Date }) =>
+        events().filter(
+          (event) =>
+            Date.parse(event.start) < range.end.getTime() &&
+            Date.parse(event.end) > range.start.getTime(),
+        ),
+    }),
   } as unknown as CalendarService;
 }
 

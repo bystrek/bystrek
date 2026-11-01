@@ -131,3 +131,15 @@ export function parseEventIcs(ics: string, timeZone: string): ParsedEvent {
   const dates = occurrenceDates(event, event.startDate, event.endDate, timeZone);
   return eventDetails(event, dates.start, dates.end, timeZone);
 }
+
+// The UID the local copy indexes an object by, or null when the body doesn't parse: one
+// malformed object from another client must not stop the whole calendar from syncing.
+export function objectUid(ics: string): string | null {
+  try {
+    const vevent = new ICAL.Component(ICAL.parse(ics)).getFirstSubcomponent('vevent');
+    const uid = vevent?.getFirstPropertyValue('uid');
+    return typeof uid === 'string' ? uid : null;
+  } catch {
+    return null;
+  }
+}

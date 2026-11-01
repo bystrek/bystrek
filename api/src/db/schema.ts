@@ -1,6 +1,7 @@
 import {
   boolean,
   index,
+  integer,
   pgEnum,
   pgTable,
   text,
@@ -152,4 +153,58 @@ export const calendarCredentials = pgTable(
       .$onUpdate(() => new Date()),
   },
   (table) => [uniqueIndex('calendar_credentials_user_id_unique').on(table.userId)],
+);
+
+export const calendarSyncStatus = pgEnum('calendar_sync_status', [
+  'pending',
+  'syncing',
+  'ready',
+  'error',
+]);
+
+// The local copy of a user's calendar (api/src/calendar/calendar-sync.service.ts).
+// Keyed on the credentials row, so removing the credentials removes the copy.
+// Deleting this row wipes the copy: `calendar_objects` cascades from it.
+export const calendarSyncState = pgTable('calendar_sync_state', {
+  userId: uuid('user_id')
+    .primaryKey()
+    .references(() => calendarCredentials.userId, { onDelete: 'cascade' }),
+  // Resolved by discovery and cached so reads skip it; null until the first sync runs it.
+  calendarUrl: text('calendar_url'),
+  // The token of the last sync-collection report applied to the copy.
+  syncToken: text('sync_token'),
+  // The token returned by the first download's listing. Becomes `syncToken` once every
+  // listed object is downloaded, so a restart resumes instead of starting over.
+  pendingSyncToken: text('pending_sync_token'),
+  // `getctag` (or the PROPFIND sync-token where a server has no ctag) from before the last
+  // applied report. Null forces the next read to run a sync.
+  ctag: text('ctag'),
+  status: calendarSyncStatus('status').notNull().default('pending'),
+  fetched: integer('fetched').notNull().default(0),
+  total: integer('total'),
+  error: text('error'),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
+// Raw calendar objects, expanded at query time. `ics` is null between the first
+// download's listing and the batch that fetches it.
+export const calendarObjects = pgTable(
+  'calendar_objects',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => calendarSyncState.userId, { onDelete: 'cascade' }),
+    href: text('href').notNull(),
+    etag: text('etag'),
+    uid: text('uid'),
+    ics: text('ics'),
+  },
+  (table) => [
+    uniqueIndex('calendar_objects_user_id_href_unique').on(table.userId, table.href),
+    index('calendar_objects_user_id_uid_idx').on(table.userId, table.uid),
+  ],
 );

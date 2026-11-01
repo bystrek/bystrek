@@ -1,11 +1,16 @@
 import { describe, expect, it, mock } from 'bun:test';
-import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import type { LlmClient, LlmJsonRequest } from '../llm/llm.client';
 import {
   CalendarNotConfiguredError,
+  CalendarNotReadyError,
   CalendarUrlMismatchError,
-  type CalendarService,
-} from './calendar.service';
+} from './calendar.errors';
+import type { CalendarService } from './calendar.service';
 import { CalendarAskService } from './calendar-ask.service';
 import { parseQuery } from './calendar-ask.query';
 import { SYSTEM_PROMPT } from './calendar-ask.prompt';
@@ -38,9 +43,14 @@ function fakeLlm(reply: string) {
   return { llm: { generateJson } as unknown as LlmClient, generateJson };
 }
 
+function snapshotCalendar(listEvents: (range: { start: Date; end: Date }) => ParsedEvent[]) {
+  const openSnapshot = mock(async () => ({ listEvents }));
+  return { calendar: { openSnapshot } as unknown as CalendarService, openSnapshot };
+}
+
 function fakeCalendar(events: ParsedEvent[]) {
-  const listEvents = mock(async () => events);
-  return { calendar: { listEvents } as unknown as CalendarService, listEvents };
+  const listEvents = mock<(range: { start: Date; end: Date }) => ParsedEvent[]>(() => events);
+  return { ...snapshotCalendar(listEvents), listEvents };
 }
 
 function service(reply: string, events: ParsedEvent[] = []) {
@@ -218,14 +228,14 @@ describe('CalendarAskService', () => {
       start: '2027-03-04T13:00:00+01:00',
       end: '2027-03-04T14:00:00+01:00',
     } as ParsedEvent;
-    const listEvents = mock(async (_user: string, range: { start: Date; end: Date }) =>
+    const listEvents = mock((range: { start: Date; end: Date }) =>
       [inMarch].filter(
         (event) =>
           Date.parse(event.start) < range.end.getTime() &&
           Date.parse(event.end) > range.start.getTime(),
       ),
     );
-    const calendar = { listEvents } as unknown as CalendarService;
+    const { calendar, openSnapshot } = snapshotCalendar(listEvents);
     const ask = new CalendarAskService(fakeLlm('{"kind":"next"}').llm, calendar);
 
     const before = Date.now();
@@ -233,10 +243,13 @@ describe('CalendarAskService', () => {
       kind: 'event',
       event: { uid: 'later' },
     });
-    const ranges = listEvents.mock.calls.map(([, range]) => range);
+    const ranges = listEvents.mock.calls.map(([range]) => range);
     expect(ranges[0].start.getTime()).toBeGreaterThanOrEqual(before);
     expect(ranges.at(-1)?.end.getTime()).toBeGreaterThan(Date.parse(inMarch.start));
     expect(ranges.at(-1)?.start.getTime()).toBeLessThan(Date.parse(inMarch.start));
+    // Every window comes from one snapshot: the server is checked once per question.
+    expect(ranges.length).toBeGreaterThan(1);
+    expect(openSnapshot).toHaveBeenCalledTimes(1);
   });
 
   it('searches forward from now for a keyword and skips events that do not match', async () => {
@@ -247,14 +260,14 @@ describe('CalendarAskService', () => {
       start: '2027-06-10T10:00:00+02:00',
       end: '2027-06-10T11:00:00+02:00',
     } as ParsedEvent;
-    const listEvents = mock(async (_user: string, range: { start: Date; end: Date }) =>
+    const listEvents = mock((range: { start: Date; end: Date }) =>
       [lunch, dentist].filter(
         (event) =>
           Date.parse(event.start) < range.end.getTime() &&
           Date.parse(event.end) > range.start.getTime(),
       ),
     );
-    const calendar = { listEvents } as unknown as CalendarService;
+    const { calendar } = snapshotCalendar(listEvents);
     const ask = new CalendarAskService(
       fakeLlm('{"kind":"find","search":"dentist appointment"}').llm,
       calendar,
@@ -274,7 +287,7 @@ describe('CalendarAskService', () => {
       kind: 'text',
       text: 'No matching event.',
     });
-    const lastRange = listEvents.mock.calls.at(-1)?.[1];
+    const lastRange = listEvents.mock.calls.at(-1)?.[0];
     const yearMs = 365 * 24 * 60 * 60 * 1000;
     expect(lastRange?.end.getTime()).toBeGreaterThanOrEqual(before + yearMs);
     expect(lastRange?.end.getTime()).toBeLessThanOrEqual(Date.now() + yearMs);
@@ -282,7 +295,7 @@ describe('CalendarAskService', () => {
   it('maps a missing calendar configuration to a client error, not a service error', async () => {
     const { llm } = fakeLlm('{"kind":"list","day":"today"}');
     const calendar = {
-      listEvents: mock(async () => {
+      openSnapshot: mock(async () => {
         throw new CalendarNotConfiguredError();
       }),
     } as unknown as CalendarService;
@@ -294,12 +307,24 @@ describe('CalendarAskService', () => {
   it('maps a calendar URL mismatch to a client error', async () => {
     const { llm } = fakeLlm('{"kind":"list","day":"today"}');
     const calendar = {
-      listEvents: mock(async () => {
+      openSnapshot: mock(async () => {
         throw new CalendarUrlMismatchError('https://old.example/cal', ['https://new.example/cal']);
       }),
     } as unknown as CalendarService;
     const ask = new CalendarAskService(llm, calendar);
 
     await expect(ask.ask('user-1', TZ, 'what is on?')).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('maps a calendar that is still syncing to a conflict', async () => {
+    const { llm } = fakeLlm('{"kind":"list","day":"today"}');
+    const calendar = {
+      openSnapshot: mock(async () => {
+        throw new CalendarNotReadyError({ status: 'syncing', fetched: 1, total: 2, error: null });
+      }),
+    } as unknown as CalendarService;
+    const ask = new CalendarAskService(llm, calendar);
+
+    await expect(ask.ask('user-1', TZ, 'what is on?')).rejects.toBeInstanceOf(ConflictException);
   });
 });

@@ -1,68 +1,66 @@
 import { randomUUID } from 'node:crypto';
-import { Injectable } from '@nestjs/common';
-import { createDAVClient, type DAVCalendar } from 'tsdav';
-
-type DAVClient = Awaited<ReturnType<typeof createDAVClient>>;
-import { assertSafeCaldavUrl } from './caldav-url';
+import { Injectable, Logger } from '@nestjs/common';
+import { CaldavPreconditionFailedError, CaldavTransport } from './caldav-transport';
 import { CalendarCredentialsService } from './calendar-credentials.service';
+import { CalendarDiscovery, type CalendarSummary } from './calendar-discovery';
+import { CalendarSyncService, type StoredObject } from './calendar-sync.service';
+import {
+  CalendarChangedError,
+  CalendarEventNotFoundError,
+  CalendarNotConfiguredError,
+} from './calendar.errors';
 import {
   buildEventIcs,
   parseEventIcs,
   parseEventOccurrences,
   updateEventIcs,
   type EventInput,
+  type ParsedEvent,
 } from './ical-event';
 import { assertValidTimeZone, fromEpochMs, parseOffsetIso } from './zoned-time';
 
-export class CalendarNotConfiguredError extends Error {
-  constructor() {
-    super('no calendar connected — set it up on the profile page first');
+// The calendar as it was when one read checked it against the server, expanded per window
+// in memory. Lets a forward search look at many windows for one CalDAV request.
+export class CalendarSnapshot {
+  private readonly logger = new Logger(CalendarSnapshot.name);
+
+  constructor(
+    private readonly objects: StoredObject[],
+    private readonly timeZone: string,
+  ) {}
+
+  // `timeZone` is the requesting user's own timezone — event times are returned already
+  // formatted for it (explicit UTC offset, never raw UTC). See zoned-time.ts / devlog day 12.
+  // The copy keeps every object another client wrote, malformed ones included, so one that
+  // fails to expand is logged and skipped rather than failing the whole read.
+  listEvents(range: { start: Date; end: Date }): ParsedEvent[] {
+    return this.objects.flatMap((object) => {
+      try {
+        return parseEventOccurrences(object.ics, range, this.timeZone);
+      } catch (err) {
+        this.logger.warn(`skipping unreadable calendar object ${object.href}: ${String(err)}`);
+        return [];
+      }
+    });
   }
 }
 
-export class CalendarUrlMismatchError extends Error {
-  constructor(configuredUrl: string, availableUrls: string[]) {
-    super(
-      `configured calendar (${configuredUrl}) no longer exists on this account ` +
-        `(available: ${availableUrls.length ? availableUrls.join(', ') : 'none'}) — ` +
-        `pick a calendar again on the profile page, or clear it to use the first calendar`,
-    );
-  }
-}
-
-export class CalendarEventNotFoundError extends Error {
-  constructor(uid: string) {
-    super(`no event found with uid "${uid}"`);
-  }
-}
-
-export interface CalendarSummary {
-  url: string;
-  displayName: string | null;
-}
-
-// Thin per-request wrapper: builds a tsdav DAVClient from the requesting
-// user's stored CalDAV credentials and resolves their target calendar. No
-// caching, so every call is self-contained (no stale client across a
-// long-lived credentials change).
+// Calendar reads come from the local copy (calendar-sync.service.ts), checked against the
+// server first. Writes go straight to CalDAV.
 @Injectable()
 export class CalendarService {
-  constructor(private readonly credentials: CalendarCredentialsService) {}
+  constructor(
+    private readonly credentials: CalendarCredentialsService,
+    private readonly discovery: CalendarDiscovery,
+    private readonly sync: CalendarSyncService,
+    private readonly transport: CaldavTransport,
+  ) {}
 
   // Connects with raw, not-yet-saved credentials — backs the profile
   // page's "load calendars" step, so a user can pick a calendar before
   // anything is persisted. Never touches the database.
-  async previewCalendars(
-    caldavUrl: string,
-    username: string,
-    password: string,
-  ): Promise<CalendarSummary[]> {
-    const client = await this.buildClient(caldavUrl, username, password);
-    const calendars = await client.fetchCalendars();
-    return calendars.map((c) => ({
-      url: c.url,
-      displayName: typeof c.displayName === 'string' ? c.displayName : null,
-    }));
+  previewCalendars(caldavUrl: string, username: string, password: string) {
+    return this.discovery.listCalendars(caldavUrl, username, password);
   }
 
   async listConfiguredCalendars(userId: string): Promise<CalendarSummary[]> {
@@ -71,74 +69,26 @@ export class CalendarService {
     return this.previewCalendars(creds.caldavUrl, creds.username, creds.password);
   }
 
-  private async buildClient(
-    caldavUrl: string,
-    username: string,
-    password: string,
-  ): Promise<DAVClient> {
-    assertSafeCaldavUrl(caldavUrl);
-    return createDAVClient({
-      serverUrl: caldavUrl,
-      credentials: { username, password },
-      authMethod: 'Basic',
-      defaultAccountType: 'caldav',
-    });
-  }
-
-  private async connect(userId: string): Promise<{ client: DAVClient; calendar: DAVCalendar }> {
-    const creds = await this.credentials.getInternal(userId);
-    if (!creds) throw new CalendarNotConfiguredError();
-
-    const client = await this.buildClient(creds.caldavUrl, creds.username, creds.password);
-
-    const calendars = await client.fetchCalendars();
-    if (calendars.length === 0) {
-      throw new CalendarNotConfiguredError();
-    }
-
-    if (!creds.calendarUrl) {
-      return { client, calendar: calendars[0] };
-    }
-
-    // Matched by the calendar's own (server-assigned, stable) URL, not a
-    // human-typed display name — no encoding/mismatch class of bug, since
-    // this value is never typed by hand (see schema.ts).
-    const calendar = calendars.find((c) => c.url === creds.calendarUrl);
-    if (!calendar) {
-      throw new CalendarUrlMismatchError(
-        creds.calendarUrl,
-        calendars.map((c) => c.url),
-      );
-    }
-
-    return { client, calendar };
-  }
-
-  // `timeZone` is the requesting user's own timezone — event times are
-  // returned already formatted for it (explicit UTC offset, never raw UTC).
-  // See zoned-time.ts / devlog day 12.
-  async listEvents(userId: string, range: { start: Date; end: Date }, timeZone: string) {
+  async openSnapshot(userId: string, timeZone: string): Promise<CalendarSnapshot> {
     assertValidTimeZone(timeZone);
-    const { client, calendar } = await this.connect(userId);
-    const objects = await client.fetchCalendarObjects({
-      calendar,
-      expand: true,
-      timeRange: { start: range.start.toISOString(), end: range.end.toISOString() },
-    });
+    return new CalendarSnapshot(await this.sync.checkedObjects(userId), timeZone);
+  }
 
-    return objects.flatMap((object) =>
-      object.data ? parseEventOccurrences(object.data as string, range, timeZone) : [],
-    );
+  async listEvents(userId: string, range: { start: Date; end: Date }, timeZone: string) {
+    return (await this.openSnapshot(userId, timeZone)).listEvents(range);
   }
 
   // Used to build the event detail view for a single occurrence.
   async getEvent(userId: string, uid: string, timeZone: string, occurrence?: Date) {
     assertValidTimeZone(timeZone);
-    const { client, calendar } = await this.connect(userId);
-    const object = await this.findObjectByUid(client, calendar, uid);
+    // Matched by the iCalendar UID inside each object's body, not by resource
+    // filename — CalDAV doesn't guarantee a resource's filename equals its
+    // event UID (only events this service created itself, via `${uid}.ics`).
+    const [object] = await this.sync.checkedObjects(userId, { uid });
+    if (!object) throw new CalendarEventNotFoundError(uid);
     if (occurrence) {
       const matches = parseEventOccurrences(
-        object.data as string,
+        object.ics,
         { start: occurrence, end: fromEpochMs(occurrence.getTime() + 1) },
         timeZone,
       );
@@ -148,50 +98,46 @@ export class CalendarService {
       if (!event) throw new CalendarEventNotFoundError(uid);
       return event;
     }
-    return parseEventIcs(object.data as string, timeZone);
+    return parseEventIcs(object.ics, timeZone);
   }
 
   async createEvent(userId: string, input: EventInput): Promise<{ uid: string }> {
-    const { client, calendar } = await this.connect(userId);
     const uid = randomUUID();
-    await client.createCalendarObject({
-      calendar,
-      iCalString: buildEventIcs(uid, input),
-      filename: `${uid}.ics`,
-    });
+    await this.write(() =>
+      this.sync.write(userId, (target) =>
+        this.transport.createObject(target, `${uid}.ics`, buildEventIcs(uid, input)),
+      ),
+    );
     return { uid };
   }
 
   async updateEvent(userId: string, uid: string, input: Partial<EventInput>): Promise<void> {
-    const { client, calendar } = await this.connect(userId);
-    const object = await this.findObjectByUid(client, calendar, uid);
-    await client.updateCalendarObject({
-      calendarObject: { ...object, data: updateEventIcs(object.data as string, input) },
-    });
+    await this.write(() =>
+      this.sync.writeObject(userId, uid, (target, object) =>
+        this.transport.updateObject(
+          target,
+          object.href,
+          object.etag,
+          updateEventIcs(object.ics, input),
+        ),
+      ),
+    );
   }
 
   async deleteEvent(userId: string, uid: string): Promise<void> {
-    const { client, calendar } = await this.connect(userId);
-    const object = await this.findObjectByUid(client, calendar, uid);
-    await client.deleteCalendarObject({ calendarObject: object });
+    await this.write(() =>
+      this.sync.writeObject(userId, uid, (target, object) =>
+        this.transport.deleteObject(target, object.href, object.etag),
+      ),
+    );
   }
 
-  // Matched by the iCalendar UID inside each object's body, not by resource
-  // filename — CalDAV doesn't guarantee a resource's filename equals its
-  // event UID (only events this service created itself, via
-  // `${uid}.ics`, are guaranteed to match that way; events from any other
-  // client wouldn't).
-  private async findObjectByUid(client: DAVClient, calendar: DAVCalendar, uid: string) {
-    const objects = await client.fetchCalendarObjects({ calendar });
-    for (const object of objects) {
-      if (!object.data) continue;
-      try {
-        // Timezone is irrelevant here — only the uid is used.
-        if (parseEventIcs(object.data as string, 'UTC').uid === uid) return object;
-      } catch {
-        continue;
-      }
+  private async write(request: () => Promise<void>): Promise<void> {
+    try {
+      await request();
+    } catch (err) {
+      if (err instanceof CaldavPreconditionFailedError) throw new CalendarChangedError();
+      throw err;
     }
-    throw new CalendarEventNotFoundError(uid);
   }
 }
