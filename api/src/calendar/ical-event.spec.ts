@@ -360,3 +360,64 @@ describe('parseEventOccurrences', () => {
     expect(parseEventOccurrences(ics, weekend, 'UTC')).toHaveLength(1);
   });
 });
+
+// TZIDs and floating times are chosen to differ from any likely host
+// timezone, so these fail if parsing falls back to the process's own zone.
+describe('times without a VTIMEZONE', () => {
+  it('reads a TZID with no VTIMEZONE in that IANA timezone, across a DST change', () => {
+    const ics = calendarWith(
+      eventWith(
+        'UID:lesson',
+        'SUMMARY:Lesson',
+        'DTSTART;TZID=America/New_York:20261027T190000',
+        'DTEND;TZID=America/New_York:20261027T200000',
+        'RRULE:FREQ=WEEKLY',
+      ),
+    );
+    const events = parseEventOccurrences(
+      ics,
+      { start: new Date('2026-10-27T00:00:00Z'), end: new Date('2026-11-05T00:00:00Z') },
+      'America/New_York',
+    );
+    expect(events.map(({ start, end }) => [start, end])).toEqual([
+      ['2026-10-27T19:00:00-04:00', '2026-10-27T20:00:00-04:00'],
+      ['2026-11-03T19:00:00-05:00', '2026-11-03T20:00:00-05:00'],
+    ]);
+  });
+
+  it('converts a TZID with no VTIMEZONE into the requested timezone', () => {
+    const ics = calendarWith(
+      eventWith(
+        'UID:call',
+        'SUMMARY:Call',
+        'DTSTART;TZID=America/New_York:20261103T130000',
+        'DURATION:PT1H',
+      ),
+    );
+    expect(parseEventIcs(ics, 'Asia/Tokyo')).toMatchObject({
+      start: '2026-11-04T03:00:00+09:00',
+      end: '2026-11-04T04:00:00+09:00',
+      startWeekday: 'Wednesday',
+    });
+  });
+
+  it('reads floating and non-IANA TZID times in the requested timezone', () => {
+    const ics = calendarWith(
+      eventWith('UID:floating', 'DTSTART:20261103T190000', 'DTEND:20261103T200000'),
+      eventWith(
+        'UID:windows',
+        'DTSTART;TZID=Not A Zone:20261103T210000',
+        'DTEND;TZID=Not A Zone:20261103T220000',
+      ),
+    );
+    const events = parseEventOccurrences(
+      ics,
+      { start: new Date('2026-11-03T00:00:00Z'), end: new Date('2026-11-04T00:00:00Z') },
+      'Asia/Tokyo',
+    );
+    expect(events.map((event) => event.start)).toEqual([
+      '2026-11-03T19:00:00+09:00',
+      '2026-11-03T21:00:00+09:00',
+    ]);
+  });
+});

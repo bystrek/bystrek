@@ -4,15 +4,42 @@
 // Temporal throws a low-level RangeError for an invalid IANA timezone;
 // callers should validate once, up front, with a clear message instead.
 export function assertValidTimeZone(timeZone: string): void {
+  if (!isValidTimeZone(timeZone)) throw new Error(`invalid IANA timezone: "${timeZone}"`);
+}
+
+// For timezone names from calendar data, which may be non-IANA (e.g.
+// Windows names) and need a fallback rather than an error.
+export function isValidTimeZone(timeZone: string): boolean {
   try {
     Temporal.Instant.fromEpochMilliseconds(0).toZonedDateTimeISO(timeZone);
+    return true;
   } catch {
-    throw new Error(`invalid IANA timezone: "${timeZone}"`);
+    return false;
   }
 }
 
 export function zonedDateTime(date: Date, timeZone: string): Temporal.ZonedDateTime {
   return Temporal.Instant.fromEpochMilliseconds(date.getTime()).toZonedDateTimeISO(timeZone);
+}
+
+export interface WallClock {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+}
+
+// The instant a wall-clock time denotes in a given IANA timezone — the
+// reverse of `zonedDateTime`.
+export function wallClockToDate(time: WallClock, timeZone: string): Date {
+  const { year, month, day, hour, minute, second } = time;
+  return new Date(
+    Temporal.PlainDateTime.from({ year, month, day, hour, minute, second }).toZonedDateTime(
+      timeZone,
+    ).epochMilliseconds,
+  );
 }
 
 // Formats a Date as an ISO 8601 string with the wall-clock time and UTC
