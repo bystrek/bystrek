@@ -55,6 +55,8 @@ export class FakeCaldav {
   multigetsBeforeFailure: number | null = null;
   // Added to every reply, so concurrent requests overlap.
   delayMs = 0;
+  // The calendar moves to this URL right after the next PROPFIND is answered.
+  moveAfterPropfind: string | null = null;
 
   private readonly objects = new Map<string, { etag: string; ics: string }>();
   private readonly changes: { revision: number; href: string }[] = [];
@@ -109,12 +111,12 @@ export class FakeCaldav {
 
     if (method === 'PROPFIND') {
       if (url.pathname !== this.path) return new Response(null, { status: 404 });
-      return multistatus([
-        propResponse(
-          this.path,
-          `<cs:getctag>${this.revision}</cs:getctag><d:sync-token>${this.token()}</d:sync-token>`,
-        ),
-      ]);
+      const tag = `<cs:getctag>${this.revision}</cs:getctag><d:sync-token>${this.token()}</d:sync-token>`;
+      if (this.moveAfterPropfind) {
+        this.moveTo(this.moveAfterPropfind);
+        this.moveAfterPropfind = null;
+      }
+      return multistatus([propResponse(url.pathname, tag)]);
     }
     if (method === 'REPORT' && body.includes('sync-collection')) return this.syncCollection(body);
     if (method === 'REPORT' && body.includes('calendar-multiget')) return this.multiget(body);

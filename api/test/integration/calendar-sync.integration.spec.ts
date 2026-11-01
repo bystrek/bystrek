@@ -225,6 +225,38 @@ describe('calendar sync (integration)', () => {
     });
   });
 
+  it('runs discovery again when the calendar moves between the PROPFIND and the report', async () => {
+    await withRollback(testDb, async (tx) => {
+      const t = await setUp(tx);
+      t.server.put('a.ics', eventIcs('a', 'Standup'));
+      await t.download();
+      expect((await t.get(SEPTEMBER_1)).status).toBe(200);
+
+      t.server.put('b.ics', eventIcs('b', 'Lunch'));
+      t.server.moveAfterPropfind = 'https://p42-caldav.example.com/123/calendars/home/';
+      const res = await t.get(SEPTEMBER_1);
+      expect(res.status).toBe(200);
+      expect(summaries(res)).toEqual(['Lunch', 'Standup']);
+
+      await t.app.close();
+    });
+  });
+
+  it('keeps answering reads when one stored object is malformed', async () => {
+    await withRollback(testDb, async (tx) => {
+      const t = await setUp(tx);
+      t.server.put('a.ics', eventIcs('a', 'Standup'));
+      t.server.put('broken.ics', 'BEGIN:VCALENDAR\r\nnot an event');
+      await t.download();
+
+      const res = await t.get(SEPTEMBER_1);
+      expect(res.status).toBe(200);
+      expect(summaries(res)).toEqual(['Standup']);
+
+      await t.app.close();
+    });
+  });
+
   it('wipes the copy for another calendar, but keeps it for a new password', async () => {
     await withRollback(testDb, async (tx) => {
       const t = await setUp(tx);
@@ -263,6 +295,11 @@ describe('calendar sync (integration)', () => {
 
       await calendar.updateEvent(t.userId, 'a', { summary: 'Retro' });
       expect(summaries(await t.get(SEPTEMBER_1))).toEqual(['Retro']);
+
+      // A write after the calendar moved finds it again, like a read.
+      t.server.moveTo('https://p42-caldav.example.com/123/calendars/home/');
+      await calendar.updateEvent(t.userId, 'a', { summary: 'Retro (moved)' });
+      expect(summaries(await t.get(SEPTEMBER_1))).toEqual(['Retro (moved)']);
 
       // Changed from another client since our read: the stored etag is stale.
       t.server.put('a.ics', eventIcs('a', 'Changed elsewhere'));

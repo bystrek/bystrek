@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { CaldavPreconditionFailedError, CaldavTransport } from './caldav-transport';
 import { CalendarCredentialsService } from './calendar-credentials.service';
 import { CalendarDiscovery, type CalendarSummary } from './calendar-discovery';
@@ -22,6 +22,8 @@ import { assertValidTimeZone, fromEpochMs, parseOffsetIso } from './zoned-time';
 // The calendar as it was when one read checked it against the server, expanded per window
 // in memory. Lets a forward search look at many windows for one CalDAV request.
 export class CalendarSnapshot {
+  private readonly logger = new Logger(CalendarSnapshot.name);
+
   constructor(
     private readonly objects: StoredObject[],
     private readonly timeZone: string,
@@ -29,10 +31,17 @@ export class CalendarSnapshot {
 
   // `timeZone` is the requesting user's own timezone — event times are returned already
   // formatted for it (explicit UTC offset, never raw UTC). See zoned-time.ts / devlog day 12.
+  // The copy keeps every object another client wrote, malformed ones included, so one that
+  // fails to expand is logged and skipped rather than failing the whole read.
   listEvents(range: { start: Date; end: Date }): ParsedEvent[] {
-    return this.objects.flatMap((object) =>
-      parseEventOccurrences(object.ics, range, this.timeZone),
-    );
+    return this.objects.flatMap((object) => {
+      try {
+        return parseEventOccurrences(object.ics, range, this.timeZone);
+      } catch (err) {
+        this.logger.warn(`skipping unreadable calendar object ${object.href}: ${String(err)}`);
+        return [];
+      }
+    });
   }
 }
 
@@ -93,33 +102,34 @@ export class CalendarService {
   }
 
   async createEvent(userId: string, input: EventInput): Promise<{ uid: string }> {
-    const { target } = await this.sync.writeTarget(userId);
     const uid = randomUUID();
     await this.write(() =>
-      this.transport.createObject(target, `${uid}.ics`, buildEventIcs(uid, input)),
+      this.sync.write(userId, (target) =>
+        this.transport.createObject(target, `${uid}.ics`, buildEventIcs(uid, input)),
+      ),
     );
     return { uid };
   }
 
-  // Sent with the copy's etag: if the event changed elsewhere since the last read, the
-  // server refuses it instead of losing that change.
   async updateEvent(userId: string, uid: string, input: Partial<EventInput>): Promise<void> {
-    const { target, object } = await this.sync.writeTarget(userId, uid);
-    if (!object) throw new CalendarEventNotFoundError(uid);
     await this.write(() =>
-      this.transport.updateObject(
-        target,
-        object.href,
-        object.etag,
-        updateEventIcs(object.ics, input),
+      this.sync.writeObject(userId, uid, (target, object) =>
+        this.transport.updateObject(
+          target,
+          object.href,
+          object.etag,
+          updateEventIcs(object.ics, input),
+        ),
       ),
     );
   }
 
   async deleteEvent(userId: string, uid: string): Promise<void> {
-    const { target, object } = await this.sync.writeTarget(userId, uid);
-    if (!object) throw new CalendarEventNotFoundError(uid);
-    await this.write(() => this.transport.deleteObject(target, object.href, object.etag));
+    await this.write(() =>
+      this.sync.writeObject(userId, uid, (target, object) =>
+        this.transport.deleteObject(target, object.href, object.etag),
+      ),
+    );
   }
 
   private async write(request: () => Promise<void>): Promise<void> {

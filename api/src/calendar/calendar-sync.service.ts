@@ -15,6 +15,7 @@ import { lockCalendarCopy, type Db, type Tx } from './calendar-copy-lock';
 import { CalendarCredentialsService } from './calendar-credentials.service';
 import { CalendarDiscovery } from './calendar-discovery';
 import {
+  CalendarEventNotFoundError,
   CalendarNotConfiguredError,
   CalendarNotReadyError,
   type CalendarSyncProgress,
@@ -116,15 +117,32 @@ export class CalendarSyncService {
     return result.objects;
   }
 
-  // For writes, which go straight to CalDAV without checking the copy first: the local
-  // object they change (sent with its etag, so a stale one fails) and where to send it.
-  async writeTarget(userId: string, uid?: string) {
-    const state = await this.loadState(this.db, userId);
-    if (!state.calendarUrl) throw new CalendarNotReadyError(progressOf(state));
-    const target = await this.target(this.db, state);
-    if (uid === undefined) return { target, object: undefined };
-    const [object] = await this.storedObjects(this.db, userId, { uid });
-    return { target, object };
+  // Writes go straight to CalDAV without checking the copy first. They run under the lock,
+  // so a credentials change can't pair one account's calendar URL with another's
+  // credentials, and they rediscover a moved calendar like reads do.
+  async write(userId: string, send: (target: CaldavTarget) => Promise<void>): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      await lockCalendarCopy(tx, userId);
+      const target = await this.target(tx, await this.loadState(tx, userId));
+      await this.withRediscovery(tx, userId, target, send);
+    });
+  }
+
+  // A write that changes the local object with `uid`, sent with its etag so that a stale
+  // copy fails instead of overwriting a change made elsewhere.
+  async writeObject(
+    userId: string,
+    uid: string,
+    send: (target: CaldavTarget, object: StoredObject) => Promise<void>,
+  ): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      await lockCalendarCopy(tx, userId);
+      const state = await this.loadState(tx, userId);
+      const [object] = await this.storedObjects(tx, userId, { uid });
+      if (!object) throw new CalendarEventNotFoundError(uid);
+      const target = await this.target(tx, state);
+      await this.withRediscovery(tx, userId, target, (t) => send(t, object));
+    });
   }
 
   private async loadState(db: Db | Tx, userId: string): Promise<SyncState> {
@@ -181,10 +199,11 @@ export class CalendarSyncService {
   }
 
   // Runs `request`, and once more after discovery when the server says the calendar moved
-  // (for example to another iCloud partition host).
+  // (for example to another iCloud partition host). Every CalDAV request goes through it.
+  // The new URL is written into `target`, so later requests on it go there directly.
   private async withRediscovery<T>(
     tx: Tx,
-    state: SyncState,
+    userId: string,
     target: CaldavTarget,
     request: (target: CaldavTarget) => Promise<T>,
   ): Promise<T> {
@@ -192,15 +211,15 @@ export class CalendarSyncService {
       return await request(target);
     } catch (err) {
       if (!(err instanceof CaldavMovedError)) throw err;
-      const creds = await this.credentials.getInternal(state.userId, tx);
+      const creds = await this.credentials.getInternal(userId, tx);
       if (!creds) throw new CalendarNotConfiguredError();
-      const calendarUrl = await this.discovery.resolveCalendarUrl(creds);
+      target.calendarUrl = await this.discovery.resolveCalendarUrl(creds);
       await tx
         .update(calendarSyncState)
-        .set({ calendarUrl })
-        .where(eq(calendarSyncState.userId, state.userId));
+        .set({ calendarUrl: target.calendarUrl })
+        .where(eq(calendarSyncState.userId, userId));
       try {
-        return await request({ ...target, calendarUrl });
+        return await request(target);
       } catch (retryErr) {
         if (retryErr instanceof CaldavMovedError) {
           throw new CaldavUnavailableError(retryErr.message);
@@ -212,14 +231,15 @@ export class CalendarSyncService {
 
   // One PROPFIND; a sync-collection report only when the tag changed.
   private async refresh(tx: Tx, state: SyncState): Promise<void> {
-    let target = await this.target(tx, state);
-    const tag = await this.withRediscovery(tx, state, target, (t) => {
-      target = t;
-      return this.transport.fetchTag(t);
-    });
+    const target = await this.target(tx, state);
+    const tag = await this.withRediscovery(tx, state.userId, target, (t) =>
+      this.transport.fetchTag(t),
+    );
     if (tag !== null && tag === state.ctag) return;
 
-    const changes = await this.transport.syncChanges(target, state.syncToken ?? '');
+    const changes = await this.withRediscovery(tx, state.userId, target, (t) =>
+      this.transport.syncChanges(t, state.syncToken ?? ''),
+    );
     await this.applyChanges(tx, state.userId, target, changes);
     // The tag is from before the report, so a change that landed in between only costs
     // one more report on the next read.
@@ -238,7 +258,9 @@ export class CalendarSyncService {
     const deleted = [...changes.deleted];
     for (let i = 0; i < changes.changed.length; i += BATCH_SIZE) {
       const hrefs = changes.changed.slice(i, i + BATCH_SIZE).map((change) => change.href);
-      const fetched = await this.transport.fetchObjects(target, hrefs);
+      const fetched = await this.withRediscovery(tx, userId, target, (t) =>
+        this.transport.fetchObjects(t, hrefs),
+      );
       await this.storeObjects(tx, userId, fetched);
       const found = new Set(fetched.map((object) => object.href));
       deleted.push(...hrefs.filter((href) => !found.has(href)));
@@ -312,13 +334,12 @@ export class CalendarSyncService {
       .from(calendarSyncState)
       .where(eq(calendarSyncState.userId, userId));
     if (!state || state.status === 'ready' || state.status === 'error') return true;
-    let target = await this.target(tx, state);
+    const target = await this.target(tx, state);
 
     if (state.pendingSyncToken === null) {
-      const listing = await this.withRediscovery(tx, state, target, (t) => {
-        target = t;
-        return this.transport.syncChanges(t, '');
-      });
+      const listing = await this.withRediscovery(tx, userId, target, (t) =>
+        this.transport.syncChanges(t, ''),
+      );
       // Only a token the server returned is ever stored: SabreDAV accepts made-up ones.
       if (!listing.token) throw new CaldavUnavailableError('the server returned no sync token');
       await tx.delete(calendarObjects).where(eq(calendarObjects.userId, userId));
@@ -362,7 +383,9 @@ export class CalendarSyncService {
     }
 
     const hrefs = missing.map((row) => row.href);
-    const fetched = await this.transport.fetchObjects(target, hrefs);
+    const fetched = await this.withRediscovery(tx, userId, target, (t) =>
+      this.transport.fetchObjects(t, hrefs),
+    );
     await this.storeObjects(tx, userId, fetched);
     const found = new Set(fetched.map((object) => object.href));
     await this.deleteObjects(

@@ -30,18 +30,21 @@ function fakeSync(objects: StoredObject[]) {
   const checkedObjects = mock((_userId: string, filter: { uid?: string } = {}) =>
     Promise.resolve(objects.filter((o) => filter.uid === undefined || o.uid === filter.uid)),
   );
-  const writeTarget = mock((_userId: string, uid?: string) =>
-    Promise.resolve({
-      target: {
-        calendarUrl: 'https://dav.example.com/cal/personal/',
-        username: 'u',
-        password: 'p',
-      },
-      object: objects.find((o) => o.uid === uid),
-    }),
+  const target = {
+    calendarUrl: 'https://dav.example.com/cal/personal/',
+    username: 'u',
+    password: 'p',
+  };
+  const write = mock((_userId: string, send: (t: typeof target) => Promise<void>) => send(target));
+  const writeObject = mock(
+    (_userId: string, uid: string, send: (t: typeof target, o: StoredObject) => Promise<void>) =>
+      send(
+        target,
+        objects.find((o) => o.uid === uid)!,
+      ),
   );
   return {
-    sync: { checkedObjects, writeTarget } as unknown as CalendarSyncService,
+    sync: { checkedObjects, write, writeObject } as unknown as CalendarSyncService,
     checkedObjects,
   };
 }
@@ -216,5 +219,19 @@ describe('CalendarService', () => {
       '"e1-1"',
       expect.stringContaining('SUMMARY:Renamed'),
     );
+  });
+
+  it('skips a malformed object instead of failing the whole read', async () => {
+    const { service: calendar } = service([
+      stored('broken', 'BEGIN:VCALENDAR\r\nnot an event'),
+      stored('e1', icsFor('e1', 'Standup')),
+    ]);
+
+    const events = await calendar.listEvents(
+      'user-1',
+      { start: new Date('2026-09-01Z'), end: new Date('2026-09-02Z') },
+      'UTC',
+    );
+    expect(events.map((e) => e.summary)).toEqual(['Standup']);
   });
 });
