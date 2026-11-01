@@ -1,0 +1,111 @@
+:host {
+  display: block;
+}
+
+.connect {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 480px;
+  margin: 0 auto;
+  padding: calc(var(--space-4) + env(safe-area-inset-top)) var(--space-4) var(--space-6);
+}
+
+/* Clears the layout's floating account button. */
+.head {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding-right: var(--page-head-inset, 0);
+}
+
+.head h1 {
+  margin: 0;
+  line-height: 1;
+  font-family: var(--font-ui);
+  font-size: var(--text-display);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.lead {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.providers,
+form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.howto p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.howto ol {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-6);
+  line-height: 1.5;
+}
+
+form input:not([type='radio']) {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--tap);
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  border: var(--border-heavy);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font: inherit;
+  font-family: var(--font-ui);
+  /* 16px+ avoids iOS Safari auto-zoom on focus. */
+  font-size: var(--text-lg);
+}
+
+form input:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+legend {
+  margin-bottom: var(--space-2);
+  padding: 0;
+  line-height: 1.5;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--tap);
+  padding: 0 var(--space-4);
+  border: var(--border-heavy);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.option input {
+  margin: 0;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}

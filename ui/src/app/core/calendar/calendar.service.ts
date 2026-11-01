@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { APP_CONFIG } from '../config/app-config';
@@ -25,6 +25,9 @@ export type CalendarEvent = {
   end: string;
   startWeekday: string;
 };
+
+// The API's local copy of the calendar isn't downloaded yet (409); the sync screen has progress.
+export class CalendarNotReadyError extends Error {}
 
 @Injectable({ providedIn: 'root' })
 export class CalendarService {
@@ -67,6 +70,9 @@ export class CalendarService {
       );
       return result.events;
     } catch (err) {
+      if (err instanceof HttpErrorResponse && err.status === 409) {
+        throw new CalendarNotReadyError(errorMessage(err, 'Your calendar is still syncing.'));
+      }
       throw new Error(errorMessage(err, 'Could not load events.'));
     }
   }

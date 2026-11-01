@@ -1,0 +1,60 @@
+:host {
+  display: block;
+}
+
+.sync {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 480px;
+  margin: 0 auto;
+  padding: calc(var(--space-4) + env(safe-area-inset-top)) var(--space-4) var(--space-6);
+}
+
+/* Clears the layout's floating account button. */
+.head {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding-right: var(--page-head-inset, 0);
+}
+
+.head h1 {
+  margin: 0;
+  line-height: 1;
+  font-family: var(--font-ui);
+  font-size: var(--text-display);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.lead,
+.count {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.count {
+  color: var(--color-ink-muted);
+}
+
+app-alert p {
+  margin: 0;
+}
+
+app-alert p + p {
+  margin-top: var(--space-2);
+}
+
+.detail {
+  color: var(--color-ink-muted);
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}

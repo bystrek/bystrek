@@ -1,13 +1,15 @@
 import { Component, OnInit, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormField, FormRoot, form, required } from '@angular/forms/signals';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
-import { CalendarOption, CalendarService } from '../../core/calendar/calendar.service';
+import { CalendarService } from '../../core/calendar/calendar.service';
+import { Button } from '../../shared/button/button';
 import { StatusBanner } from '../../shared/status-banner/status-banner';
 import { downscaleImage } from './downscale-image';
 
 @Component({
   selector: 'app-settings',
-  imports: [FormField, FormRoot, StatusBanner],
+  imports: [Button, FormField, FormRoot, RouterLink, StatusBanner],
   templateUrl: './settings.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './settings.css',
@@ -28,25 +30,9 @@ export class Settings implements OnInit {
   readonly busy = signal(false);
   readonly converting = signal(false);
 
-  // '' means "use the account's first calendar" (calendarUrl: null).
-  private readonly calendarModel = signal({
-    caldavUrl: '',
-    caldavUsername: '',
-    caldavPassword: '',
-    selectedCalendarUrl: '',
-  });
-  protected readonly calendarForm = form(this.calendarModel, (path) => {
-    required(path.caldavUrl);
-    required(path.caldavUsername);
-    required(path.caldavPassword, { when: () => !this.calendar.credentials()?.configured });
-  });
   readonly calendarStatus = signal('');
   readonly calendarStatusError = signal(false);
-  readonly savingCalendar = signal(false);
   readonly disconnectingCalendar = signal(false);
-
-  readonly calendarOptions = signal<CalendarOption[]>([]);
-  readonly loadingCalendars = signal(false);
 
   ngOnInit(): void {
     const user = this.auth.session()?.user;
@@ -54,72 +40,7 @@ export class Settings implements OnInit {
     this.profileModel.set({ firstName: user.firstName ?? '', lastName: user.lastName ?? '' });
     this.image.set(user.image);
 
-    void this.calendar.load().then(() => {
-      const creds = this.calendar.credentials();
-      if (!creds?.configured) return;
-      this.calendarModel.update((m) => ({
-        ...m,
-        caldavUrl: creds.caldavUrl ?? m.caldavUrl,
-        caldavUsername: creds.username ?? '',
-        selectedCalendarUrl: creds.calendarUrl ?? '',
-      }));
-      if (creds.calendarUrl && creds.calendarDisplayName) {
-        this.calendarOptions.set([
-          { url: creds.calendarUrl, displayName: creds.calendarDisplayName },
-        ]);
-      }
-    });
-  }
-
-  async loadCalendars(): Promise<void> {
-    this.calendarStatus.set('');
-    this.calendarStatusError.set(false);
-    this.loadingCalendars.set(true);
-    try {
-      const options = await this.calendar.previewCalendars({
-        caldavUrl: this.calendarModel().caldavUrl,
-        username: this.calendarModel().caldavUsername,
-        password: this.calendarModel().caldavPassword,
-      });
-      this.calendarOptions.set(options);
-      if (!options.some((o) => o.url === this.calendarModel().selectedCalendarUrl)) {
-        this.calendarModel.update((m) => ({ ...m, selectedCalendarUrl: '' }));
-      }
-    } catch (err) {
-      this.calendarStatus.set((err as Error).message);
-      this.calendarStatusError.set(true);
-    } finally {
-      this.loadingCalendars.set(false);
-    }
-  }
-
-  async saveCalendar(): Promise<void> {
-    if (this.calendarForm().invalid()) {
-      this.calendarForm().markAsTouched();
-      return;
-    }
-    this.calendarStatus.set('');
-    this.calendarStatusError.set(false);
-    this.savingCalendar.set(true);
-    try {
-      const selected = this.calendarOptions().find(
-        (o) => o.url === this.calendarModel().selectedCalendarUrl,
-      );
-      await this.calendar.save({
-        caldavUrl: this.calendarModel().caldavUrl,
-        username: this.calendarModel().caldavUsername,
-        password: this.calendarModel().caldavPassword,
-        calendarUrl: selected?.url ?? null,
-        calendarDisplayName: selected?.displayName ?? null,
-      });
-      this.calendarModel.update((m) => ({ ...m, caldavPassword: '' }));
-      this.calendarStatus.set('Saved.');
-    } catch (err) {
-      this.calendarStatus.set((err as Error).message);
-      this.calendarStatusError.set(true);
-    } finally {
-      this.savingCalendar.set(false);
-    }
+    void this.calendar.load();
   }
 
   async disconnectCalendar(): Promise<void> {
@@ -128,8 +49,6 @@ export class Settings implements OnInit {
     this.disconnectingCalendar.set(true);
     try {
       await this.calendar.disconnect();
-      this.calendarModel.update((m) => ({ ...m, caldavUsername: '', selectedCalendarUrl: '' }));
-      this.calendarOptions.set([]);
       this.calendarStatus.set('Disconnected.');
     } catch (err) {
       this.calendarStatus.set((err as Error).message);

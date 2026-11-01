@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard, guestGuard } from './core/auth/auth.guard';
+import { calendarReadyGuard } from './core/calendar/calendar-ready.guard';
 
 export const routes: Routes = [
   {
@@ -25,7 +26,16 @@ export const routes: Routes = [
       { path: '', pathMatch: 'full', redirectTo: 'agenda' },
       {
         path: 'agenda',
+        canActivate: [calendarReadyGuard],
         loadComponent: () => import('./features/agenda/agenda').then((m) => m.Agenda),
+      },
+      {
+        path: 'connect',
+        loadComponent: () => import('./features/connect/connect').then((m) => m.Connect),
+      },
+      {
+        path: 'sync',
+        loadComponent: () => import('./features/sync/sync').then((m) => m.Sync),
       },
       {
         path: 'settings',

@@ -48,7 +48,7 @@ input[type='file'] {
 }
 
 #profile,
-#calendar,
+.calendar-actions,
 #invite {
   display: flex;
   flex-direction: column;
