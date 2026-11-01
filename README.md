@@ -12,7 +12,7 @@ The app runs on the home server. See [Issues](https://github.com/bystrek/bystrek
 - A home server behind a Cloudflare Tunnel.
 - `bystrek.dev` and `api.bystrek.dev` route through Cloudflare to Caddy on the home server.
 - `ui/` (Angular, zoneless) at `bystrek.dev`: login, profile, and settings.
-- `api/` (NestJS + Drizzle + Bun) at `api.bystrek.dev`: `better-auth`-backed login/invite/ban, and calendar event reads over CalDAV (Infomaniak kCalendar). `POST /calendar/ask` answers one read-only question about the calendar through a local Ollama model (`LLM_BASE_URL`, `LLM_MODEL`); it returns a structured event, a `list` of events (with `count` answered as text), an `availability` answer (`busy` plus the overlapping `conflicts`, decided by the server from the listed events), a text answer, or `cant_do` for write requests.
+- `api/` (NestJS + Drizzle + Bun) at `api.bystrek.dev`: `better-auth`-backed login/invite/ban, and calendar event reads over CalDAV (Infomaniak kCalendar). `POST /calendar/ask` answers one read-only question about the calendar through a hosted model on an OpenAI-compatible API, Scaleway Generative APIs in production (`LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY`); it returns a structured event, a `list` of events (with `count` answered as text), an `availability` answer (`busy` plus the overlapping `conflicts`, decided by the server from the listed events), a text answer, or `cant_do` for write requests.
 - Auth: email/password via `better-auth`, invite-gated (admin creates the row, no public signup), bearer tokens, admin plugin for invite/list/ban.
 - Deploy pipeline: GitHub Actions builds `api`/`ui` images to GHCR. A reviewed `homelab` change pins the new image digests, and Flux rolls them out when the owner cuts a `homelab` release tag.
 
@@ -43,9 +43,8 @@ docs/          architecture.md (direction) — live punch list is in GitHub Issu
 
 1. Create `api/.env` from `api/.env.example`. Set `AUTH_SECRET` and `ENCRYPTION_KEY` (see the example for generation). `ENCRYPTION_KEY` protects saved calendar credentials, so keep it stable.
 2. Set `SEED_OWNER_NAME`, `SEED_OWNER_EMAIL`, and `SEED_OWNER_PASSWORD` in `api/.env`.
-3. Set `BYSTREK_SSH_HOST` to your cluster SSH target. Run `./scripts/dev.sh`. It opens an SSH tunnel to Ollama, starts Postgres, migrates, creates the owner on first run, and starts the API and UI. Log in at `http://localhost:4200` with the seeded email and password. `Ctrl+C` stops the API and UI; Postgres keeps running.
-
-   To use an Ollama running on this machine instead, run `./scripts/dev.sh --local-ollama`; `BYSTREK_SSH_HOST` isn't needed then. The API asks for `LLM_MODEL` from `api/.env` (default `qwen2.5:7b`), so pull it first: `ollama pull qwen2.5:7b`.
+3. Set `LLM_BASE_URL`, `LLM_MODEL`, and `LLM_API_KEY` in `api/.env`. Use a Scaleway IAM application key with `GenerativeApisModelAccess`; calls cost a fraction of a cent each.
+4. Run `./scripts/dev.sh`. It starts Postgres, migrates, creates the owner on first run, and starts the API and UI. Log in at `http://localhost:4200` with the seeded email and password. `Ctrl+C` stops the API and UI; Postgres keeps running.
 
 Add your test CalDAV account in Settings after signing in.
 

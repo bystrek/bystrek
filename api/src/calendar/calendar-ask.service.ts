@@ -19,7 +19,7 @@ import {
 } from './calendar-ask.answer';
 import { parseQuery } from './calendar-ask.query';
 import { currentDate, fromEpochMs, parseOffsetIso } from './zoned-time';
-import { buildUserMessage, QUERY_SCHEMA, SYSTEM_PROMPT } from './calendar-ask.prompt';
+import { buildUserMessage, SYSTEM_PROMPT } from './calendar-ask.prompt';
 import type { ParsedEvent } from './ical-event';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -44,7 +44,6 @@ export class CalendarAskService {
     const content = await this.generateJson({
       system: SYSTEM_PROMPT,
       user: buildUserMessage(question),
-      schema: QUERY_SCHEMA,
     });
 
     const query = parseQuery(content, timezone, now);

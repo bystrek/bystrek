@@ -17,9 +17,8 @@ export class OpenAiLlmClient implements LlmClient {
     private readonly apiKey = LLM_API_KEY,
   ) {}
 
-  // The schema is not sent: Scaleway's schema-constrained decoding skews which optional
-  // fields models pick (e.g. never `day`). JSON mode keeps the reply valid JSON, and
-  // callers validate the fields.
+  // JSON mode, not a json_schema response format: Scaleway's schema-constrained decoding
+  // skewed which optional fields models picked (e.g. never `day`).
   async generateJson({ system, user }: LlmJsonRequest): Promise<string> {
     const started = performance.now();
     // Appended, not resolved: the base URL carries a path (e.g. /<project-id>/v1).

@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { OpenAiLlmClient } from './openai.client';
 
 const originalFetch = globalThis.fetch;
-const SCHEMA = { type: 'object', required: ['kind'] };
 const BASE_URL = 'https://api.example.test/project-1/v1/';
 
 afterEach(() => {
@@ -25,7 +24,7 @@ describe('OpenAiLlmClient.generateJson', () => {
   it('posts one non-streaming chat completion in JSON mode', async () => {
     const fetchMock = stubFetch({ choices: [{ message: { content: '{"kind":"count"}' } }] });
 
-    const content = await client().generateJson({ system: 'SYS', user: 'USER', schema: SCHEMA });
+    const content = await client().generateJson({ system: 'SYS', user: 'USER' });
 
     expect(content).toBe('{"kind":"count"}');
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -44,13 +43,12 @@ describe('OpenAiLlmClient.generateJson', () => {
       ],
     });
     expect(body).not.toHaveProperty('tools');
-    expect(JSON.stringify(body)).not.toContain('json_schema');
   });
 
   it('rejects an unsuccessful response', async () => {
     stubFetch({}, { status: 403 });
 
-    await expect(client().generateJson({ system: 's', user: 'u', schema: SCHEMA })).rejects.toThrow(
+    await expect(client().generateJson({ system: 's', user: 'u' })).rejects.toThrow(
       'OpenAI-compatible request failed with HTTP 403',
     );
   });
@@ -58,7 +56,7 @@ describe('OpenAiLlmClient.generateJson', () => {
   it('rejects a response that carries an error', async () => {
     stubFetch({ error: { message: 'model not found' } });
 
-    await expect(client().generateJson({ system: 's', user: 'u', schema: SCHEMA })).rejects.toThrow(
+    await expect(client().generateJson({ system: 's', user: 'u' })).rejects.toThrow(
       'OpenAI-compatible request failed: model not found',
     );
   });

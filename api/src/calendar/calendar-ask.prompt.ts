@@ -1,6 +1,6 @@
-// Byte-identical on every call so the prompt prefix stays cached: Ollama reuses it, and
-// hosted APIs bill it at their cached input price. The model never sees today's date: it
-// names dates in words, and resolveWhen turns them into a window.
+// Byte-identical on every call so the prompt prefix stays cached, which hosted APIs bill
+// at their cached input price. The model never sees today's date: it names dates in
+// words, and resolveWhen turns them into a window.
 export const SYSTEM_PROMPT = `You turn a question about the user's calendar into one JSON query. You never see the events or today's date; the server runs your query and works out every date from the words you give. Reply with exactly one JSON object and nothing else.
 
 Shapes:
@@ -41,25 +41,6 @@ Q: when do I have the quarterly planning meeting?
 A: {"kind":"find","search":"quarterly planning"}
 Q: move my standup to 3pm
 A: {"kind":"cant_do","text":"I can only read your calendar."}`;
-
-// Reply schema: guarantees valid JSON; field-level rules are checked in parseQuery.
-export const QUERY_SCHEMA = {
-  type: 'object',
-  properties: {
-    kind: {
-      type: 'string',
-      enum: ['event', 'next', 'find', 'availability', 'count', 'list', 'cant_do'],
-    },
-    pick: { type: 'string', enum: ['first', 'last'] },
-    day: { type: 'string' },
-    until: { type: 'string' },
-    time: { type: 'string' },
-    range: { type: 'string', enum: ['this_week', 'next_week'] },
-    search: { type: 'string' },
-    text: { type: 'string' },
-  },
-  required: ['kind'],
-};
 
 // Only the question: nothing per-day or per-minute, so the whole prompt stays cacheable.
 export function buildUserMessage(question: string): string {
