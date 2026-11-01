@@ -45,6 +45,9 @@ test('edits first/last name and avatar, then saves via update-user', async ({ pa
       },
     }),
   );
+  await page.route('**/calendar/sync', (route) =>
+    route.fulfill({ json: { status: 'ready', fetched: 0, total: 0, error: null } }),
+  );
   let updateBody: Record<string, unknown> | undefined;
   await page.route('**/api/auth/update-user', (route) => {
     updateBody = route.request().postDataJSON();

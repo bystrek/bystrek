@@ -40,60 +40,24 @@
       <p>Connect a CalDAV calendar account so the assistant can read and edit your calendar.</p>
     }
 
-    <form id="calendar" [formRoot]="calendarForm" (submit)="saveCalendar()">
-      <input
-        type="url"
-        aria-label="CalDAV URL"
-        [formField]="calendarForm.caldavUrl"
-        placeholder="CalDAV URL"
-      />
-      <input
-        type="text"
-        aria-label="CalDAV username"
-        [formField]="calendarForm.caldavUsername"
-        placeholder="CalDAV username"
-      />
-      <input
-        type="password"
-        aria-label="CalDAV app-specific password"
-        [formField]="calendarForm.caldavPassword"
-        placeholder="App-specific password"
-      />
-      <button
-        type="button"
-        class="link"
-        [disabled]="
-          loadingCalendars() ||
-          !calendarForm.caldavUrl().value() ||
-          !calendarForm.caldavUsername().value() ||
-          (!calendarForm.caldavPassword().value() && !calendar.credentials()?.configured)
-        "
-        (click)="loadCalendars()"
-      >
-        {{ loadingCalendars() ? 'Loading calendars…' : 'Load calendars' }}
-      </button>
-      @if (calendarOptions().length) {
-        <select aria-label="Calendar" [formField]="calendarForm.selectedCalendarUrl">
-          <option value="">(first calendar)</option>
-          @for (option of calendarOptions(); track option.url) {
-            <option [value]="option.url">{{ option.displayName ?? option.url }}</option>
-          }
-        </select>
-      }
-      <button type="submit" [disabled]="calendar.busy()">
-        {{ savingCalendar() ? 'Saving…' : 'Save' }}
-      </button>
+    <div class="calendar-actions">
+      <a appButton block routerLink="/connect">
+        {{
+          calendar.credentials()?.configured ? 'Change account or calendar' : 'Connect a calendar'
+        }}
+      </a>
       @if (calendar.credentials()?.configured) {
         <button
+          appButton
           type="button"
-          class="link"
+          block
           [disabled]="calendar.busy()"
           (click)="disconnectCalendar()"
         >
           {{ disconnectingCalendar() ? 'Disconnecting…' : 'Disconnect' }}
         </button>
       }
-    </form>
+    </div>
 
     <app-status-banner [message]="calendarStatus()" [error]="calendarStatusError()" />
   </section>

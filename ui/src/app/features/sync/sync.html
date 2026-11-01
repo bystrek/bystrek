@@ -1,0 +1,41 @@
+<main class="sync">
+  <header class="head">
+    <h1>Syncing</h1>
+  </header>
+
+  @if (store.progress()?.status === SyncStatus.ERROR) {
+    <app-alert tone="danger" heading="Your calendar didn't sync" [dismissible]="false">
+      <p>
+        We couldn't download your calendar. Check that the server is up and the app-specific
+        password is still valid, then try again.
+      </p>
+      @if (store.progress()?.error; as detail) {
+        <p class="detail">{{ detail }}</p>
+      }
+    </app-alert>
+  } @else if (store.requestError(); as message) {
+    <app-alert tone="danger" heading="Couldn't check the sync" [dismissible]="false">
+      <p>{{ message }}</p>
+    </app-alert>
+  } @else {
+    <p class="lead">Downloading your calendar. This usually takes a few seconds.</p>
+    <app-progress label="Calendar download" [value]="store.progress() | syncPercent" />
+    <p class="count" aria-live="polite">{{ store.progress() | syncLabel }}</p>
+  }
+
+  @if (store.progress()?.status === SyncStatus.ERROR || store.requestError()) {
+    <div class="actions">
+      <button
+        appButton
+        type="button"
+        variant="primary"
+        block
+        [disabled]="store.retrying()"
+        (click)="store.retry()"
+      >
+        {{ store.retrying() ? 'Retrying…' : 'Try again' }}
+      </button>
+      <a appButton block routerLink="/connect">Update credentials</a>
+    </div>
+  }
+</main>

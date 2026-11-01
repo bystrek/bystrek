@@ -72,7 +72,7 @@ trap 'exit 143' TERM
 
 # Bun runs the API: calendar code uses the Temporal API, which Node lacks.
 echo "==> Starting api (start:dev)"
-(cd api && exec bun run start:dev --exec bun) &
+(cd api && exec bun run start:dev) &
 pids+=("$!")
 
 echo "==> Starting ui"

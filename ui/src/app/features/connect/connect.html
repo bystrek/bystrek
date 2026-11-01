@@ -1,0 +1,106 @@
+<main class="connect">
+  <header class="head">
+    <h1>Connect</h1>
+  </header>
+
+  @switch (store.step()) {
+    @case (ConnectStep.PROVIDER) {
+      <p class="lead">Where is your calendar?</p>
+      <div class="providers">
+        <button appButton type="button" block (click)="choose(Provider.ICLOUD)">iCloud</button>
+        <button appButton type="button" block (click)="choose(Provider.OTHER)">
+          Other CalDAV server
+        </button>
+      </div>
+    }
+
+    @case (ConnectStep.CREDENTIALS) {
+      @if (store.provider() === Provider.ICLOUD) {
+        <app-card weight="thin" class="howto">
+          <p>
+            <strong
+              >bystrek needs an app-specific password, not your Apple Account password.</strong
+            >
+          </p>
+          <ol>
+            <li>
+              Sign in at
+              <a href="https://account.apple.com" target="_blank" rel="noopener"
+                >account.apple.com</a
+              >.
+            </li>
+            <li>Open <em>Sign-In and Security</em>, then <em>App-Specific Passwords</em>.</li>
+            <li>Create one named "bystrek" and paste it below.</li>
+          </ol>
+        </app-card>
+      }
+
+      <form id="credentials" [formRoot]="connectForm" (submit)="next()">
+        @if (store.provider() === Provider.OTHER) {
+          <input
+            type="url"
+            aria-label="CalDAV URL"
+            [formField]="connectForm.caldavUrl"
+            placeholder="CalDAV URL"
+          />
+        }
+        <input
+          type="text"
+          autocomplete="username"
+          [attr.aria-label]="
+            store.provider() === Provider.ICLOUD ? 'Apple Account email' : 'Username'
+          "
+          [formField]="connectForm.username"
+          [placeholder]="store.provider() === Provider.ICLOUD ? 'Apple Account email' : 'Username'"
+        />
+        <input
+          type="password"
+          autocomplete="new-password"
+          aria-label="App-specific password"
+          [formField]="connectForm.password"
+          [placeholder]="
+            calendar.credentials()?.configured
+              ? 'Password (blank keeps the saved one)'
+              : 'App-specific password'
+          "
+        />
+        <div class="actions">
+          <button appButton type="button" [disabled]="store.busy()" (click)="store.back()">
+            Back
+          </button>
+          <button appButton type="submit" variant="primary" [disabled]="store.busy()">
+            {{ store.busy() ? 'Checking…' : 'Next' }}
+          </button>
+        </div>
+      </form>
+    }
+
+    @case (ConnectStep.CALENDAR) {
+      <form id="calendar" [formRoot]="connectForm" (submit)="connect()">
+        <fieldset>
+          <legend>Which calendar should bystrek use?</legend>
+          @for (option of store.calendars(); track option.url) {
+            <label class="option">
+              <input type="radio" [formField]="connectForm.calendarUrl" [value]="option.url" />
+              <span>{{ option.displayName ?? option.url }}</span>
+            </label>
+          }
+        </fieldset>
+        <div class="actions">
+          <button appButton type="button" [disabled]="store.busy()" (click)="store.back()">
+            Back
+          </button>
+          <button appButton type="submit" variant="primary" [disabled]="store.busy()">
+            {{ store.busy() ? 'Connecting…' : 'Connect' }}
+          </button>
+        </div>
+      </form>
+    }
+  }
+
+  @if (store.error(); as message) {
+    <app-alert tone="danger" heading="Couldn't connect" [dismissible]="false">
+      {{ message }}
+    </app-alert>
+  }
+</main>

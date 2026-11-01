@@ -12,7 +12,12 @@ import {
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { Temporal } from '@js-temporal/polyfill';
 import { catchError, from, map, of, pipe, switchMap, tap, timer } from 'rxjs';
-import { CalendarEvent, CalendarService } from '../../core/calendar/calendar.service';
+import { Router } from '@angular/router';
+import {
+  CalendarEvent,
+  CalendarNotReadyError,
+  CalendarService,
+} from '../../core/calendar/calendar.service';
 import { buildAgendaRows } from './agenda-rows';
 
 type DayResult = { events: CalendarEvent[] } | { error: string };
@@ -59,6 +64,7 @@ export const AgendaStore = signalStore(
   }),
   withMethods((store) => {
     const calendar = inject(CalendarService);
+    const router = inject(Router);
 
     // switchMap cancels a superseded request when the user moves to another day.
     const loadDay = rxMethod<Temporal.PlainDate>(
@@ -69,11 +75,13 @@ export const AgendaStore = signalStore(
           const end = day.add({ days: 1 }).toPlainDateTime().toString();
           return from(calendar.listEvents(start, end)).pipe(
             map((events): DayResult => ({ events })),
-            catchError((err: unknown) =>
-              of<DayResult>({
+            catchError((err: unknown) => {
+              // The guard let us in, but the API dropped its copy since: back to the sync screen.
+              if (err instanceof CalendarNotReadyError) void router.navigateByUrl('/sync');
+              return of<DayResult>({
                 error: err instanceof Error ? err.message : 'Could not load events.',
-              }),
-            ),
+              });
+            }),
           );
         }),
         tap((result) => {
