@@ -12,7 +12,7 @@ import {
   updateEventIcs,
   type EventInput,
 } from './ical-event';
-import { assertValidTimeZone } from './zoned-time';
+import { assertValidTimeZone, fromEpochMs, parseOffsetIso } from './zoned-time';
 
 export class CalendarNotConfiguredError extends Error {
   constructor() {
@@ -139,10 +139,12 @@ export class CalendarService {
     if (occurrence) {
       const matches = parseEventOccurrences(
         object.data as string,
-        { start: occurrence, end: new Date(occurrence.getTime() + 1) },
+        { start: occurrence, end: fromEpochMs(occurrence.getTime() + 1) },
         timeZone,
       );
-      const event = matches.find((item) => new Date(item.start).getTime() === occurrence.getTime());
+      const event = matches.find(
+        (item) => parseOffsetIso(item.start).getTime() === occurrence.getTime(),
+      );
       if (!event) throw new CalendarEventNotFoundError(uid);
       return event;
     }

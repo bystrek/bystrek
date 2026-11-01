@@ -29,6 +29,27 @@ export default tseslint.config(
       '@typescript-eslint/no-floating-promises': 'warn',
       '@typescript-eslint/no-unsafe-argument': 'warn',
       "prettier/prettier": ["error", { endOfLine: "auto" }],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "NewExpression[callee.name='Date']",
+          message:
+            'Use currentDate/fromEpochMs/parseOffsetIso/parseZonedIso from calendar/zoned-time.ts: new Date(string) reads offset-less strings in the server timezone (#17).',
+        },
+        {
+          selector: "CallExpression[callee.object.name='Date'][callee.property.name='parse']",
+          message:
+            'Use parseOffsetIso/parseZonedIso from calendar/zoned-time.ts: Date.parse reads offset-less strings in the server timezone (#17).',
+        },
+      ],
+    },
+  },
+  {
+    // Specs build fixtures from explicit-offset strings; Drizzle's
+    // $onUpdate timestamp defaults need a Date.
+    files: ['src/calendar/zoned-time.ts', 'src/db/schema.ts', '**/*.spec.ts'],
+    rules: {
+      'no-restricted-syntax': 'off',
     },
   },
 );

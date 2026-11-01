@@ -18,6 +18,7 @@ import {
   type AskResponse,
 } from './calendar-ask.answer';
 import { parseQuery } from './calendar-ask.query';
+import { currentDate, fromEpochMs, parseOffsetIso } from './zoned-time';
 import { buildUserMessage, QUERY_FORMAT, SYSTEM_PROMPT } from './calendar-ask.prompt';
 import type { ParsedEvent } from './ical-event';
 
@@ -37,7 +38,7 @@ export class CalendarAskService {
     userId: string,
     timezone: string,
     question: string,
-    now = new Date(),
+    now = currentDate(),
   ): Promise<AskResponse> {
     // One model call: the reply names dates in words, and parseQuery resolves them against now.
     const content = await this.complete(SYSTEM_PROMPT, buildUserMessage(question), QUERY_FORMAT);
@@ -82,7 +83,8 @@ export class CalendarAskService {
       const events = await this.listEvents(userId, windowStart, windowEnd, timezone);
       const found = events.some(
         (event) =>
-          Date.parse(event.start) >= now.getTime() && (!search || matchesSearch(event, search)),
+          parseOffsetIso(event.start).getTime() >= now.getTime() &&
+          (!search || matchesSearch(event, search)),
       );
       if (found || windowEnd >= horizon) return events;
       windowStart = windowEnd;
@@ -98,7 +100,7 @@ export class CalendarAskService {
     try {
       return await this.calendar.listEvents(
         userId,
-        { start: new Date(start), end: new Date(end) },
+        { start: fromEpochMs(start), end: fromEpochMs(end) },
         timezone,
       );
     } catch (err) {

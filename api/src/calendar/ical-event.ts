@@ -1,5 +1,11 @@
 import ICAL from 'ical.js';
-import { formatZonedIso, isValidTimeZone, wallClockToDate, weekdayName } from './zoned-time';
+import {
+  formatZonedIso,
+  isValidTimeZone,
+  parseOffsetIso,
+  wallClockToDate,
+  weekdayName,
+} from './zoned-time';
 
 // Builds/reads the standard iCalendar (RFC 5545) event bodies CalDAV
 // servers store. List results expand recurrences locally, whether or not
@@ -150,7 +156,9 @@ export function parseEventOccurrences(
     add(exception, exception.startDate, exception.endDate);
   }
 
-  return results.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+  return results.sort(
+    (a, b) => parseOffsetIso(a.start).getTime() - parseOffsetIso(b.start).getTime(),
+  );
 }
 
 export function buildEventIcs(uid: string, input: EventInput): string {

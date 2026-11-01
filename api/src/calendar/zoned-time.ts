@@ -22,6 +22,24 @@ export function zonedDateTime(date: Date, timeZone: string): Temporal.ZonedDateT
   return Temporal.Instant.fromEpochMilliseconds(date.getTime()).toZonedDateTimeISO(timeZone);
 }
 
+// The only places outside specs and DB defaults allowed to construct a
+// Date — `new Date(string)` reads an offset-less string in the server's
+// timezone (#17). See `no-restricted-syntax` in eslint.config.mjs.
+export function currentDate(): Date {
+  return new Date();
+}
+
+export function fromEpochMs(ms: number): Date {
+  return new Date(ms);
+}
+
+// For ISO 8601 strings that must carry a UTC offset, such as
+// `ParsedEvent.start`. Throws on an offset-less string rather than
+// guessing its timezone; use `parseZonedIso` for those.
+export function parseOffsetIso(input: string): Date {
+  return fromEpochMs(Temporal.Instant.from(input).epochMilliseconds);
+}
+
 export interface WallClock {
   year: number;
   month: number;
@@ -35,7 +53,7 @@ export interface WallClock {
 // reverse of `zonedDateTime`.
 export function wallClockToDate(time: WallClock, timeZone: string): Date {
   const { year, month, day, hour, minute, second } = time;
-  return new Date(
+  return fromEpochMs(
     Temporal.PlainDateTime.from({ year, month, day, hour, minute, second }).toZonedDateTime(
       timeZone,
     ).epochMilliseconds,
@@ -80,9 +98,11 @@ export function parseZonedIso(input: string, timeZone: string): Date {
   assertValidTimeZone(timeZone);
   try {
     if (OFFSET_SUFFIX_RE.test(input)) {
-      return new Date(Temporal.Instant.from(input).epochMilliseconds);
+      return parseOffsetIso(input);
     }
-    return new Date(Temporal.PlainDateTime.from(input).toZonedDateTime(timeZone).epochMilliseconds);
+    return fromEpochMs(
+      Temporal.PlainDateTime.from(input).toZonedDateTime(timeZone).epochMilliseconds,
+    );
   } catch {
     throw new Error(
       `invalid date-time: "${input}" (expected ISO 8601, e.g. "2026-08-26T19:00:00" or "2026-08-26T19:00:00+02:00")`,
