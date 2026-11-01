@@ -4,15 +4,60 @@
 // Temporal throws a low-level RangeError for an invalid IANA timezone;
 // callers should validate once, up front, with a clear message instead.
 export function assertValidTimeZone(timeZone: string): void {
+  if (!isValidTimeZone(timeZone)) throw new Error(`invalid IANA timezone: "${timeZone}"`);
+}
+
+// For timezone names from calendar data, which may be non-IANA (e.g.
+// Windows names) and need a fallback rather than an error.
+export function isValidTimeZone(timeZone: string): boolean {
   try {
     Temporal.Instant.fromEpochMilliseconds(0).toZonedDateTimeISO(timeZone);
+    return true;
   } catch {
-    throw new Error(`invalid IANA timezone: "${timeZone}"`);
+    return false;
   }
 }
 
 export function zonedDateTime(date: Date, timeZone: string): Temporal.ZonedDateTime {
   return Temporal.Instant.fromEpochMilliseconds(date.getTime()).toZonedDateTimeISO(timeZone);
+}
+
+// The only places outside specs and DB defaults allowed to construct a
+// Date — `new Date(string)` reads an offset-less string in the server's
+// timezone (#17). See `no-restricted-syntax` in eslint.config.mjs.
+export function currentDate(): Date {
+  return new Date();
+}
+
+export function fromEpochMs(ms: number): Date {
+  return new Date(ms);
+}
+
+// For ISO 8601 strings that must carry a UTC offset, such as
+// `ParsedEvent.start`. Throws on an offset-less string rather than
+// guessing its timezone; use `parseZonedIso` for those.
+export function parseOffsetIso(input: string): Date {
+  return fromEpochMs(Temporal.Instant.from(input).epochMilliseconds);
+}
+
+export interface WallClock {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+}
+
+// The instant a wall-clock time denotes in a given IANA timezone — the
+// reverse of `zonedDateTime`.
+export function wallClockToDate(time: WallClock, timeZone: string): Date {
+  const { year, month, day, hour, minute, second } = time;
+  return fromEpochMs(
+    Temporal.PlainDateTime.from({ year, month, day, hour, minute, second }).toZonedDateTime(
+      timeZone,
+    ).epochMilliseconds,
+  );
 }
 
 // Formats a Date as an ISO 8601 string with the wall-clock time and UTC
@@ -53,9 +98,11 @@ export function parseZonedIso(input: string, timeZone: string): Date {
   assertValidTimeZone(timeZone);
   try {
     if (OFFSET_SUFFIX_RE.test(input)) {
-      return new Date(Temporal.Instant.from(input).epochMilliseconds);
+      return parseOffsetIso(input);
     }
-    return new Date(Temporal.PlainDateTime.from(input).toZonedDateTime(timeZone).epochMilliseconds);
+    return fromEpochMs(
+      Temporal.PlainDateTime.from(input).toZonedDateTime(timeZone).epochMilliseconds,
+    );
   } catch {
     throw new Error(
       `invalid date-time: "${input}" (expected ISO 8601, e.g. "2026-08-26T19:00:00" or "2026-08-26T19:00:00+02:00")`,

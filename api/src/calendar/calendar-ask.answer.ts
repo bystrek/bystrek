@@ -1,4 +1,5 @@
 import type { ParsedEvent } from './ical-event';
+import { parseOffsetIso } from './zoned-time';
 import type { ReadQuery, SearchQuery } from './calendar-ask.query';
 
 export interface AskEvent {
@@ -106,7 +107,11 @@ type TimedEvent = ParsedEvent & { startMs: number; endMs: number };
 
 function sortByStart(events: ParsedEvent[]): TimedEvent[] {
   return events
-    .map((event) => ({ ...event, startMs: Date.parse(event.start), endMs: Date.parse(event.end) }))
+    .map((event) => ({
+      ...event,
+      startMs: parseOffsetIso(event.start).getTime(),
+      endMs: parseOffsetIso(event.end).getTime(),
+    }))
     .sort((a, b) => a.startMs - b.startMs);
 }
 

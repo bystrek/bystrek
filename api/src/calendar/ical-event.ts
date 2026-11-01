@@ -1,5 +1,11 @@
 import ICAL from 'ical.js';
-import { formatZonedIso, weekdayName } from './zoned-time';
+import {
+  formatZonedIso,
+  isValidTimeZone,
+  parseOffsetIso,
+  wallClockToDate,
+  weekdayName,
+} from './zoned-time';
 
 // Builds/reads the standard iCalendar (RFC 5545) event bodies CalDAV
 // servers store. List results expand recurrences locally, whether or not
@@ -37,15 +43,38 @@ export interface ParsedEvent {
 
 const MAX_RECURRENCE_ITERATIONS = 10_000;
 
+// ical.js resolves a TZID only against a VTIMEZONE in the same body.
+// Without one it silently falls back to the API process's own timezone —
+// UTC in the container, so 19:00 Europe/Warsaw came out as 20:00. Read
+// those wall-clock times in the named TZID instead, and truly floating
+// times (no TZID, or one that isn't IANA) in the user's timezone, per
+// RFC 5545 §3.3.5.
+function toDate(time: ICAL.Time, tzid: string | null, timeZone: string): Date {
+  if (time.zone !== ICAL.Timezone.localTimezone) return time.toJSDate();
+  return wallClockToDate(time, tzid && isValidTimeZone(tzid) ? tzid : timeZone);
+}
+
+function tzidOf(event: ICAL.Event, name: 'dtstart' | 'dtend'): string | null {
+  const tzid = event.component.getFirstProperty(name)?.getParameter('tzid');
+  return typeof tzid === 'string' ? tzid : null;
+}
+
+// An end derived from DURATION shares the start's timezone.
+function toDates(event: ICAL.Event, start: ICAL.Time, end: ICAL.Time, timeZone: string) {
+  const startTzid = tzidOf(event, 'dtstart');
+  return {
+    start: toDate(start, startTzid, timeZone),
+    end: toDate(end, tzidOf(event, 'dtend') ?? startTzid, timeZone),
+  };
+}
+
 function eventDetails(
   event: ICAL.Event,
-  start: ICAL.Time,
-  end: ICAL.Time,
+  startJs: Date,
+  endJs: Date,
   timeZone: string,
   master: ICAL.Event = event,
 ): ParsedEvent {
-  const startJs = start.toJSDate();
-  const endJs = end.toJSDate();
   const rrule = master.component.getFirstPropertyValue('rrule') as ICAL.Recur | null;
   return {
     uid: master.uid,
@@ -81,10 +110,9 @@ export function parseEventOccurrences(
   const results: ParsedEvent[] = [];
   const add = (event: ICAL.Event, start: ICAL.Time, end: ICAL.Time, master = event) => {
     if (isCancelled(event)) return;
-    const startJs = start.toJSDate();
-    const endJs = end.toJSDate();
-    if (startJs < range.end && endJs > range.start) {
-      results.push(eventDetails(event, start, end, timeZone, master));
+    const dates = toDates(event, start, end, timeZone);
+    if (dates.start < range.end && dates.end > range.start) {
+      results.push(eventDetails(event, dates.start, dates.end, timeZone, master));
     }
   };
 
@@ -101,6 +129,7 @@ export function parseEventOccurrences(
     }
 
     const series = new ICAL.Event(master.component, { exceptions, strictExceptions: true });
+    const seriesTzid = tzidOf(series, 'dtstart');
     const seen = new Set<string>();
     const iterator = series.iterator();
     let iterations = 0;
@@ -109,7 +138,7 @@ export function parseEventOccurrences(
       if (++iterations > MAX_RECURRENCE_ITERATIONS) {
         throw new Error('calendar recurrence exceeds the supported range');
       }
-      if (occurrence.toJSDate() >= range.end) break;
+      if (toDate(occurrence, seriesTzid, timeZone) >= range.end) break;
       seen.add(occurrence.toString());
       const details = series.getOccurrenceDetails(occurrence);
       add(details.item, details.startDate, details.endDate, series);
@@ -127,7 +156,9 @@ export function parseEventOccurrences(
     add(exception, exception.startDate, exception.endDate);
   }
 
-  return results.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+  return results.sort(
+    (a, b) => parseOffsetIso(a.start).getTime() - parseOffsetIso(b.start).getTime(),
+  );
 }
 
 export function buildEventIcs(uid: string, input: EventInput): string {
@@ -186,5 +217,6 @@ export function parseEventIcs(ics: string, timeZone: string): ParsedEvent {
     calendar.getFirstSubcomponent('vevent');
   if (!vevent) throw new Error('event body has no VEVENT component');
   const event = new ICAL.Event(vevent);
-  return eventDetails(event, event.startDate, event.endDate, timeZone);
+  const dates = toDates(event, event.startDate, event.endDate, timeZone);
+  return eventDetails(event, dates.start, dates.end, timeZone);
 }
