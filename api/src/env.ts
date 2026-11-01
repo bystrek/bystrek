@@ -22,8 +22,23 @@ export const RESEND_API_KEY =
 export const AUTH_SECRET = required('AUTH_SECRET');
 export const UI_URL = process.env.UI_URL ?? 'http://localhost:5173';
 export const API_URL = process.env.API_URL ?? 'http://localhost:3000';
-export const LLM_BASE_URL = process.env.LLM_BASE_URL ?? 'http://localhost:11434';
-export const LLM_MODEL = process.env.LLM_MODEL ?? 'qwen2.5:7b';
+export const LlmProvider = { Ollama: 'ollama', OpenAi: 'openai' } as const;
+export type LlmProvider = (typeof LlmProvider)[keyof typeof LlmProvider];
+const configuredLlmProvider = process.env.LLM_PROVIDER ?? LlmProvider.Ollama;
+if (!Object.values<string>(LlmProvider).includes(configuredLlmProvider)) {
+  throw new Error('LLM_PROVIDER must be "ollama" or "openai" when set');
+}
+export const LLM_PROVIDER = configuredLlmProvider as LlmProvider;
+// The local Ollama defaults don't fit a hosted OpenAI-compatible API, so it must name its own.
+const llmOpenAi = LLM_PROVIDER === LlmProvider.OpenAi;
+export const LLM_BASE_URL = llmOpenAi
+  ? required('LLM_BASE_URL')
+  : (process.env.LLM_BASE_URL ?? 'http://localhost:11434');
+export const LLM_MODEL = llmOpenAi
+  ? required('LLM_MODEL')
+  : (process.env.LLM_MODEL ?? 'qwen2.5:7b');
+// Bearer token for the OpenAI-compatible API; unused by Ollama.
+export const LLM_API_KEY = llmOpenAi ? required('LLM_API_KEY') : undefined;
 const rawLlmTimeout = process.env.LLM_TIMEOUT_MS ?? '120000';
 const configuredLlmTimeout = Number(rawLlmTimeout);
 if (

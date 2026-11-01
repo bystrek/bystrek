@@ -1,6 +1,6 @@
-import { Logger, type Provider } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { LLM_BASE_URL, LLM_MODEL, LLM_THINK, LLM_TIMEOUT_MS } from '../env';
-import { LLM_CLIENT, type LlmClient, type LlmJsonRequest } from './llm.client';
+import type { LlmClient, LlmJsonRequest } from './llm.client';
 
 interface OllamaChatResponse {
   error?: string;
@@ -64,8 +64,3 @@ export class OllamaLlmClient implements LlmClient {
     );
   }
 }
-
-export const ollamaProvider: Provider = {
-  provide: LLM_CLIENT,
-  useFactory: () => new OllamaLlmClient(),
-};

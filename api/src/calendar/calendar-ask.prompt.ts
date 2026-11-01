@@ -1,5 +1,6 @@
-// Byte-identical on every call so the Ollama prompt prefix stays cached. The model never
-// sees today's date: it names dates in words, and resolveWhen turns them into a window.
+// Byte-identical on every call so the prompt prefix stays cached: Ollama reuses it, and
+// hosted APIs bill it at their cached input price. The model never sees today's date: it
+// names dates in words, and resolveWhen turns them into a window.
 export const SYSTEM_PROMPT = `You turn a question about the user's calendar into one JSON query. You never see the events or today's date; the server runs your query and works out every date from the words you give. Reply with exactly one JSON object and nothing else.
 
 Shapes:
