@@ -59,6 +59,10 @@ jobs:
       RESEND_API_KEY: ci-only-throwaway-not-a-real-key
       # Throwaway, but must decode to 32 bytes (AES-256) for env.ts's check.
       ENCRYPTION_KEY: q8Uj3wsNN67RSs76SMLKQ/OIW6vE8Fmm7suUEmBlaaM=
+      # Throwaway; tests stub fetch, nothing calls the model.
+      LLM_BASE_URL: http://localhost:9/v1
+      LLM_MODEL: ci-only-model
+      LLM_API_KEY: ci-only-throwaway-not-a-real-key
     steps:
       - uses: actions/checkout@v4
 

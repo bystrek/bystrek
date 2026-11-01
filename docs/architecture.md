@@ -27,7 +27,7 @@ Scheduler ──▶ RabbitMQ ──▶ Worker ──▶ Backend API / push
 ## Frontend & chat (decided)
 
 - **Angular** (zoneless — standalone components, signals-based change detection, no Zone.js). Dependency injection, hierarchical service scoping, and enforced separation of concerns matter more here than framework popularity or minimal bundle size — Angular is the only mainstream frontend framework with those as first-class, compiler-backed patterns rather than convention. Zoneless removes the historical bundle/runtime cost that used to be the main counter-argument.
-- Talk to Ollama's local HTTP API directly and stream raw SSE to the UI. A small application-owned chat contract separates the tool loop from the inference provider.
+- Call a hosted OpenAI-compatible API (Scaleway Generative APIs, Paris) rather than a self-hosted model: the home cluster can't run a model good enough for this. A small application-owned `LlmClient` contract separates the app from the inference provider.
 
 ## Write safety
 
@@ -58,7 +58,7 @@ CORS scopes which sites' JavaScript can use an already-open browser session. Use
 
 ## Encryption of sensitive data (decided)
 
-Tier 2 for everything: app-level field encryption (AES-256-GCM, not `pgcrypto`) on sensitive columns. Protects against DB-only exposure while staying LLM-usable — the backend decrypts before calling the local model. No tier-3 zero-knowledge vault; nothing is meant to be opaque to the assistant.
+Tier 2 for everything: app-level field encryption (AES-256-GCM, not `pgcrypto`) on sensitive columns. Protects against DB-only exposure while staying LLM-usable — the backend decrypts before calling the model. The model is hosted, so a feature sends it only what it needs; calendar-ask sends the question, never events. No tier-3 zero-knowledge vault; nothing is meant to be opaque to the assistant.
 
 Key management: `.env` on the home server, alongside other secrets.
 

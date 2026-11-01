@@ -1,6 +1,6 @@
 /// <reference lib="esnext.temporal" />
 
-// Model-quality eval for "ask your calendar": the configured LlmClient (LLM_PROVIDER) and the real
+// Model-quality eval for "ask your calendar": the configured LlmClient and the real
 // CalendarAskService, with CalDAV replaced by in-memory events. Records latency and
 // whether each answer matches the expected kind and content.
 //
@@ -16,8 +16,8 @@ import type { CalendarService } from '../src/calendar/calendar.service';
 import { buildEventIcs, parseEventIcs, type ParsedEvent } from '../src/calendar/ical-event';
 import { parseZonedIso, weekdayNameOf, zonedDateTime } from '../src/calendar/zoned-time';
 import type { LlmClient, LlmJsonRequest } from '../src/llm/llm.client';
-import { createLlmClient } from '../src/llm/llm.provider';
-import { LLM_MODEL, LLM_PROVIDER } from '../src/env';
+import { OpenAiLlmClient } from '../src/llm/openai.client';
+import { LLM_MODEL } from '../src/env';
 
 const TZ = 'Europe/Warsaw';
 const USER_ID = 'eval-user';
@@ -407,7 +407,7 @@ function groupBy(results: Result[], key: (r: Result) => string): Map<string, Res
 async function main() {
   const days = intFlag('--days', 1);
   const trials = intFlag('--trials', 1);
-  const model = new TimedLlmClient(createLlmClient());
+  const model = new TimedLlmClient(new OpenAiLlmClient());
   let events: ParsedEvent[] = [];
   const ask = new CalendarAskService(
     model,
@@ -416,7 +416,7 @@ async function main() {
   const results: Result[] = [];
   const realToday = zonedDateTime(new Date(), TZ).toPlainDate();
 
-  console.log(`provider=${LLM_PROVIDER} model=${LLM_MODEL} tz=${TZ} days=${days} trials=${trials}`);
+  console.log(`model=${LLM_MODEL} tz=${TZ} days=${days} trials=${trials}`);
 
   for (let offset = 0; offset < days; offset++) {
     const today = realToday.add({ days: offset });
