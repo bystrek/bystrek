@@ -1,7 +1,7 @@
 /// <reference lib="esnext.temporal" />
 
-// Model-quality eval for "ask your calendar": the configured LlmClient and the real
-// CalendarAskService, with CalDAV replaced by in-memory events. Records latency and
+// Model-quality eval for "ask your calendar": the real OpenAiLlmClient (the LLM_* settings
+// in api/.env) and the real CalendarAskService, with CalDAV replaced by in-memory events. Records latency and
 // whether each answer matches the expected kind and content.
 //
 // Date mistakes depend on the weekday, so `--days N` replays every case as if today were
