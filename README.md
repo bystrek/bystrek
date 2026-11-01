@@ -45,7 +45,9 @@ docs/          architecture.md (direction) — live punch list is in GitHub Issu
 2. Set `SEED_OWNER_NAME`, `SEED_OWNER_EMAIL`, and `SEED_OWNER_PASSWORD` in `api/.env`.
 3. Set `BYSTREK_SSH_HOST` to your cluster SSH target. Run `./scripts/dev.sh`. It opens an SSH tunnel to Ollama, starts Postgres, migrates, creates the owner on first run, and starts the API and UI. Log in at `http://localhost:4200` with the seeded email and password. `Ctrl+C` stops the API and UI; Postgres keeps running.
 
-   To use an Ollama running on this machine instead, run `./scripts/dev.sh --local-ollama`; `BYSTREK_SSH_HOST` isn't needed then. The API asks for `LLM_MODEL` from `api/.env` (default `qwen2.5:7b`), so pull it first: `ollama pull qwen2.5:7b`.
+   To use Ollama on this machine instead, run `./scripts/dev.sh --local-ollama`; `BYSTREK_SSH_HOST` isn't needed then. It reuses an Ollama already running on `127.0.0.1:11434`, or starts `ollama serve` and stops it with the script. The API asks for `LLM_MODEL` from `api/.env` (default `qwen2.5:7b`), so pull it first: `ollama pull qwen2.5:7b`.
+
+   Voice questions need Whisper. `dev.sh` reuses one already listening on `127.0.0.1:8178`, or starts `whisper-server` with `WHISPER_MODEL` (default `~/models/whisper/ggml-large-v3-turbo.bin`). Without either it warns and starts the rest. Install with `brew install whisper-cpp ffmpeg`, then download the model from `https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin`.
 
 Add your test CalDAV account in Settings after signing in.
 

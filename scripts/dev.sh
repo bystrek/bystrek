@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # Local dev: Postgres + migrate + seed owner + api + ui. Needs api/.env (see api/.env.example).
-# Ollama comes from the cluster through an SSH tunnel, or with --local-ollama from an Ollama
-# already running on this machine at 127.0.0.1:11434.
+# Ollama comes from the cluster through an SSH tunnel, or with --local-ollama from this machine:
+# one already running at 127.0.0.1:11434 is reused, otherwise `ollama serve` is started and
+# stopped with the script.
+# Voice questions need Whisper at 127.0.0.1:8178: an already running one is reused, otherwise
+# whisper-server is started with $WHISPER_MODEL. Without either, the rest still starts.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -15,7 +18,9 @@ for arg in "$@"; do
     --local-ollama) local_ollama=1 ;;
     -h | --help)
       echo "usage: scripts/dev.sh [--local-ollama]"
-      echo "  --local-ollama  use the Ollama on this machine instead of tunnelling to the cluster"
+      echo "  --local-ollama  use the Ollama on this machine instead of tunnelling to the cluster;"
+      echo "                  starts \`ollama serve\` unless one is already running"
+      echo "env: WHISPER_MODEL  ggml model for whisper-server (default ~/models/whisper/ggml-large-v3-turbo.bin)"
       exit 0
       ;;
     *) fail "unknown option: $arg (see --help)" ;;
@@ -30,7 +35,8 @@ command -v docker >/dev/null 2>&1 || fail "docker not found — install Docker D
 command -v curl >/dev/null 2>&1 || fail "curl not found"
 if [ "$local_ollama" = 1 ]; then
   curl -fs --max-time 2 -o /dev/null http://127.0.0.1:11434/api/tags \
-    || fail "no Ollama at 127.0.0.1:11434 — start Ollama, or drop --local-ollama to use the cluster"
+    || command -v ollama >/dev/null 2>&1 \
+    || fail "ollama not found — install from https://ollama.com, or drop --local-ollama to use the cluster"
 else
   command -v ssh >/dev/null 2>&1 || fail "ssh not found"
   [ -n "${BYSTREK_SSH_HOST:-}" ] || fail "set BYSTREK_SSH_HOST to your cluster SSH target"
@@ -76,7 +82,7 @@ kill_tree() {
   kill "$pid" 2>/dev/null || true
 }
 cleanup() {
-  echo "==> Stopping tunnel/api/ui"
+  echo "==> Stopping ollama/whisper/api/ui"
   for pid in "${pids[@]}"; do
     kill_tree "$pid"
   done
@@ -120,6 +126,23 @@ start_ollama_tunnel() {
     || fail "Ollama tunnel didn't become ready in time"
 }
 
+start_local_ollama() {
+  if curl -fs --max-time 2 -o /dev/null http://127.0.0.1:11434/api/tags; then
+    echo "==> Using running local Ollama at 127.0.0.1:11434"
+    return
+  fi
+  echo "==> Starting local Ollama"
+  OLLAMA_HOST=127.0.0.1:11434 ollama serve >/dev/null 2>&1 &
+  pids+=("$!")
+  local ollama_pid="$!"
+  for _ in $(seq 1 30); do
+    kill -0 "$ollama_pid" 2>/dev/null || fail "ollama serve exited — run it by hand to see why"
+    curl -fs --max-time 2 -o /dev/null http://127.0.0.1:11434/api/tags && return
+    sleep 1
+  done
+  fail "local Ollama didn't become ready in time"
+}
+
 # The model the API will ask for: api/.env's LLM_MODEL, else the API default.
 check_local_model() {
   local model
@@ -131,11 +154,44 @@ check_local_model() {
 }
 
 if [ "$local_ollama" = 1 ]; then
-  echo "==> Using local Ollama at 127.0.0.1:11434"
+  start_local_ollama
   check_local_model
 else
   start_ollama_tunnel
 fi
+
+WHISPER_URL=http://127.0.0.1:8178
+WHISPER_MODEL="${WHISPER_MODEL:-$HOME/models/whisper/ggml-large-v3-turbo.bin}"
+
+# Optional: warns instead of failing, since only voice questions need it.
+start_whisper() {
+  if curl -fs --max-time 2 -o /dev/null "$WHISPER_URL/"; then
+    echo "==> Using running Whisper at $WHISPER_URL"
+    return
+  fi
+  if ! command -v whisper-server >/dev/null 2>&1 || [ ! -f "$WHISPER_MODEL" ]; then
+    echo "warning: voice questions won't work — no whisper-server or no model at $WHISPER_MODEL" >&2
+    echo "  brew install whisper-cpp ffmpeg && mkdir -p ~/models/whisper && curl -L -o ~/models/whisper/ggml-large-v3-turbo.bin \\" >&2
+    echo "    https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin" >&2
+    return
+  fi
+  command -v ffmpeg >/dev/null 2>&1 \
+    || fail "whisper-server needs ffmpeg to read browser recordings — brew install ffmpeg"
+
+  echo "==> Starting Whisper ($(basename "$WHISPER_MODEL"))"
+  # --convert: browsers record webm/opus or mp4/aac, which whisper.cpp reads only via ffmpeg.
+  whisper-server -m "$WHISPER_MODEL" --host 127.0.0.1 --port 8178 -l auto --convert \
+    --inference-path /v1/audio/transcriptions >/dev/null 2>&1 &
+  pids+=("$!")
+  local whisper_pid="$!"
+  for _ in $(seq 1 60); do
+    kill -0 "$whisper_pid" 2>/dev/null || fail "whisper-server exited — run it by hand to see why"
+    curl -fs --max-time 2 -o /dev/null "$WHISPER_URL/" && return
+    sleep 1
+  done
+  fail "Whisper didn't become ready in time"
+}
+start_whisper
 
 # Bun runs the API: calendar code uses the Temporal API, which Node lacks.
 echo "==> Starting api (start:dev)"
@@ -151,7 +207,7 @@ while :; do
   for pid in "${pids[@]}"; do
     if ! kill -0 "$pid" 2>/dev/null; then
       wait "$pid" || true
-      fail "tunnel/api/ui process $pid exited"
+      fail "ollama/whisper/api/ui process $pid exited"
     fi
   done
   sleep 1

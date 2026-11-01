@@ -1,6 +1,15 @@
 <section class="ask" aria-label="Ask your calendar">
   <div class="ask-response" aria-live="polite">
-    @if (store.phase() === AskPhase.THINKING) {
+    @if (store.phase() === AskPhase.LISTENING) {
+      <div class="thinking">
+        <p class="asked">Listening… tap <app-icon name="check" /> when done</p>
+        <app-progress label="Listening" />
+      </div>
+    } @else if (store.phase() === AskPhase.TRANSCRIBING) {
+      <div class="thinking">
+        <app-progress label="Transcribing your question" />
+      </div>
+    } @else if (store.phase() === AskPhase.THINKING) {
       <div class="thinking">
         <p class="asked">&gt; {{ store.asked() }}</p>
         <app-progress label="Reading your calendar" />
@@ -126,7 +135,7 @@
             <app-icon name="x" />
           </button>
         </div>
-        <p class="answer-text">Could not get an answer. Try again.</p>
+        <p class="answer-text">{{ store.error() }}</p>
       </app-card>
     }
   </div>
@@ -149,11 +158,42 @@
       autocomplete="off"
       [formField]="questionForm.question"
     />
-    @if (store.phase() === AskPhase.THINKING) {
+    @if (store.phase() === AskPhase.LISTENING) {
+      <button
+        type="button"
+        appButton
+        shape="icon"
+        aria-label="Cancel recording"
+        (click)="store.stop()"
+      >
+        <app-icon name="x" />
+      </button>
+      <button
+        type="button"
+        appButton
+        variant="primary"
+        shape="icon"
+        aria-label="Done speaking"
+        (click)="store.finishListening()"
+      >
+        <app-icon name="check" />
+      </button>
+    } @else if (store.busy()) {
       <button type="button" appButton shape="icon" aria-label="Stop" (click)="store.stop()">
         <app-icon name="stop" />
       </button>
     } @else {
+      @if (voiceSupported) {
+        <button
+          type="button"
+          appButton
+          shape="icon"
+          aria-label="Ask by voice"
+          (click)="store.listen()"
+        >
+          <app-icon name="microphone" />
+        </button>
+      }
       <button type="submit" appButton variant="primary" shape="icon" aria-label="Send question">
         <app-icon name="arrow-right" />
       </button>

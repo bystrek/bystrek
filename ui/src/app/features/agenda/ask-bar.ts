@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
 import { FormField, FormRoot, disabled, form, maxLength, required } from '@angular/forms/signals';
 import { Temporal } from '@js-temporal/polyfill';
+import { VoiceRecorder } from '../../core/speech/voice-recorder';
 import { Button } from '../../shared/button/button';
 import { Card } from '../../shared/card/card';
 import { Chip } from '../../shared/chip/chip';
@@ -37,6 +38,7 @@ export class AskBar {
   readonly jump = output<Temporal.PlainDate>();
 
   readonly suggestions = SUGGESTIONS;
+  protected readonly voiceSupported = inject(VoiceRecorder).supported;
   private readonly model = signal({ question: '' });
   protected readonly questionForm = form(this.model, (path) => {
     required(path.question);
