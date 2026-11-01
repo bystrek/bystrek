@@ -1,15 +1,10 @@
 import ICAL from 'ical.js';
-import {
-  formatZonedIso,
-  isValidTimeZone,
-  parseOffsetIso,
-  wallClockToDate,
-  weekdayName,
-} from './zoned-time';
+import { expandOccurrences, occurrenceDates } from './ical-recurrence';
+import { formatZonedIso, weekdayName } from './zoned-time';
 
 // Builds/reads the standard iCalendar (RFC 5545) event bodies CalDAV
-// servers store. List results expand recurrences locally, whether or not
-// the CalDAV server honors the requested expansion.
+// servers store. List results expand recurrences locally (ical-recurrence.ts),
+// whether or not the CalDAV server honors the requested expansion.
 
 export interface EventInput {
   summary: string;
@@ -41,33 +36,6 @@ export interface ParsedEvent {
   rrule: string | null;
 }
 
-const MAX_RECURRENCE_ITERATIONS = 10_000;
-
-// ical.js resolves a TZID only against a VTIMEZONE in the same body.
-// Without one it silently falls back to the API process's own timezone —
-// UTC in the container, so 19:00 Europe/Warsaw came out as 20:00. Read
-// those wall-clock times in the named TZID instead, and truly floating
-// times (no TZID, or one that isn't IANA) in the user's timezone, per
-// RFC 5545 §3.3.5.
-function toDate(time: ICAL.Time, tzid: string | null, timeZone: string): Date {
-  if (time.zone !== ICAL.Timezone.localTimezone) return time.toJSDate();
-  return wallClockToDate(time, tzid && isValidTimeZone(tzid) ? tzid : timeZone);
-}
-
-function tzidOf(event: ICAL.Event, name: 'dtstart' | 'dtend'): string | null {
-  const tzid = event.component.getFirstProperty(name)?.getParameter('tzid');
-  return typeof tzid === 'string' ? tzid : null;
-}
-
-// An end derived from DURATION shares the start's timezone.
-function toDates(event: ICAL.Event, start: ICAL.Time, end: ICAL.Time, timeZone: string) {
-  const startTzid = tzidOf(event, 'dtstart');
-  return {
-    start: toDate(start, startTzid, timeZone),
-    end: toDate(end, tzidOf(event, 'dtend') ?? startTzid, timeZone),
-  };
-}
-
 function eventDetails(
   event: ICAL.Event,
   startJs: Date,
@@ -93,71 +61,14 @@ function eventDetails(
   };
 }
 
-function isCancelled(event: ICAL.Event): boolean {
-  return event.component.getFirstPropertyValue('status') === 'CANCELLED';
-}
-
 export function parseEventOccurrences(
   ics: string,
   range: { start: Date; end: Date },
   timeZone: string,
 ): ParsedEvent[] {
   const calendar = new ICAL.Component(ICAL.parse(ics));
-  const components = calendar.getAllSubcomponents('vevent');
-  if (!components.length) throw new Error('event body has no VEVENT component');
-  const events = components.map((component) => new ICAL.Event(component, { exceptions: [] }));
-  const masters = events.filter((event) => !event.isRecurrenceException());
-  const results: ParsedEvent[] = [];
-  const add = (event: ICAL.Event, start: ICAL.Time, end: ICAL.Time, master = event) => {
-    if (isCancelled(event)) return;
-    const dates = toDates(event, start, end, timeZone);
-    if (dates.start < range.end && dates.end > range.start) {
-      results.push(eventDetails(event, dates.start, dates.end, timeZone, master));
-    }
-  };
-
-  for (const master of masters) {
-    const exceptions = events.filter(
-      (event) => event.isRecurrenceException() && event.uid === master.uid,
-    );
-    if (!master.isRecurring()) {
-      add(master, master.startDate, master.endDate);
-      for (const exception of exceptions) {
-        add(exception, exception.startDate, exception.endDate);
-      }
-      continue;
-    }
-
-    const series = new ICAL.Event(master.component, { exceptions, strictExceptions: true });
-    const seriesTzid = tzidOf(series, 'dtstart');
-    const seen = new Set<string>();
-    const iterator = series.iterator();
-    let iterations = 0;
-    let occurrence: ICAL.Time | null;
-    while ((occurrence = iterator.next())) {
-      if (++iterations > MAX_RECURRENCE_ITERATIONS) {
-        throw new Error('calendar recurrence exceeds the supported range');
-      }
-      if (toDate(occurrence, seriesTzid, timeZone) >= range.end) break;
-      seen.add(occurrence.toString());
-      const details = series.getOccurrenceDetails(occurrence);
-      add(details.item, details.startDate, details.endDate, series);
-    }
-    for (const exception of exceptions) {
-      if (!seen.has(exception.recurrenceId.toString())) {
-        add(exception, exception.startDate, exception.endDate, series);
-      }
-    }
-  }
-
-  for (const exception of events.filter(
-    (event) => event.isRecurrenceException() && !masters.some((master) => master.uid === event.uid),
-  )) {
-    add(exception, exception.startDate, exception.endDate);
-  }
-
-  return results.sort(
-    (a, b) => parseOffsetIso(a.start).getTime() - parseOffsetIso(b.start).getTime(),
+  return expandOccurrences(calendar, range, timeZone).map((occurrence) =>
+    eventDetails(occurrence.item, occurrence.start, occurrence.end, timeZone, occurrence.master),
   );
 }
 
@@ -217,6 +128,6 @@ export function parseEventIcs(ics: string, timeZone: string): ParsedEvent {
     calendar.getFirstSubcomponent('vevent');
   if (!vevent) throw new Error('event body has no VEVENT component');
   const event = new ICAL.Event(vevent);
-  const dates = toDates(event, event.startDate, event.endDate, timeZone);
+  const dates = occurrenceDates(event, event.startDate, event.endDate, timeZone);
   return eventDetails(event, dates.start, dates.end, timeZone);
 }

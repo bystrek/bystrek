@@ -22,7 +22,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "bun run scripts/seed.ts",
     "db:seed:local": "bun run scripts/seed-local.ts",
-    "eval:calendar-ask": "bun run eval/calendar-ask.eval.ts"
+    "eval:calendar-ask": "bun run eval/calendar-ask.eval.ts",
+    "eval:caldav-parity": "bun run eval/caldav-parity.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
