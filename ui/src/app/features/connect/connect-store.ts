@@ -68,6 +68,8 @@ export const ConnectStore = signalStore(
       // Doubles as the credentials check: a wrong password fails here, before anything is saved.
       loadCalendars: (credentials: ConnectCredentials): Promise<void> =>
         run(async () => {
+          // A failed load must not leave the previous account's list behind.
+          patchState(store, { calendars: [] });
           const calendars = await calendar.previewCalendars(credentials);
           if (calendars.length === 0) throw new Error('This account has no calendars.');
           patchState(store, { calendars, step: ConnectStep.CALENDAR });

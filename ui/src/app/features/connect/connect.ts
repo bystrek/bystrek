@@ -71,6 +71,7 @@ export class Connect implements OnInit {
       return;
     }
     await this.store.loadCalendars(this.credentials());
+    if (this.store.error()) return;
     // Keep the saved calendar when it is still there, else preselect the first.
     const calendars = this.store.calendars();
     if (!calendars.some((option) => option.url === this.model().calendarUrl)) {

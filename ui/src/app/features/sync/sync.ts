@@ -10,8 +10,10 @@ import { SyncStore } from './sync-store';
 @Pipe({ name: 'syncPercent' })
 export class SyncPercentPipe implements PipeTransform {
   transform(progress: SyncProgress | null): number | undefined {
-    if (!progress?.total) return progress?.status === SyncStatus.READY ? 100 : undefined;
-    return Math.round((progress.fetched / progress.total) * 100);
+    if (progress?.status === SyncStatus.READY) return 100;
+    if (progress?.total == null) return undefined;
+    // An empty calendar has nothing to download.
+    return progress.total === 0 ? 100 : Math.round((progress.fetched / progress.total) * 100);
   }
 }
 
