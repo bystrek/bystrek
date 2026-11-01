@@ -76,13 +76,15 @@ describe('baselineMigrations', () => {
     await admin.end();
   });
 
-  it('turns a database at old 0012 into exactly what 0000_initial creates', async () => {
+  it('turns a database at old 0012 into exactly what the squashed chain creates', async () => {
     const old = await scratchDatabase();
     try {
       await migrateWith(old, PRE_SQUASH);
       expect(await describeSchema(old)).not.toEqual(freshSchema);
 
       expect(await baselineMigrations(old, SQUASHED)).toBe('baselined');
+      // As docker-entrypoint.sh does: migrations after 0000_initial run on top.
+      await migrateWith(old, SQUASHED);
 
       expect(await describeSchema(old)).toEqual(freshSchema);
       expect(await history(old)).toEqual(await history(fresh));
@@ -91,7 +93,7 @@ describe('baselineMigrations', () => {
     }
   });
 
-  it('turns a database at old 0013 into exactly what 0000_initial creates', async () => {
+  it('turns a database at old 0013 into exactly what the squashed chain creates', async () => {
     const old = await scratchDatabase();
     try {
       // Apply old 0013 the way drizzle's migrator would have: run the file,
@@ -104,6 +106,8 @@ describe('baselineMigrations', () => {
         values (${new Bun.CryptoHasher('sha256').update(query).digest('hex')}, 1792674352638)`;
 
       expect(await baselineMigrations(old, SQUASHED)).toBe('baselined');
+      // As docker-entrypoint.sh does: migrations after 0000_initial run on top.
+      await migrateWith(old, SQUASHED);
 
       expect(await describeSchema(old)).toEqual(freshSchema);
       expect(await history(old)).toEqual(await history(fresh));
@@ -112,7 +116,7 @@ describe('baselineMigrations', () => {
     }
   });
 
-  it('leaves db:migrate nothing to run and keeps existing rows', async () => {
+  it('leaves db:migrate only the migrations after 0000_initial and keeps existing rows', async () => {
     const old = await scratchDatabase();
     try {
       await migrateWith(old, PRE_SQUASH);
