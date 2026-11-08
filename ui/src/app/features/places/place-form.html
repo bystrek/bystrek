@@ -1,0 +1,58 @@
+<form [formRoot]="editForm" [attr.aria-label]="'Edit ' + place().name">
+  <label>
+    <span>Name</span>
+    <input type="text" [formField]="editForm.name" />
+  </label>
+  @for (error of editForm.name().errors(); track error.kind) {
+    <p class="field-error">{{ error.message }}</p>
+  }
+
+  <label>
+    <span>Category</span>
+    <select [formField]="editForm.category">
+      @for (category of categories; track category) {
+        <option [value]="category">{{ category | categoryLabel }}</option>
+      }
+    </select>
+  </label>
+
+  <label>
+    <span>Address</span>
+    <input type="text" [formField]="editForm.address" />
+  </label>
+  @for (error of editForm.address().errors(); track error.kind) {
+    <p class="field-error">{{ error.message }}</p>
+  }
+  <p class="found">
+    Found as: {{ place().displayAddress }}<br />
+    <app-osm-attribution />
+  </p>
+
+  <label>
+    <span>Notes</span>
+    <textarea rows="3" [formField]="editForm.notes"></textarea>
+  </label>
+
+  <label>
+    <span>Link</span>
+    <input type="url" inputmode="url" [formField]="editForm.url" />
+  </label>
+
+  @for (error of editForm().errors(); track error.kind) {
+    <p class="form-error" role="alert">{{ error.message }}</p>
+  }
+
+  <div class="actions">
+    <button appButton type="submit" variant="primary" [disabled]="editForm().submitting()">
+      {{ editForm().submitting() ? 'Saving…' : 'Save' }}
+    </button>
+    <button
+      appButton
+      type="button"
+      [disabled]="editForm().submitting()"
+      (click)="store.cancelEdit()"
+    >
+      Cancel
+    </button>
+  </div>
+</form>
