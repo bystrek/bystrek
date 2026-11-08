@@ -28,3 +28,9 @@ export class NewPlaceDto extends createZodDto(
 ) {}
 
 export class PlacePatchDto extends createZodDto(PlaceFields.partial()) {}
+
+// The whole prompt, every time: a refinement is the edited text, not a diff.
+export const MAX_DRAFT_TEXT_LENGTH = 1000;
+export class PlaceDraftDto extends createZodDto(
+  z.object({ text: z.string().trim().min(1).max(MAX_DRAFT_TEXT_LENGTH) }),
+) {}
