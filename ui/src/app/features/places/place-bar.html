@@ -6,6 +6,7 @@
   clearable
   [maxLength]="maxLength"
   [busy]="store.busy()"
+  [locked]="store.saving()"
   [asked]="store.asked()"
   [text]="store.text()"
   (textChange)="store.setText($event)"
@@ -47,7 +48,7 @@
                 appButton
                 type="button"
                 variant="inverse"
-                [disabled]="store.saving()"
+                [disabled]="!store.canSave()"
                 (click)="store.save()"
               >
                 {{ store.saving() ? 'Saving…' : 'Save' }}

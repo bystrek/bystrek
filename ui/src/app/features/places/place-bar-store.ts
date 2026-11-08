@@ -46,10 +46,12 @@ const initialState: PlaceBarState = {
 // Provided next to PlacesStore, which it adds saved places to.
 export const PlaceBarStore = signalStore(
   withState(initialState),
-  withComputed(({ phase, response }) => {
+  withComputed(({ phase, response, saving }) => {
     const placesStore = inject(PlacesStore);
     return {
       busy: computed(() => phase() === PlaceBarPhase.Thinking),
+      // A list load still in flight would replace the saved place with its older snapshot.
+      canSave: computed(() => !saving() && !placesStore.loading()),
       // The list's copy of a duplicate, so a visit marked here or in the list shows in both.
       duplicate: computed((): Place | null => {
         const r = response();
@@ -99,6 +101,8 @@ export const PlaceBarStore = signalStore(
       setText: (text: string): void => patchState(store, { text }),
       // Always the whole prompt: a refinement is the edited text, never a diff.
       submit: (text: string): void => {
+        // Finishing the save clears the bar, which would drop a newer prompt.
+        if (store.saving()) return;
         patchState(store, {
           asked: text,
           phase: PlaceBarPhase.Thinking,
@@ -126,7 +130,7 @@ export const PlaceBarStore = signalStore(
 
       save: async (): Promise<void> => {
         const r = store.response();
-        if (r?.kind !== 'ready' || store.saving()) return;
+        if (r?.kind !== 'ready' || !store.canSave()) return;
         const { name, category, address, notes, url } = r.draft;
         const { osmType, osmId } = r.location;
         patchState(store, { saving: true, saveError: null });

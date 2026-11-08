@@ -62,7 +62,11 @@ const render = async (
   const fixture = TestBed.createComponent(Places);
   await fixture.whenStable();
   const el: HTMLElement = fixture.nativeElement;
-  const settle = () => fixture.whenStable();
+  // Lets a mocked API promise resolved by the test finish before checking the page.
+  const settle = async () => {
+    await new Promise((resolve) => setTimeout(resolve));
+    await fixture.whenStable();
+  };
   const field = () => el.querySelector<HTMLInputElement>('app-place-bar input.field')!;
   const type = async (text: string) => {
     field().value = text;
@@ -228,5 +232,39 @@ describe('PlaceBar', () => {
     expect(pending.observed).toBe(false);
     expect(ui.field().value).toBe(PROMPT);
     expect(ui.field().disabled).toBe(false);
+  });
+
+  it('locks the bar while a save is in flight, so it cannot clear a newer prompt', async () => {
+    let finish!: (place: Place) => void;
+    const ui = await render(() => of({ kind: 'ready', draft, location: camelotHere }), {
+      create: vi.fn(() => new Promise<Place>((resolve) => (finish = resolve))),
+    });
+
+    await ui.type(PROMPT);
+    await ui.send();
+    await ui.click('Save');
+    expect(ui.field().disabled).toBe(true);
+    expect(ui.button('Draft place').disabled).toBe(true);
+
+    finish(aPlace({ id: 'new' }));
+    await ui.settle();
+    expect(ui.field().disabled).toBe(false);
+    expect(ui.field().value).toBe('');
+  });
+
+  it('waits for the list to load before saving, so the load cannot drop the new place', async () => {
+    let loaded!: (places: Place[]) => void;
+    const ui = await render(() => of({ kind: 'ready', draft, location: camelotHere }), {
+      list: vi.fn(() => new Promise<Place[]>((resolve) => (loaded = resolve))),
+    });
+
+    await ui.type(PROMPT);
+    await ui.send();
+    expect(ui.button('Save').disabled).toBe(true);
+
+    loaded([existing]);
+    await ui.settle();
+    await ui.click('Save');
+    expect(ui.names()).toEqual(['Café Camelot', 'Manufaktura']);
   });
 });

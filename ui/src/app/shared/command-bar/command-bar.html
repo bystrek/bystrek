@@ -27,7 +27,14 @@
       </button>
     } @else {
       @if (clearable() && text()) {
-        <button type="button" appButton shape="icon" aria-label="Clear" (click)="cleared.emit()">
+        <button
+          type="button"
+          appButton
+          shape="icon"
+          aria-label="Clear"
+          [disabled]="locked()"
+          (click)="cleared.emit()"
+        >
           <app-icon name="x" />
         </button>
       }
@@ -36,6 +43,7 @@
         appButton
         variant="primary"
         shape="icon"
+        [disabled]="locked()"
         [attr.aria-label]="submitLabel()"
       >
         <app-icon name="arrow-right" />

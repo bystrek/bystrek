@@ -29,6 +29,8 @@ export class CommandBar {
   readonly thinkingLabel = input.required<string>();
   readonly maxLength = input(500);
   readonly busy = input(false);
+  // Locks the input without the thinking state, e.g. while the page saves a result.
+  readonly locked = input(false);
   // What was sent, echoed while thinking.
   readonly asked = input('');
   // Shows a clear button while there is text; the page decides what clearing resets.
@@ -41,11 +43,11 @@ export class CommandBar {
   protected readonly textForm = form(this.text, (path) => {
     required(path);
     maxLength(path, () => this.maxLength());
-    disabled(path, { when: () => this.busy() });
+    disabled(path, { when: () => this.busy() || this.locked() });
   });
 
   submit(): void {
-    if (this.busy()) return;
+    if (this.busy() || this.locked()) return;
     if (this.textForm().invalid()) {
       this.textForm().markAsTouched();
       return;
