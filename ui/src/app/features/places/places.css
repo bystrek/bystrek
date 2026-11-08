@@ -1,12 +1,15 @@
 :host {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
 }
 
 .places {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+  flex: 1;
+  width: 100%;
   gap: var(--space-4);
   max-width: 640px;
   margin: 0 auto;
@@ -30,6 +33,11 @@
   font-weight: 700;
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
+}
+
+.top {
+  display: grid;
+  gap: var(--space-4);
 }
 
 .controls {
@@ -56,6 +64,7 @@
   outline-offset: var(--focus-offset);
 }
 
+.views,
 .filters {
   display: flex;
   flex-wrap: wrap;
@@ -64,6 +73,83 @@
 
 app-alert p {
   margin: 0;
+}
+
+/* Map view: the map fills the screen under the floating controls, with the command bar, or
+   the open place's card instead, docked below it so the map's attribution stays in sight. */
+:host([data-view='map']) {
+  height: 100%;
+}
+
+:host([data-view='map']) .places {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
+  height: 100%;
+  max-width: none;
+  padding: 0;
+  gap: 0;
+}
+
+:host([data-view='map']) .map {
+  grid-area: 1 / 1;
+}
+
+:host([data-view='map']) .top {
+  box-sizing: border-box;
+  justify-self: center;
+  width: 100%;
+  max-width: 640px;
+}
+
+/* Over the map: only the controls themselves take taps, the gaps between them drag the map. */
+:host([data-view='map']) .top {
+  grid-area: 1 / 1;
+  align-self: start;
+  z-index: 1;
+  padding: calc(var(--space-4) + env(safe-area-inset-top)) var(--space-4) 0;
+}
+
+:host([data-view='map']) .top * {
+  pointer-events: none;
+}
+
+:host([data-view='map']) .top :is(button, input, app-alert, app-alert *) {
+  pointer-events: auto;
+}
+
+:host([data-view='map']) .views {
+  padding-right: var(--page-head-inset, 0);
+}
+
+:host([data-view='map']) .top :is(.search, .app-chip) {
+  box-shadow: var(--shadow-sm);
+}
+
+/* Full-width strip, content in the same 640px column as the controls. */
+:host([data-view='map']) .sheet,
+:host([data-view='map']) .no-match,
+:host([data-view='map']) .command {
+  --_inline: max(var(--space-4), calc((100% - 640px) / 2 + var(--space-4)));
+  box-sizing: border-box;
+  grid-column: 1;
+  margin: 0;
+  padding: var(--space-3) var(--_inline) calc(var(--space-4) + env(safe-area-inset-bottom));
+  border-top: var(--border-heavy);
+  background: var(--color-bg);
+}
+
+.sheet {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sheet .close {
+  justify-self: end;
+}
+
+.command[hidden] {
+  display: none;
 }
 
 .list {

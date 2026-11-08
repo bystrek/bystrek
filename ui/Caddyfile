@@ -12,6 +12,8 @@
 	# Shell and runtime config must be revalidated on every load so new deploys are picked up.
 	header /index.html Cache-Control "no-cache"
 	header /config.json Cache-Control "no-cache"
+	# MapLibre's worker files keep fixed names and must match the bundle that loads them.
+	header /maplibre-gl-*.mjs Cache-Control "no-cache"
 
 	# Missing assets 404 instead of falling back to index.html (stale chunk requests after a deploy).
 	@asset path *.js *.mjs *.css *.map *.json *.png *.svg *.ico *.webmanifest *.txt

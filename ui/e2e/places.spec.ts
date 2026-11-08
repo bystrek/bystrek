@@ -107,3 +107,53 @@ test('types a place, previews it, saves it and sees it in the list', async ({ pa
   ).toBeVisible();
   await expect(input).toHaveValue('');
 });
+
+test('shows places as pins and marks one visited from its pin', async ({ page }) => {
+  await signIn(page);
+  const wawel = {
+    ...camelot,
+    id: 'p2',
+    name: 'Wawel',
+    lat: 50.0541,
+    lng: 19.9354,
+    visitedByMe: true,
+  };
+  await page.route('**/api/places', (route) => route.fulfill({ json: [camelot, wawel] }));
+  await page.route('**/api/places/p1/visit', (route) => route.fulfill({ status: 204 }));
+  // An empty style with one attributed source keeps the test off the real tile host.
+  await page.route('https://tiles.openfreemap.org/**', (route) =>
+    route.fulfill({
+      json: {
+        version: 8,
+        sources: {
+          base: {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] },
+            attribution: '© OpenStreetMap contributors',
+          },
+        },
+        layers: [{ id: 'base', type: 'circle', source: 'base' }],
+      },
+    }),
+  );
+
+  await page.goto('/places');
+  await page.getByRole('button', { name: 'Map', exact: true }).click();
+
+  const toVisit = page.getByRole('button', { name: 'Café Camelot, to visit' });
+  await expect(toVisit).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Wawel, visited' })).toBeVisible();
+  await expect(page.locator('.maplibregl-ctrl-attrib')).toContainText(
+    '© OpenStreetMap contributors',
+  );
+
+  await toVisit.click();
+  const card = page.locator('app-place-row');
+  await expect(card.getByRole('heading', { name: camelot.name })).toBeVisible();
+  const visited = page.waitForRequest(
+    (req) => req.url().endsWith('/api/places/p1/visit') && req.method() === 'PUT',
+  );
+  await card.getByRole('button', { name: 'Visited' }).click();
+  await visited;
+  await expect(page.getByRole('button', { name: 'Café Camelot, visited' })).toBeVisible();
+});

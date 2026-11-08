@@ -1,1 +1,1 @@
-{ "apiUrl": "https://api.bystrek.dev" }
+{ "apiUrl": "https://api.bystrek.dev", "mapStyleUrl": "https://tiles.openfreemap.org/styles/liberty" }

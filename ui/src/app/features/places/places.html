@@ -1,38 +1,57 @@
+@let onMap = store.view() === PlacesView.Map;
+@let selected = onMap ? store.selected() : null;
 <main class="places">
-  <header class="head">
-    <h1>Places</h1>
-  </header>
-
-  <div class="controls">
-    <input
-      #search
-      type="search"
-      class="search"
-      aria-label="Search places"
-      placeholder="Search name, address, notes"
-      [value]="store.query()"
-      (input)="store.setQuery(search.value)"
-    />
-    <div class="filters" role="group" aria-label="Show">
-      @for (filter of filters; track filter.value) {
-        <button
-          appChip
-          type="button"
-          [tone]="store.visitedFilter() === filter.value ? 'secondary' : 'surface'"
-          [attr.aria-pressed]="store.visitedFilter() === filter.value"
-          (click)="store.setVisitedFilter(filter.value)"
-        >
-          {{ filter.label }}
-        </button>
-      }
-    </div>
-  </div>
-
-  @if (store.actionError(); as message) {
-    <app-alert tone="danger" heading="That didn't work" (dismissed)="store.dismissError()">
-      <p>{{ message }}</p>
-    </app-alert>
+  @if (!onMap) {
+    <header class="head">
+      <h1>Places</h1>
+    </header>
   }
+
+  <div class="top">
+    <div class="controls">
+      <div class="views" role="group" aria-label="View">
+        @for (view of views; track view.value) {
+          <button
+            appChip
+            type="button"
+            [tone]="store.view() === view.value ? 'secondary' : 'surface'"
+            [attr.aria-pressed]="store.view() === view.value"
+            (click)="store.setView(view.value)"
+          >
+            {{ view.label }}
+          </button>
+        }
+      </div>
+      <input
+        #search
+        type="search"
+        class="search"
+        aria-label="Search places"
+        placeholder="Search name, address, notes"
+        [value]="store.query()"
+        (input)="store.setQuery(search.value)"
+      />
+      <div class="filters" role="group" aria-label="Show">
+        @for (filter of filters; track filter.value) {
+          <button
+            appChip
+            type="button"
+            [tone]="store.visitedFilter() === filter.value ? 'secondary' : 'surface'"
+            [attr.aria-pressed]="store.visitedFilter() === filter.value"
+            (click)="store.setVisitedFilter(filter.value)"
+          >
+            {{ filter.label }}
+          </button>
+        }
+      </div>
+    </div>
+
+    @if (store.actionError(); as message) {
+      <app-alert tone="danger" heading="That didn't work" (dismissed)="store.dismissError()">
+        <p>{{ message }}</p>
+      </app-alert>
+    }
+  </div>
 
   @if (store.loading()) {
     <app-progress label="Loading places" />
@@ -44,29 +63,52 @@
   } @else if (store.isEmpty()) {
     <p class="empty">No places yet.</p>
   } @else {
-    <ul class="list">
-      @for (row of store.rows(); track row.place.id) {
-        <li>
-          @if (row.mode === PlaceRowMode.Editing) {
-            <app-place-form [place]="row.place" />
-          } @else {
-            <app-place-row
-              [place]="row.place"
-              [mode]="row.mode"
-              (visitedToggled)="store.toggleVisited(row.place.id)"
-              (editRequested)="store.startEdit(row.place.id)"
-              (deleteRequested)="store.askDelete(row.place.id)"
-              (deleteConfirmed)="store.confirmDelete(row.place.id)"
-              (deleteCancelled)="store.cancelDelete()"
-            />
-          }
-        </li>
-      } @empty {
-        <li class="empty">No places match.</li>
+    @if (onMap) {
+      @defer {
+        <app-places-map
+          class="map"
+          [places]="store.visible()"
+          [selectedId]="store.selectedId()"
+          (selected)="store.select($event)"
+        />
+      } @loading (minimum 200ms) {
+        <app-progress class="map" label="Loading map" />
+      } @error {
+        <app-alert tone="danger" heading="Couldn't load the map" [dismissible]="false">
+          <p>Check your connection and reload the page.</p>
+        </app-alert>
       }
-    </ul>
-    <p class="attribution">Addresses and locations: <app-osm-attribution /></p>
+      @if (selected) {
+        <div class="sheet">
+          <button
+            appButton
+            type="button"
+            class="close"
+            aria-label="Close place"
+            (click)="store.select(null)"
+          >
+            <app-icon name="x" />
+          </button>
+          <app-place-entry [row]="selected" />
+        </div>
+      } @else if (store.rows().length === 0) {
+        <p class="empty no-match">No places match.</p>
+      }
+    } @else {
+      <ul class="list">
+        @for (row of store.rows(); track row.place.id) {
+          <li><app-place-entry [row]="row" /></li>
+        } @empty {
+          <li class="empty">No places match.</li>
+        }
+      </ul>
+    }
+    <!-- On the map, its own attribution credits OpenStreetMap. -->
+    @if (!onMap) {
+      <p class="attribution">Addresses and locations: <app-osm-attribution /></p>
+    }
   }
 
-  <app-place-bar class="command" />
+  <!-- Hidden rather than removed, so a prompt being typed survives opening a place. -->
+  <app-place-bar class="command" [hidden]="!!selected" />
 </main>
