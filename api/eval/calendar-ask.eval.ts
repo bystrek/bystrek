@@ -15,9 +15,18 @@ import { CalendarAskService } from '../src/calendar/calendar-ask.service';
 import type { CalendarService } from '../src/calendar/calendar.service';
 import { buildEventIcs, parseEventIcs, type ParsedEvent } from '../src/calendar/ical-event';
 import { parseZonedIso, weekdayNameOf, zonedDateTime } from '../src/calendar/zoned-time';
-import type { LlmClient, LlmJsonRequest } from '../src/llm/llm.client';
 import { OpenAiLlmClient } from '../src/llm/openai.client';
 import { LLM_MODEL } from '../src/env';
+import {
+  groupBy,
+  intFlag,
+  median,
+  passRate,
+  printSummary,
+  round,
+  sum,
+  TimedLlmClient,
+} from './eval-support';
 
 const TZ = 'Europe/Warsaw';
 const USER_ID = 'eval-user';
@@ -314,36 +323,6 @@ function fakeCalendar(events: () => ParsedEvent[]): CalendarService {
   } as unknown as CalendarService;
 }
 
-// Records each completion's latency and raw reply.
-class TimedLlmClient implements LlmClient {
-  readonly timings: number[] = [];
-  // CalendarAskService replaces model errors with a generic message, so keep the originals.
-  readonly errors: string[] = [];
-  readonly outputs: string[] = [];
-
-  constructor(private readonly inner: LlmClient) {}
-
-  reset(): void {
-    this.timings.length = 0;
-    this.errors.length = 0;
-    this.outputs.length = 0;
-  }
-
-  async generateJson(request: LlmJsonRequest): Promise<string> {
-    const started = performance.now();
-    try {
-      const output = await this.inner.generateJson(request);
-      this.outputs.push(output);
-      return output;
-    } catch (err) {
-      this.errors.push(err instanceof Error ? err.message : String(err));
-      throw err;
-    } finally {
-      this.timings.push(performance.now() - started);
-    }
-  }
-}
-
 function gradeAnswer(evalCase: EvalCase, response: AskResponse): string | undefined {
   if (response.kind !== evalCase.expectKind) {
     return `kind ${response.kind} != ${evalCase.expectKind}`;
@@ -366,44 +345,6 @@ interface Result {
   totalMs: number;
   question: string;
   reason: string;
-}
-
-function intFlag(name: string, fallback: number): number {
-  const flag = process.argv.indexOf(name);
-  if (flag === -1) return fallback;
-  const value = Number(process.argv[flag + 1]);
-  if (!Number.isInteger(value) || value < 1) throw new Error(`${name} must be a positive integer`);
-  return value;
-}
-
-function median(values: number[]): number {
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
-}
-
-function percentile(values: number[], p: number): number {
-  const sorted = [...values].sort((a, b) => a - b);
-  return sorted[Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1)];
-}
-
-const mean = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
-const round = (ms: number) => Math.round(ms);
-const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
-
-function passRate(results: Result[]): string {
-  const passed = results.filter((r) => r.pass).length;
-  return `${passed}/${results.length}`;
-}
-
-function groupBy(results: Result[], key: (r: Result) => string): Map<string, Result[]> {
-  const groups = new Map<string, Result[]>();
-  for (const result of results) {
-    const group = groups.get(key(result)) ?? [];
-    group.push(result);
-    groups.set(key(result), group);
-  }
-  return groups;
 }
 
 async function main() {
@@ -484,21 +425,7 @@ async function main() {
     );
   }
 
-  // The first call after a model load pays for the uncached system prompt; keep it out of latency.
-  const warm = results.slice(1);
-  const passed = results.filter((r) => r.pass).length;
-  console.log(
-    `\naccuracy: ${passed}/${results.length} (${((100 * passed) / results.length).toFixed(1)}%)`,
-  );
-  if (warm.length > 0) {
-    const totals = warm.map((r) => r.totalMs);
-    console.log(
-      `latency ms (warm): total median=${round(median(totals))} mean=${round(mean(totals))} ` +
-        `p90=${round(percentile(totals, 90))} max=${round(Math.max(...totals))} | ` +
-        `model calls per question=${(sum(warm.map((r) => r.calls)) / warm.length).toFixed(1)} ` +
-        `model ms mean=${round(mean(warm.map((r) => r.modelMs)))}`,
-    );
-  }
+  printSummary(results);
 }
 
 main().catch((err: unknown) => {

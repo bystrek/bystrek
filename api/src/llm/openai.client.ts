@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_TIMEOUT_MS } from '../env';
-import type { LlmClient, LlmJsonRequest } from './llm.client';
+import { LlmError, type LlmClient, type LlmJsonRequest } from './llm.client';
 
 interface OpenAiChatResponse {
   error?: { message?: string };
@@ -19,7 +19,16 @@ export class OpenAiLlmClient implements LlmClient {
 
   // JSON mode, not a json_schema response format: Scaleway's schema-constrained decoding
   // skewed which optional fields models picked (e.g. never `day`).
-  async generateJson({ system, user }: LlmJsonRequest): Promise<string> {
+  async generateJson(request: LlmJsonRequest): Promise<string> {
+    try {
+      return await this.complete(request);
+    } catch (error) {
+      if (error instanceof LlmError) throw error;
+      throw new LlmError('OpenAI-compatible request failed', { cause: error });
+    }
+  }
+
+  private async complete({ system, user, maxTokens }: LlmJsonRequest): Promise<string> {
     const started = performance.now();
     // Appended, not resolved: the base URL carries a path (e.g. /<project-id>/v1).
     const response = await fetch(`${this.baseUrl.replace(/\/+$/, '')}/chat/completions`, {
@@ -30,7 +39,7 @@ export class OpenAiLlmClient implements LlmClient {
         model: LLM_MODEL,
         stream: false,
         temperature: 0,
-        max_tokens: 80,
+        max_tokens: maxTokens,
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: system },
@@ -39,12 +48,12 @@ export class OpenAiLlmClient implements LlmClient {
       }),
     });
     if (!response.ok) {
-      throw new Error(`OpenAI-compatible request failed with HTTP ${response.status}`);
+      throw new LlmError(`OpenAI-compatible request failed with HTTP ${response.status}`);
     }
 
     const body = (await response.json()) as OpenAiChatResponse;
     if (body.error) {
-      throw new Error(`OpenAI-compatible request failed: ${body.error.message ?? 'unknown'}`);
+      throw new LlmError(`OpenAI-compatible request failed: ${body.error.message ?? 'unknown'}`);
     }
     this.logger.log(
       JSON.stringify({

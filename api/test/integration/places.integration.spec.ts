@@ -13,6 +13,7 @@ import {
   type GeocodedLocation,
   type Geocoder,
 } from '../../src/geo/geocoder';
+import { LLM_CLIENT, LlmError, type LlmClient } from '../../src/llm/llm.client';
 import { PlaceCategory } from '../../src/places/place-category';
 import type { Place } from '../../src/places/places.service';
 import { signUpTestUser } from './support/auth';
@@ -57,13 +58,27 @@ function fakeGeocoder(...locations: GeocodedLocation[]) {
   return Object.assign(state, geocoder);
 }
 
+// A model that answers every draft with `reply`, or fails when it's an Error.
+function fakeLlm() {
+  const state: { reply: string | Error } = { reply: '{"kind":"cant_do"}' };
+  const llm = {
+    generateJson: mock(() =>
+      state.reply instanceof Error ? Promise.reject(state.reply) : Promise.resolve(state.reply),
+    ),
+  } satisfies LlmClient;
+  return Object.assign(state, llm);
+}
+
 async function setUp(db: Db, ...locations: GeocodedLocation[]) {
   const geocoder = fakeGeocoder(...locations);
+  const llm = fakeLlm();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DRIZZLE)
     .useValue(db)
     .overrideProvider(GEOCODER)
     .useValue(geocoder)
+    .overrideProvider(LLM_CLIENT)
+    .useValue(llm)
     .compile();
   const app: INestApplication = moduleRef.createNestApplication();
   await app.init();
@@ -81,7 +96,7 @@ async function setUp(db: Db, ...locations: GeocodedLocation[]) {
       delete: (path: string) => http().delete(path).set(auth),
     };
   };
-  return { app, geocoder, as };
+  return { app, geocoder, llm, as };
 }
 
 const list = (res: request.Response) => res.body as Place[];
@@ -335,6 +350,88 @@ describe('/places (integration)', () => {
       geocoder.found = [RYNEK];
 
       expect((await me.patch(`/places/${id}`, { address: 'Rynek 1' })).status).toBe(409);
+
+      await app.close();
+    });
+  });
+});
+
+describe('/places/draft (integration)', () => {
+  const { osmType, osmId, ...camelotDraft } = camelot;
+  const camelotReply = JSON.stringify({ kind: 'place', ...camelotDraft, url: null });
+
+  it('drafts a ready place that saves as confirmed', async () => {
+    await withRollback(testDb, async (tx) => {
+      const { app, llm, as } = await setUp(tx, CAMELOT);
+      const me = await as('me@example.com');
+      llm.reply = camelotReply;
+
+      const drafted = await me.post('/places/draft', { text: 'Café Camelot, Tomasza 17' });
+
+      expect(drafted.status).toBe(200);
+      expect(drafted.body).toEqual({
+        kind: 'ready',
+        draft: { ...camelotDraft, url: null },
+        location: CAMELOT,
+      });
+      const { draft, location } = drafted.body as {
+        draft: object;
+        location: GeocodedLocation;
+      };
+      const saved = await me.post('/places', {
+        ...draft,
+        osmType: location.osmType,
+        osmId: location.osmId,
+      });
+      expect(saved.status).toBe(201);
+
+      await app.close();
+    });
+  });
+
+  it('reports a place already on the list with who added it', async () => {
+    await withRollback(testDb, async (tx) => {
+      const { app, llm, as } = await setUp(tx, CAMELOT);
+      const ana = await as('ana@example.com');
+      const me = await as('me@example.com');
+      await ana.post('/places', camelot);
+      llm.reply = camelotReply;
+
+      const drafted = await me.post('/places/draft', { text: 'Café Camelot, Tomasza 17' });
+
+      expect(drafted.status).toBe(200);
+      expect(drafted.body).toMatchObject({
+        kind: 'duplicate',
+        place: { name: 'Café Camelot', createdBy: { id: ana.user.id, name: 'ana' } },
+      });
+
+      await app.close();
+    });
+  });
+
+  it('400s on blank text without calling the model', async () => {
+    await withRollback(testDb, async (tx) => {
+      const { app, llm, as } = await setUp(tx);
+      const me = await as('me@example.com');
+
+      expect((await me.post('/places/draft', { text: '   ' })).status).toBe(400);
+      expect(llm.generateJson).not.toHaveBeenCalled();
+
+      await app.close();
+    });
+  });
+
+  it('503s when the model or the geocoder is down', async () => {
+    await withRollback(testDb, async (tx) => {
+      const { app, llm, geocoder, as } = await setUp(tx, CAMELOT);
+      const me = await as('me@example.com');
+
+      llm.reply = new LlmError('down');
+      expect((await me.post('/places/draft', { text: 'Camelot' })).status).toBe(503);
+
+      llm.reply = camelotReply;
+      geocoder.down = true;
+      expect((await me.post('/places/draft', { text: 'Camelot' })).status).toBe(503);
 
       await app.close();
     });

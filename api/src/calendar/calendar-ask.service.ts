@@ -46,6 +46,8 @@ export class CalendarAskService {
     const content = await this.generateJson({
       system: SYSTEM_PROMPT,
       user: buildUserMessage(question),
+      // The longest query shape, with room to spare.
+      maxTokens: 80,
     });
 
     const query = parseQuery(content, timezone, now);

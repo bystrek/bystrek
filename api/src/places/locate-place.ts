@@ -24,3 +24,15 @@ export async function locateAddress(
   if (!best) throw new LocationNotFoundError();
   return best;
 }
+
+// Candidates for a drafted place, best first. The name comes first in the query so the
+// geocoder can match the place itself rather than its building; that keeps two places at one
+// address apart. Places OSM doesn't know by name fall back to the address alone.
+export async function searchPlace(
+  geocoder: Geocoder,
+  name: string,
+  address: string,
+): Promise<GeocodedLocation[]> {
+  const named = await geocoder.search(`${name}, ${address}`);
+  return named.length > 0 ? named : geocoder.search(address);
+}

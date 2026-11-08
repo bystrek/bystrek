@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { GeocoderError, OsmType, type GeocodedLocation, type Geocoder } from '../geo/geocoder';
-import { locateAddress, locateOsmObject } from './locate-place';
+import { locateAddress, locateOsmObject, searchPlace } from './locate-place';
 import { LocationNotFoundError } from './places.errors';
 
 function location(osmId: number): GeocodedLocation {
@@ -46,5 +46,23 @@ describe('locateAddress', () => {
     await expect(locateAddress(geocoder({}), 'Nowhere')).rejects.toBeInstanceOf(
       LocationNotFoundError,
     );
+  });
+});
+
+describe('searchPlace', () => {
+  it('searches by name and address first', async () => {
+    const search = mock((q: string) =>
+      Promise.resolve(q.startsWith('Camelot') ? [location(1)] : []),
+    );
+
+    expect(await searchPlace(geocoder({ search }), 'Camelot', 'Tomasza 17')).toEqual([location(1)]);
+    expect(search.mock.calls).toEqual([['Camelot, Tomasza 17']]);
+  });
+
+  it('falls back to the address alone', async () => {
+    const search = mock((q: string) => Promise.resolve(q === 'Tomasza 17' ? [location(2)] : []));
+
+    expect(await searchPlace(geocoder({ search }), 'Camelot', 'Tomasza 17')).toEqual([location(2)]);
+    expect(search.mock.calls).toEqual([['Camelot, Tomasza 17'], ['Tomasza 17']]);
   });
 });

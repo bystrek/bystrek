@@ -48,6 +48,14 @@ export class PlacesService {
     return place;
   }
 
+  // The place already saved at an OSM object, if any.
+  async findByOsm(userId: string, osmType: OsmType, osmId: number): Promise<Place | undefined> {
+    const [place] = await this.select(userId).where(
+      and(eq(places.osmType, osmType), eq(places.osmId, osmId)),
+    );
+    return place;
+  }
+
   // Coordinates come from looking up the confirmed OSM object, never from the client.
   async create(userId: string, input: NewPlaceDto): Promise<Place> {
     const location = await locateOsmObject(this.geocoder, input.osmType, input.osmId);
