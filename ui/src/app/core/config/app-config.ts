@@ -6,6 +6,8 @@ import { InjectionToken } from '@angular/core';
  * with `config.prod.json`. */
 export type AppConfig = {
   apiUrl: string;
+  // A MapLibre style for the places map. Its tiles, fonts and attribution come from there.
+  mapStyleUrl: string;
 };
 
 export const APP_CONFIG = new InjectionToken<AppConfig>('APP_CONFIG');

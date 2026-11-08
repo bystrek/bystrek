@@ -1,0 +1,50 @@
+app-places-map {
+  display: block;
+}
+
+app-places-map mgl-map {
+  display: block;
+  height: 100%;
+}
+
+/* To visit: an empty square. Visited: filled, with a check, so the two differ by more than
+   colour. The selected pin grows and lifts above its neighbours. */
+.places-map-pin {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: var(--border-heavy);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-press);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: transform var(--motion-fast);
+}
+
+.places-map-pin[data-visited] {
+  background: var(--color-primary);
+}
+
+.places-map-pin[aria-pressed='true'] {
+  background: var(--color-secondary);
+  box-shadow: var(--shadow-sm);
+  transform: scale(1.35);
+}
+
+.maplibregl-marker:has(.places-map-pin[aria-pressed='true']) {
+  z-index: 1;
+}
+
+.places-map-pin:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+app-places-map .maplibregl-ctrl-attrib {
+  font: 400 var(--text-xs) / 1.4 var(--font-mono);
+}

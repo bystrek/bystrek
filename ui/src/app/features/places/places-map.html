@@ -1,0 +1,30 @@
+<mgl-map
+  [mapStyle]="styleUrl"
+  [bounds]="places() | pinBounds"
+  [fitBoundsOptions]="fitPadding"
+  [center]="poland"
+  [zoom]="5"
+  [attributionControl]="{ compact: false }"
+  [dragRotate]="false"
+  [touchPitch]="false"
+  (mapLoad)="map.set($event)"
+  (mapClick)="mapClicked($event)"
+>
+  @for (place of places(); track place.id) {
+    <mgl-marker [lngLat]="[place.lng, place.lat]">
+      <button
+        type="button"
+        class="places-map-pin"
+        [attr.data-visited]="place.visitedByMe ? '' : null"
+        [attr.aria-pressed]="place.id === selectedId()"
+        [attr.aria-label]="place.name + (place.visitedByMe ? ', visited' : ', to visit')"
+        [title]="place.name"
+        (click)="selected.emit(place.id)"
+      >
+        @if (place.visitedByMe) {
+          <app-icon name="check" />
+        }
+      </button>
+    </mgl-marker>
+  }
+</mgl-map>

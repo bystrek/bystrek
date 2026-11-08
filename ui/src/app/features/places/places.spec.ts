@@ -1,8 +1,23 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Component, input, output } from '@angular/core';
+import { ComponentFixture, DeferBlockState, TestBed } from '@angular/core/testing';
 import { PlaceDraftService } from '../../core/places/place-draft.service';
 import { Place, PlacesService } from '../../core/places/places.service';
 import { aPlace } from './place-fixtures';
 import { Places } from './places';
+import { PlacesMap } from './places-map';
+
+// jsdom has no WebGL: the page is tested against a stand-in with the map's inputs and output.
+@Component({
+  selector: 'app-places-map',
+  template: `@for (place of places(); track place.id) {
+    <button type="button" class="pin" (click)="selected.emit(place.id)">{{ place.name }}</button>
+  }`,
+})
+class FakeMap {
+  readonly places = input.required<readonly Place[]>();
+  readonly selectedId = input<string | null>(null);
+  readonly selected = output<string | null>();
+}
 
 const camelot = aPlace({
   id: 'camelot',
@@ -31,6 +46,11 @@ const render = async (service: Partial<Record<keyof PlacesService, unknown>> = {
       { provide: PlaceDraftService, useValue: {} },
     ],
   });
+  TestBed.overrideComponent(Places, {
+    remove: { imports: [PlacesMap] },
+    add: { imports: [FakeMap] },
+  });
+  await TestBed.compileComponents();
   const fixture = TestBed.createComponent(Places);
   await fixture.whenStable();
   return { fixture, api, el: fixture.nativeElement as HTMLElement };
@@ -176,5 +196,72 @@ describe('Places', () => {
     button(el, 'Try again').click();
     await settle(fixture);
     expect(names(el)).toEqual(['Café Camelot']);
+  });
+
+  describe('map view', () => {
+    const pins = (el: HTMLElement) =>
+      [...el.querySelectorAll('app-places-map .pin')].map((p) => p.textContent?.trim());
+
+    const openMap = async () => {
+      const rendered = await render();
+      button(rendered.el, 'Map').click();
+      await settle(rendered.fixture);
+      const [map] = await rendered.fixture.getDeferBlocks();
+      await map.render(DeferBlockState.Complete);
+      return rendered;
+    };
+
+    it('shows a pin per place instead of the list', async () => {
+      const { el } = await openMap();
+      expect(pins(el)).toEqual(['Café Camelot', 'Manufaktura']);
+      expect(el.querySelector('.list')).toBeNull();
+      expect(el.querySelector('app-place-row')).toBeNull();
+    });
+
+    it('filters the pins with the search', async () => {
+      const { fixture, el } = await openMap();
+      const search = el.querySelector<HTMLInputElement>('input[type="search"]')!;
+      search.value = 'lodz';
+      search.dispatchEvent(new Event('input'));
+      await settle(fixture);
+      expect(pins(el)).toEqual(['Manufaktura']);
+    });
+
+    it('shows the tapped place, whose visited toggle works', async () => {
+      const { fixture, el, api } = await openMap();
+      button(el, 'Café Camelot').click();
+      await settle(fixture);
+      expect(names(el)).toEqual(['Café Camelot']);
+
+      el.querySelector<HTMLButtonElement>('app-place-row .visited')!.click();
+      await settle(fixture);
+      expect(api.setVisited).toHaveBeenCalledWith('camelot', true);
+    });
+
+    it('swaps the command bar for the card while a place is open', async () => {
+      const { fixture, el } = await openMap();
+      const bar = el.querySelector<HTMLElement>('app-place-bar')!;
+      expect(bar.hidden).toBe(false);
+
+      button(el, 'Café Camelot').click();
+      await settle(fixture);
+      expect(bar.hidden).toBe(true);
+
+      button(el, 'Close place').click();
+      await settle(fixture);
+      expect(names(el)).toEqual([]);
+      expect(bar.hidden).toBe(false);
+    });
+
+    it('closes the card when search hides its place', async () => {
+      const { fixture, el } = await openMap();
+      button(el, 'Café Camelot').click();
+      await settle(fixture);
+
+      button(el, 'Visited').click();
+      await settle(fixture);
+      expect(names(el)).toEqual([]);
+      expect(pins(el)).toEqual(['Manufaktura']);
+    });
   });
 });

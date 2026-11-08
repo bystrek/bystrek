@@ -22,7 +22,11 @@ import { VisitedFilter, searchPlaces, toSearchable } from './place-search';
 
 export type PlaceListRow = { place: Place; mode: PlaceRowMode };
 
+export const PlacesView = { List: 'list', Map: 'map' } as const;
+export type PlacesView = (typeof PlacesView)[keyof typeof PlacesView];
+
 type PlacesState = {
+  view: PlacesView;
   query: string;
   visitedFilter: VisitedFilter;
   loading: boolean;
@@ -33,6 +37,8 @@ type PlacesState = {
   editingId: string | null;
   confirmingDeleteId: string | null;
   pendingIds: string[];
+  // The pin whose card shows under the map.
+  selectedId: string | null;
 };
 
 type RowFlags = Pick<PlacesState, 'editingId' | 'confirmingDeleteId' | 'pendingIds'>;
@@ -48,6 +54,7 @@ const rowMode = (id: string, state: RowFlags): PlaceRowMode => {
 export const PlacesStore = signalStore(
   withEntities<Place>(),
   withState<PlacesState>({
+    view: PlacesView.List,
     query: '',
     visitedFilter: VisitedFilter.All,
     loading: false,
@@ -56,21 +63,27 @@ export const PlacesStore = signalStore(
     editingId: null,
     confirmingDeleteId: null,
     pendingIds: [],
+    selectedId: null,
   }),
   withComputed((store) => {
     const searchable = computed(() => store.entities().map(toSearchable));
     const visible = computed(() =>
       searchPlaces(searchable(), store.query(), store.visitedFilter()),
     );
+    const rows = computed((): PlaceListRow[] => {
+      const state: RowFlags = {
+        editingId: store.editingId(),
+        confirmingDeleteId: store.confirmingDeleteId(),
+        pendingIds: store.pendingIds(),
+      };
+      return visible().map((place) => ({ place, mode: rowMode(place.id, state) }));
+    });
     return {
-      rows: computed((): PlaceListRow[] => {
-        const state: RowFlags = {
-          editingId: store.editingId(),
-          confirmingDeleteId: store.confirmingDeleteId(),
-          pendingIds: store.pendingIds(),
-        };
-        return visible().map((place) => ({ place, mode: rowMode(place.id, state) }));
-      }),
+      visible,
+      rows,
+      // Taken from the filtered rows, so a place that search hides, or that is deleted, also
+      // closes its card.
+      selected: computed(() => rows().find((row) => row.place.id === store.selectedId()) ?? null),
       isEmpty: computed(() => store.ids().length === 0),
     };
   }),
@@ -111,6 +124,8 @@ export const PlacesStore = signalStore(
           patchState(store, { loading: false, loadError: (err as Error).message });
         }
       },
+      setView: (view: PlacesView): void => patchState(store, { view }),
+      select: (selectedId: string | null): void => patchState(store, { selectedId }),
       setQuery: (query: string): void => patchState(store, { query }),
       setVisitedFilter: (visitedFilter: VisitedFilter): void =>
         patchState(store, { visitedFilter }),
