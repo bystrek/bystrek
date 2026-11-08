@@ -5,7 +5,7 @@ export const OsmType = {
 } as const;
 export type OsmType = (typeof OsmType)[keyof typeof OsmType];
 
-export interface GeocodeCandidate {
+export interface GeocodedLocation {
   osmType: OsmType;
   osmId: number;
   displayAddress: string;
@@ -17,10 +17,10 @@ export interface GeocodeCandidate {
 // them it must credit "© OpenStreetMap contributors", linking to
 // https://www.openstreetmap.org/copyright.
 export interface Geocoder {
-  // Up to 3 candidates, best first. An empty array means the address wasn't found.
-  search(address: string): Promise<GeocodeCandidate[]>;
-  // The candidate for one OSM object, or null when it doesn't exist (anymore).
-  lookup(osmType: OsmType, osmId: number): Promise<GeocodeCandidate | null>;
+  // Up to 3 locations, best first. An empty array means the address wasn't found.
+  search(address: string): Promise<GeocodedLocation[]>;
+  // The location of one OSM object, or null when it doesn't exist (anymore).
+  lookup(osmType: OsmType, osmId: number): Promise<GeocodedLocation | null>;
 }
 
 // The geocoder couldn't answer (network, timeout, HTTP error, unreadable body). Distinct from
