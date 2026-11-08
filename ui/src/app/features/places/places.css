@@ -110,6 +110,7 @@ app-alert p {
   padding: calc(var(--space-4) + env(safe-area-inset-top)) var(--space-4) 0;
 }
 
+:host([data-view='map']) .top,
 :host([data-view='map']) .top * {
   pointer-events: none;
 }
