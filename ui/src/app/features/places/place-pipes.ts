@@ -1,5 +1,6 @@
 import { Pipe, PipeTransform } from '@angular/core';
 import { Place, PlaceCategory } from '../../core/places/places.service';
+import { MissingItem } from '../../core/places/place-draft.service';
 
 const CATEGORY_LABEL: Record<PlaceCategory, string> = {
   [PlaceCategory.Restaurant]: 'Restaurant',
@@ -33,5 +34,19 @@ export class OsmUrlPipe implements PipeTransform {
 export class UrlHostPipe implements PipeTransform {
   transform(url: string): string {
     return URL.parse(url)?.hostname.replace(/^www\./, '') ?? url;
+  }
+}
+
+const MISSING_LABEL: Record<MissingItem, string> = {
+  [MissingItem.Name]: 'The place’s name',
+  [MissingItem.Address]: 'Its address',
+  [MissingItem.AddressNotFound]:
+    'An address OpenStreetMap can find: check the spelling, add the street number or city',
+};
+
+@Pipe({ name: 'missingItem' })
+export class MissingItemPipe implements PipeTransform {
+  transform(item: MissingItem): string {
+    return MISSING_LABEL[item];
   }
 }

@@ -8,6 +8,8 @@ import {
   withState,
 } from '@ngrx/signals';
 import {
+  addEntity,
+  prependEntity,
   removeEntity,
   setAllEntities,
   setEntity,
@@ -83,6 +85,23 @@ export const PlacesStore = signalStore(
     const failAction = (err: unknown): void =>
       patchState(store, { actionError: (err as Error).message });
 
+    // Optimistic: the toggle flips at once and flips back if the API refuses.
+    const toggleVisited = async (id: string): Promise<void> => {
+      const visited = !store.entityMap()[id].visitedByMe;
+      patchState(store, updateEntity({ id, changes: { visitedByMe: visited } }), {
+        actionError: null,
+      });
+      setPending(id, true);
+      try {
+        await places.setVisited(id, visited);
+      } catch (err) {
+        patchState(store, updateEntity({ id, changes: { visitedByMe: !visited } }));
+        failAction(err);
+      } finally {
+        setPending(id, false);
+      }
+    };
+
     return {
       load: async (): Promise<void> => {
         patchState(store, { loading: true, loadError: null });
@@ -96,22 +115,15 @@ export const PlacesStore = signalStore(
       setVisitedFilter: (visitedFilter: VisitedFilter): void =>
         patchState(store, { visitedFilter }),
       dismissError: (): void => patchState(store, { actionError: null }),
+      toggleVisited,
 
-      // Optimistic: the toggle flips at once and flips back if the API refuses.
-      toggleVisited: async (id: string): Promise<void> => {
-        const visited = !store.entityMap()[id].visitedByMe;
-        patchState(store, updateEntity({ id, changes: { visitedByMe: visited } }), {
-          actionError: null,
-        });
-        setPending(id, true);
-        try {
-          await places.setVisited(id, visited);
-        } catch (err) {
-          patchState(store, updateEntity({ id, changes: { visitedByMe: !visited } }));
-          failAction(err);
-        } finally {
-          setPending(id, false);
-        }
+      // A place saved from the command bar goes to the top, like the newest in a fresh load.
+      added: (place: Place): void => patchState(store, prependEntity(place)),
+      // A draft's duplicate may have been saved by someone else since the list loaded; the
+      // list's copy, if any, is the fresher one.
+      markVisited: async (place: Place): Promise<void> => {
+        patchState(store, addEntity(place));
+        if (!store.entityMap()[place.id].visitedByMe) await toggleVisited(place.id);
       },
 
       askDelete: (id: string): void =>

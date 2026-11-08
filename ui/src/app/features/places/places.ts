@@ -4,6 +4,8 @@ import { Button } from '../../shared/button/button';
 import { Chip } from '../../shared/chip/chip';
 import { Progress } from '../../shared/progress/progress';
 import { OsmAttribution } from './osm-attribution';
+import { PlaceBar } from './place-bar';
+import { PlaceBarStore } from './place-bar-store';
 import { PlaceForm } from './place-form';
 import { PlaceRow, PlaceRowMode } from './place-row';
 import { VisitedFilter } from './place-search';
@@ -17,8 +19,8 @@ const FILTERS: { value: VisitedFilter; label: string }[] = [
 
 @Component({
   selector: 'app-places',
-  imports: [Alert, Button, Chip, OsmAttribution, PlaceForm, PlaceRow, Progress],
-  providers: [PlacesStore],
+  imports: [Alert, Button, Chip, OsmAttribution, PlaceBar, PlaceForm, PlaceRow, Progress],
+  providers: [PlacesStore, PlaceBarStore],
   templateUrl: './places.html',
   styleUrl: './places.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
