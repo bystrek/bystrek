@@ -36,6 +36,36 @@ if (
   throw new Error('LLM_TIMEOUT_MS must be a positive integer');
 }
 export const LLM_TIMEOUT_MS = configuredLlmTimeout;
+// Nominatim-compatible geocoder (public Nominatim, or a self-hosted instance).
+function geocoderUrl(): string {
+  const raw = process.env.GEOCODER_URL ?? 'https://nominatim.openstreetmap.org';
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error('GEOCODER_URL must be an absolute http(s) URL');
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error('GEOCODER_URL must be an absolute http(s) URL');
+  }
+  return raw;
+}
+export const GEOCODER_URL = geocoderUrl();
+// Nominatim's usage policy requires a User-Agent that identifies the application.
+// It names the app, never a person: no email addresses.
+function geocoderUserAgent(): string {
+  const value = (
+    process.env.GEOCODER_USER_AGENT ?? 'bystrek (+https://github.com/bystrek/bystrek)'
+  ).trim();
+  if (!value) {
+    throw new Error('GEOCODER_USER_AGENT must not be empty');
+  }
+  if (/[^\s@]+@[^\s@]+\.[^\s@]+/.test(value)) {
+    throw new Error('GEOCODER_USER_AGENT must identify the app, not contain an email address');
+  }
+  return value;
+}
+export const GEOCODER_USER_AGENT = geocoderUserAgent();
 function requiredEncryptionKey(): Buffer {
   const key = Buffer.from(required('ENCRYPTION_KEY'), 'base64');
   if (key.length !== 32) {
