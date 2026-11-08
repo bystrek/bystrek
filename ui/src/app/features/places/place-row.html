@@ -1,0 +1,70 @@
+<div class="head">
+  <h2 class="name">{{ place().name }}</h2>
+  <app-tag variant="outline">{{ place().category | categoryLabel }}</app-tag>
+</div>
+
+<a
+  class="address"
+  [href]="place() | osmUrl"
+  target="_blank"
+  rel="noopener"
+  [title]="'Found as: ' + place().displayAddress"
+>
+  <app-icon name="map-pin" />
+  <span>{{ place().address }}</span>
+</a>
+
+@if (place().notes; as notes) {
+  <p class="notes">{{ notes }}</p>
+}
+
+@if (place().url; as url) {
+  <a class="website" [href]="url" target="_blank" rel="noopener noreferrer">{{ url | urlHost }}</a>
+}
+
+@if (mode() === PlaceRowMode.ConfirmDelete) {
+  <div class="confirm" role="group" [attr.aria-label]="'Delete ' + place().name">
+    <p>Delete for everyone?</p>
+    <div class="actions">
+      <button appButton type="button" variant="inverse" (click)="deleteConfirmed.emit()">
+        Delete
+      </button>
+      <button appButton type="button" (click)="deleteCancelled.emit()">Keep</button>
+    </div>
+  </div>
+} @else {
+  <div class="actions">
+    <button
+      appButton
+      type="button"
+      class="visited"
+      [variant]="place().visitedByMe ? 'primary' : 'surface'"
+      [attr.aria-pressed]="place().visitedByMe"
+      [disabled]="mode() === PlaceRowMode.Busy"
+      (click)="visitedToggled.emit()"
+    >
+      @if (place().visitedByMe) {
+        <app-icon name="check" />
+      }
+      Visited
+    </button>
+    <button
+      appButton
+      type="button"
+      [disabled]="mode() === PlaceRowMode.Busy"
+      [attr.aria-label]="'Edit ' + place().name"
+      (click)="editRequested.emit()"
+    >
+      Edit
+    </button>
+    <button
+      appButton
+      type="button"
+      [disabled]="mode() === PlaceRowMode.Busy"
+      [attr.aria-label]="'Delete ' + place().name"
+      (click)="deleteRequested.emit()"
+    >
+      Delete
+    </button>
+  </div>
+}

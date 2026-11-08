@@ -1,0 +1,70 @@
+<main class="places">
+  <header class="head">
+    <h1>Places</h1>
+  </header>
+
+  <div class="controls">
+    <input
+      #search
+      type="search"
+      class="search"
+      aria-label="Search places"
+      placeholder="Search name, address, notes"
+      [value]="store.query()"
+      (input)="store.setQuery(search.value)"
+    />
+    <div class="filters" role="group" aria-label="Show">
+      @for (filter of filters; track filter.value) {
+        <button
+          appChip
+          type="button"
+          [tone]="store.visitedFilter() === filter.value ? 'secondary' : 'surface'"
+          [attr.aria-pressed]="store.visitedFilter() === filter.value"
+          (click)="store.setVisitedFilter(filter.value)"
+        >
+          {{ filter.label }}
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (store.actionError(); as message) {
+    <app-alert tone="danger" heading="That didn't work" (dismissed)="store.dismissError()">
+      <p>{{ message }}</p>
+    </app-alert>
+  }
+
+  @if (store.loading()) {
+    <app-progress label="Loading places" />
+  } @else if (store.loadError(); as message) {
+    <app-alert tone="danger" heading="Couldn't load places" [dismissible]="false">
+      <p>{{ message }}</p>
+    </app-alert>
+    <button appButton type="button" (click)="store.load()">Try again</button>
+  } @else if (store.isEmpty()) {
+    <p class="empty">No places yet.</p>
+  } @else {
+    <ul class="list">
+      @for (row of store.rows(); track row.place.id) {
+        <li>
+          @if (row.mode === PlaceRowMode.Editing) {
+            <app-place-form [place]="row.place" />
+          } @else {
+            <app-place-row
+              [place]="row.place"
+              [mode]="row.mode"
+              (visitedToggled)="store.toggleVisited(row.place.id)"
+              (editRequested)="store.startEdit(row.place.id)"
+              (deleteRequested)="store.askDelete(row.place.id)"
+              (deleteConfirmed)="store.confirmDelete(row.place.id)"
+              (deleteCancelled)="store.cancelDelete()"
+            />
+          }
+        </li>
+      } @empty {
+        <li class="empty">No places match.</li>
+      }
+    </ul>
+    <p class="attribution">Addresses and locations: <app-osm-attribution /></p>
+  }
+</main>
