@@ -48,6 +48,10 @@ function geocoderUrl(): string {
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
     throw new Error('GEOCODER_URL must be an absolute http(s) URL');
   }
+  // Endpoints are appended to the path; a query or fragment would swallow them.
+  if (url.search || url.hash) {
+    throw new Error('GEOCODER_URL must not have a query or fragment');
+  }
   return raw;
 }
 export const GEOCODER_URL = geocoderUrl();

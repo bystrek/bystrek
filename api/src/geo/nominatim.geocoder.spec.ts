@@ -46,13 +46,17 @@ describe('NominatimGeocoder.search', () => {
         { ...result(2), osm_type: 'area' },
         { ...result(3), lat: 'north' },
         { ...result(4), osm_id: '4' },
-        result(5),
-        result(6),
-        result(7),
+        { ...result(5), lat: '' },
+        { ...result(6), lon: null },
+        { ...result(7), lat: 50.06 },
+        { ...result(8), lon: '200' },
+        result(9),
+        result(10),
+        result(11),
       ]),
     );
 
-    expect((await geocoder.search('Rynek')).map((l) => l.osmId)).toEqual([1, 5, 6]);
+    expect((await geocoder.search('Rynek')).map((l) => l.osmId)).toEqual([1, 9, 10]);
   });
 
   it('sends a normalised query, so spelling variants share a URL', async () => {

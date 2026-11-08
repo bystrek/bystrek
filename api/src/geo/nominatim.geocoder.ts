@@ -10,8 +10,10 @@ const NominatimResult = z
     osm_type: z.enum(OsmType),
     osm_id: z.number().int(),
     display_name: z.string(),
-    lat: z.coerce.number(),
-    lon: z.coerce.number(),
+    // jsonv2 sends coordinates as numeric strings. Coerce only a non-empty string, so a missing
+    // or empty value can't become 0.
+    lat: z.string().trim().min(1).pipe(z.coerce.number<string>().min(-90).max(90)),
+    lon: z.string().trim().min(1).pipe(z.coerce.number<string>().min(-180).max(180)),
   })
   .transform((r): GeocodedLocation => ({
     osmType: r.osm_type,
