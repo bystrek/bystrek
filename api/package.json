@@ -35,6 +35,7 @@
     "drizzle-orm": "^0.45.2",
     "ical.js": "^2.2.1",
     "lru-cache": "^11.5.2",
+    "nestjs-zod": "5.5.0",
     "p-queue": "^10.0.0",
     "postgres": "^3.4.9",
     "reflect-metadata": "^0.2.2",

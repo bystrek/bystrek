@@ -1,14 +1,19 @@
 import {
+  bigint,
   boolean,
+  doublePrecision,
   index,
   integer,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { OsmType } from '../geo/geocoder';
+import { PlaceCategory } from '../places/place-category';
 
 export const userStatus = pgEnum('user_status', ['invited', 'active']);
 
@@ -206,5 +211,55 @@ export const calendarObjects = pgTable(
   (table) => [
     uniqueIndex('calendar_objects_user_id_href_unique').on(table.userId, table.href),
     index('calendar_objects_user_id_uid_idx').on(table.userId, table.uid),
+  ],
+);
+
+export const osmType = pgEnum('osm_type', OsmType);
+export const placeCategory = pgEnum('place_category', PlaceCategory);
+
+// Points of interest, shared by every user. Location fields come from the geocoder
+// (OpenStreetMap, ODbL), resolved server-side from `osmType`/`osmId`; never from the client.
+export const places = pgTable(
+  'places',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    category: placeCategory('category').notNull(),
+    // As the user wrote it; `displayAddress` is the geocoder's version.
+    address: text('address').notNull(),
+    displayAddress: text('display_address').notNull(),
+    lat: doublePrecision('lat').notNull(),
+    lng: doublePrecision('lng').notNull(),
+    osmType: osmType('osm_type').notNull(),
+    // OSM node ids are past 2^32 already.
+    osmId: bigint('osm_id', { mode: 'number' }).notNull(),
+    notes: text('notes'),
+    url: text('url'),
+    // The place outlives the user who added it.
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [uniqueIndex('places_osm_unique').on(table.osmType, table.osmId)],
+);
+
+// "Visited" is per user.
+export const placeVisits = pgTable(
+  'place_visits',
+  {
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    placeId: uuid('place_id')
+      .notNull()
+      .references(() => places.id, { onDelete: 'cascade' }),
+    visitedAt: timestamp('visited_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.placeId] }),
+    index('place_visits_place_id_idx').on(table.placeId),
   ],
 );
