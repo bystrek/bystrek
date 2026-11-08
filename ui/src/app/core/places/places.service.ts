@@ -42,6 +42,10 @@ export type Place = {
 };
 
 // A blank `notes` or `url` clears it. A changed address is geocoded again by the API.
+// A confirmed draft plus the OSM object the user chose; the API looks up its coordinates.
+export type NewPlace = Pick<Place, 'name' | 'category' | 'address' | 'notes' | 'url'> &
+  Pick<Place, 'osmType' | 'osmId'>;
+
 export type PlacePatch = Partial<Pick<Place, 'name' | 'category' | 'address' | 'notes' | 'url'>>;
 
 @Injectable({ providedIn: 'root' })
@@ -52,6 +56,11 @@ export class PlacesService {
   // Every place, newest first. No paging: the list searches the full set in memory.
   list(): Promise<Place[]> {
     return send(this.http.get<Place[]>(this.url), 'Could not load places.');
+  }
+
+  // Rejects with "That place is already on the list" when the OSM object is taken.
+  create(place: NewPlace): Promise<Place> {
+    return send(this.http.post<Place>(this.url, place), 'Could not save the place.');
   }
 
   update(id: string, patch: PlacePatch): Promise<Place> {

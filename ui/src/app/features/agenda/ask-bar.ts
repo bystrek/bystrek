@@ -1,30 +1,26 @@
 import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
-import { FormField, FormRoot, disabled, form, maxLength, required } from '@angular/forms/signals';
 import { Temporal } from '@js-temporal/polyfill';
 import { Button } from '../../shared/button/button';
-import { Card } from '../../shared/card/card';
 import { Chip } from '../../shared/chip/chip';
+import { CommandBar } from '../../shared/command-bar/command-bar';
+import { CommandResult } from '../../shared/command-bar/command-result';
 import { Icon } from '../../shared/icon/icon';
-import { Progress } from '../../shared/progress/progress';
-import { Tag } from '../../shared/tag/tag';
 import { ClockTimePipe, DurationPipe, WeekdayAndDatePipe } from './agenda-pipes';
 import { AskBarStore, AskPhase } from './ask-bar-store';
 
 export const SUGGESTIONS = ['next meeting'];
 
+// The agenda's command bar. A question clears the input once it is sent.
 @Component({
   selector: 'app-ask-bar',
   imports: [
     Button,
-    Card,
     Chip,
     ClockTimePipe,
+    CommandBar,
+    CommandResult,
     DurationPipe,
-    FormField,
-    FormRoot,
     Icon,
-    Progress,
-    Tag,
     WeekdayAndDatePipe,
   ],
   templateUrl: './ask-bar.html',
@@ -37,26 +33,16 @@ export class AskBar {
   readonly jump = output<Temporal.PlainDate>();
 
   readonly suggestions = SUGGESTIONS;
-  private readonly model = signal({ question: '' });
-  protected readonly questionForm = form(this.model, (path) => {
-    required(path.question);
-    maxLength(path.question, 500);
-    disabled(path.question, { when: () => this.store.busy() });
-  });
+  protected readonly question = signal('');
 
-  submitQuestion(): void {
-    if (this.store.busy()) return;
-    if (this.questionForm().invalid()) {
-      this.questionForm().markAsTouched();
-      return;
-    }
-    this.store.ask(this.model().question.trim());
-    this.model.update((m) => ({ ...m, question: '' }));
+  ask(text: string): void {
+    this.store.ask(text);
+    this.question.set('');
   }
 
   useSuggestion(text: string): void {
-    this.model.update((m) => ({ ...m, question: text }));
-    this.submitQuestion();
+    if (this.store.busy()) return;
+    this.ask(text);
   }
 
   jumpTo(start: string): void {

@@ -6,6 +6,7 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  min-height: 100%;
   gap: var(--space-4);
   max-width: 640px;
   margin: 0 auto;
@@ -82,4 +83,16 @@ app-alert p {
 
 .attribution {
   font-size: var(--text-xs);
+}
+
+/* Docked to the bottom of the viewport like the agenda's bar; at the end of the page when
+   the list is short. The page-coloured backdrop hides the rows scrolling under it. */
+.command {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  min-width: 0;
+  margin: auto calc(-1 * var(--space-4)) calc(-1 * (var(--space-6) + env(safe-area-inset-bottom)));
+  padding: var(--space-3) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom));
+  background: var(--color-bg);
 }

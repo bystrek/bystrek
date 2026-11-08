@@ -1,0 +1,146 @@
+<app-command-bar
+  label="Add a place"
+  placeholder="add a place: name, address, notes…"
+  submitLabel="Draft place"
+  thinkingLabel="Drafting the place"
+  clearable
+  [maxLength]="maxLength"
+  [busy]="store.busy()"
+  [locked]="store.saving()"
+  [asked]="store.asked()"
+  [text]="store.text()"
+  (textChange)="store.setText($event)"
+  (submitted)="store.submit($event)"
+  (stopped)="store.stop()"
+  (cleared)="store.cancel()"
+>
+  @if (store.response(); as r) {
+    <ng-container ngProjectAs="[commandBarResult]">
+      @switch (r.kind) {
+        @case ('ready') {
+          <app-command-result label="Preview" closeLabel="Close" (closed)="store.dismiss()">
+            <div class="head">
+              <p class="name">{{ r.draft.name }}</p>
+              <app-tag variant="outline">{{ r.draft.category | categoryLabel }}</app-tag>
+            </div>
+            <p class="address">{{ r.draft.address }}</p>
+            <p class="found">
+              Found as:
+              <a [href]="r.location | osmUrl" target="_blank" rel="noopener">{{
+                r.location.displayAddress
+              }}</a>
+              <br />
+              <app-osm-attribution />
+            </p>
+            @if (r.draft.notes; as notes) {
+              <p class="notes">{{ notes }}</p>
+            }
+            @if (r.draft.url; as url) {
+              <a class="website" [href]="url" target="_blank" rel="noopener noreferrer">{{
+                url | urlHost
+              }}</a>
+            }
+            @if (store.saveError(); as message) {
+              <p class="save-error" role="alert">{{ message }}</p>
+            }
+            <div class="actions">
+              <button
+                appButton
+                type="button"
+                variant="inverse"
+                [disabled]="!store.canSave()"
+                (click)="store.save()"
+              >
+                {{ store.saving() ? 'Saving…' : 'Save' }}
+              </button>
+              <button appButton type="button" [disabled]="store.saving()" (click)="store.cancel()">
+                Cancel
+              </button>
+            </div>
+          </app-command-result>
+        }
+        @case ('needs_choice') {
+          <app-command-result label="Which one?" closeLabel="Close" (closed)="store.dismiss()">
+            <p class="text">More than one place matches “{{ r.draft.address }}”.</p>
+            <ul class="candidates">
+              @for (c of r.candidates; track c.osmType + c.osmId) {
+                <li>
+                  <button appButton type="button" block (click)="store.choose(c)">
+                    {{ c.displayAddress }}
+                  </button>
+                </li>
+              }
+            </ul>
+            <p class="found"><app-osm-attribution /></p>
+          </app-command-result>
+        }
+        @case ('duplicate') {
+          <app-command-result
+            label="Already on the list"
+            closeLabel="Close"
+            (closed)="store.dismiss()"
+          >
+            @if (store.duplicate(); as place) {
+              <p class="name">{{ place.name }}</p>
+              <p class="found">
+                <a [href]="place | osmUrl" target="_blank" rel="noopener">{{
+                  place.displayAddress
+                }}</a>
+                <br />
+                <app-osm-attribution />
+              </p>
+              <div class="actions">
+                @if (place.visitedByMe) {
+                  <app-tag variant="outline" icon="check">Visited</app-tag>
+                } @else {
+                  <button appButton type="button" variant="inverse" (click)="store.markVisited()">
+                    Mark visited
+                  </button>
+                }
+                <button appButton type="button" (click)="store.cancel()">Done</button>
+              </div>
+            }
+          </app-command-result>
+        }
+        @case ('cant_do') {
+          <app-command-result
+            tone="danger"
+            label="Can't do that"
+            closeLabel="Close"
+            (closed)="store.dismiss()"
+          >
+            <p class="text">{{ r.text }}</p>
+          </app-command-result>
+        }
+        @case ('text') {
+          <app-command-result label="Answer" closeLabel="Close" (closed)="store.dismiss()">
+            <p class="text">{{ r.text }}</p>
+          </app-command-result>
+        }
+      }
+    </ng-container>
+  } @else if (store.error(); as message) {
+    <app-command-result
+      ngProjectAs="[commandBarResult]"
+      tone="danger"
+      label="Error"
+      closeLabel="Close"
+      (closed)="store.dismiss()"
+    >
+      <p class="text">{{ message }}</p>
+    </app-command-result>
+  }
+
+  @if (store.response(); as r) {
+    @if (r.kind === 'needs_input') {
+      <div class="missing" commandBarHint role="status">
+        <p>Still needed. Add it to the text and send again:</p>
+        <ul>
+          @for (item of r.missing; track item) {
+            <li>{{ item | missingItem }}</li>
+          }
+        </ul>
+      </div>
+    }
+  }
+</app-command-bar>

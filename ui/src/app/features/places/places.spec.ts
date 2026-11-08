@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { PlaceDraftService } from '../../core/places/place-draft.service';
 import { Place, PlacesService } from '../../core/places/places.service';
 import { aPlace } from './place-fixtures';
 import { Places } from './places';
@@ -24,7 +25,12 @@ const render = async (service: Partial<Record<keyof PlacesService, unknown>> = {
     setVisited: vi.fn(async () => undefined),
     ...service,
   };
-  TestBed.configureTestingModule({ providers: [{ provide: PlacesService, useValue: api }] });
+  TestBed.configureTestingModule({
+    providers: [
+      { provide: PlacesService, useValue: api },
+      { provide: PlaceDraftService, useValue: {} },
+    ],
+  });
   const fixture = TestBed.createComponent(Places);
   await fixture.whenStable();
   return { fixture, api, el: fixture.nativeElement as HTMLElement };

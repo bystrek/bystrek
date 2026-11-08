@@ -1,0 +1,55 @@
+<section class="command" [attr.aria-label]="label()">
+  <div class="response" aria-live="polite">
+    @if (busy()) {
+      <div class="thinking">
+        <p class="asked">&gt; {{ asked() }}</p>
+        <app-progress [label]="thinkingLabel()" />
+      </div>
+    }
+    <ng-content select="[commandBarResult]" />
+  </div>
+
+  <ng-content />
+
+  <form class="bar" [formRoot]="textForm" (submit)="$event.preventDefault(); submit()">
+    <span class="prompt" aria-hidden="true">&gt;</span>
+    <input
+      class="field"
+      type="text"
+      autocomplete="off"
+      [placeholder]="placeholder()"
+      [attr.aria-label]="label()"
+      [formField]="textForm"
+    />
+    @if (busy()) {
+      <button type="button" appButton shape="icon" aria-label="Stop" (click)="stopped.emit()">
+        <app-icon name="stop" />
+      </button>
+    } @else {
+      @if (clearable() && text()) {
+        <button
+          type="button"
+          appButton
+          shape="icon"
+          aria-label="Clear"
+          [disabled]="locked()"
+          (click)="cleared.emit()"
+        >
+          <app-icon name="x" />
+        </button>
+      }
+      <button
+        type="submit"
+        appButton
+        variant="primary"
+        shape="icon"
+        [disabled]="locked()"
+        [attr.aria-label]="submitLabel()"
+      >
+        <app-icon name="arrow-right" />
+      </button>
+    }
+  </form>
+
+  <ng-content select="[commandBarHint]" />
+</section>

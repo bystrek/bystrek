@@ -1,135 +1,78 @@
-<section class="ask" aria-label="Ask your calendar">
-  <div class="ask-response" aria-live="polite">
-    @if (store.phase() === AskPhase.THINKING) {
-      <div class="thinking">
-        <p class="asked">&gt; {{ store.asked() }}</p>
-        <app-progress label="Reading your calendar" />
-      </div>
-    } @else if (store.response(); as r) {
-      @if (r.kind === 'event') {
-        <app-card tone="primary" class="answer">
-          <div class="answer-head">
-            <app-tag variant="solid">Answer</app-tag>
-            <button
-              type="button"
-              appButton
-              shape="icon"
-              aria-label="Close answer"
-              (click)="store.close()"
-            >
-              <app-icon name="x" />
-            </button>
-          </div>
-          <p class="answer-thought">Thought for {{ store.thoughtSeconds() }} s</p>
-          <p class="answer-time">{{ r.event.start | clockTime }} {{ r.event.title }}</p>
-          <p class="answer-meta">
-            {{ r.event.start | weekdayAndDate }} · {{ r.event.durationMinutes | duration }}
-          </p>
-          <button type="button" appButton variant="inverse" block (click)="jumpTo(r.event.start)">
-            Jump to {{ r.event.start | weekdayAndDate }} <app-icon name="arrow-right" />
-          </button>
-        </app-card>
-      } @else if (r.kind === 'availability') {
-        <app-card tone="primary" class="answer">
-          <div class="answer-head">
-            <app-tag variant="solid">Answer</app-tag>
-            <button
-              type="button"
-              appButton
-              shape="icon"
-              aria-label="Close answer"
-              (click)="store.close()"
-            >
-              <app-icon name="x" />
-            </button>
-          </div>
+<app-command-bar
+  label="Ask your calendar"
+  placeholder="ask your calendar…"
+  submitLabel="Send question"
+  thinkingLabel="Reading your calendar"
+  [maxLength]="500"
+  [busy]="store.busy()"
+  [asked]="store.asked()"
+  [(text)]="question"
+  (submitted)="ask($event)"
+  (stopped)="store.stop()"
+>
+  @if (store.response(); as r) {
+    <ng-container ngProjectAs="[commandBarResult]">
+      @if (r.kind === 'cant_do') {
+        <app-command-result tone="danger" label="Can't do that" (closed)="store.close()">
           <p class="answer-thought">Thought for {{ store.thoughtSeconds() }} s</p>
           <p class="answer-text">{{ r.text }}</p>
-          @if (r.conflicts.length) {
-            <ul class="conflicts">
-              @for (c of r.conflicts; track c.uid + c.start) {
-                <li>{{ c.start | clockTime }} {{ c.title }}</li>
-              }
-            </ul>
-          }
-        </app-card>
-      } @else if (r.kind === 'list') {
-        <app-card tone="primary" class="answer">
-          <div class="answer-head">
-            <app-tag variant="solid">Answer</app-tag>
-            <button
-              type="button"
-              appButton
-              shape="icon"
-              aria-label="Close answer"
-              (click)="store.close()"
-            >
-              <app-icon name="x" />
-            </button>
-          </div>
-          <p class="answer-thought">Thought for {{ store.thoughtSeconds() }} s</p>
-          <p class="answer-text">{{ r.text }}</p>
-          @if (r.events.length) {
-            <ul class="conflicts">
-              @for (e of r.events; track e.uid + e.start) {
-                <li>{{ e.start | weekdayAndDate }} {{ e.start | clockTime }} {{ e.title }}</li>
-              }
-            </ul>
-          }
-        </app-card>
-      } @else if (r.kind === 'text') {
-        <app-card tone="primary" class="answer">
-          <div class="answer-head">
-            <app-tag variant="solid">Answer</app-tag>
-            <button
-              type="button"
-              appButton
-              shape="icon"
-              aria-label="Close answer"
-              (click)="store.close()"
-            >
-              <app-icon name="x" />
-            </button>
-          </div>
-          <p class="answer-thought">Thought for {{ store.thoughtSeconds() }} s</p>
-          <p class="answer-text">{{ r.text }}</p>
-        </app-card>
+        </app-command-result>
       } @else {
-        <app-card tone="danger" class="answer">
-          <div class="answer-head">
-            <app-tag variant="solid">Can't do that</app-tag>
-            <button
-              type="button"
-              appButton
-              shape="icon"
-              aria-label="Close answer"
-              (click)="store.close()"
-            >
-              <app-icon name="x" />
-            </button>
-          </div>
+        <app-command-result label="Answer" (closed)="store.close()">
           <p class="answer-thought">Thought for {{ store.thoughtSeconds() }} s</p>
-          <p class="answer-text">{{ r.text }}</p>
-        </app-card>
+          @switch (r.kind) {
+            @case ('event') {
+              <p class="answer-time">{{ r.event.start | clockTime }} {{ r.event.title }}</p>
+              <p class="answer-meta">
+                {{ r.event.start | weekdayAndDate }} · {{ r.event.durationMinutes | duration }}
+              </p>
+              <button
+                type="button"
+                appButton
+                variant="inverse"
+                block
+                (click)="jumpTo(r.event.start)"
+              >
+                Jump to {{ r.event.start | weekdayAndDate }} <app-icon name="arrow-right" />
+              </button>
+            }
+            @case ('availability') {
+              <p class="answer-text">{{ r.text }}</p>
+              @if (r.conflicts.length) {
+                <ul class="conflicts">
+                  @for (c of r.conflicts; track c.uid + c.start) {
+                    <li>{{ c.start | clockTime }} {{ c.title }}</li>
+                  }
+                </ul>
+              }
+            }
+            @case ('list') {
+              <p class="answer-text">{{ r.text }}</p>
+              @if (r.events.length) {
+                <ul class="conflicts">
+                  @for (e of r.events; track e.uid + e.start) {
+                    <li>{{ e.start | weekdayAndDate }} {{ e.start | clockTime }} {{ e.title }}</li>
+                  }
+                </ul>
+              }
+            }
+            @case ('text') {
+              <p class="answer-text">{{ r.text }}</p>
+            }
+          }
+        </app-command-result>
       }
-    } @else if (store.phase() === AskPhase.ERROR) {
-      <app-card tone="danger" class="answer">
-        <div class="answer-head">
-          <app-tag variant="solid">Error</app-tag>
-          <button
-            type="button"
-            appButton
-            shape="icon"
-            aria-label="Close answer"
-            (click)="store.close()"
-          >
-            <app-icon name="x" />
-          </button>
-        </div>
-        <p class="answer-text">Could not get an answer. Try again.</p>
-      </app-card>
-    }
-  </div>
+    </ng-container>
+  } @else if (store.phase() === AskPhase.ERROR) {
+    <app-command-result
+      ngProjectAs="[commandBarResult]"
+      tone="danger"
+      label="Error"
+      (closed)="store.close()"
+    >
+      <p class="answer-text">Could not get an answer. Try again.</p>
+    </app-command-result>
+  }
 
   @if (store.phase() === AskPhase.IDLE) {
     <div class="chips">
@@ -138,25 +81,4 @@
       }
     </div>
   }
-
-  <form class="bar" [formRoot]="questionForm" (submit)="$event.preventDefault(); submitQuestion()">
-    <span class="prompt" aria-hidden="true">&gt;</span>
-    <input
-      class="field"
-      type="text"
-      placeholder="ask your calendar…"
-      aria-label="Ask your calendar"
-      autocomplete="off"
-      [formField]="questionForm.question"
-    />
-    @if (store.phase() === AskPhase.THINKING) {
-      <button type="button" appButton shape="icon" aria-label="Stop" (click)="store.stop()">
-        <app-icon name="stop" />
-      </button>
-    } @else {
-      <button type="submit" appButton variant="primary" shape="icon" aria-label="Send question">
-        <app-icon name="arrow-right" />
-      </button>
-    }
-  </form>
-</section>
+</app-command-bar>
