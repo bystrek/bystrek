@@ -123,6 +123,36 @@ describe('PlacesStore', () => {
     expect(store.editingId()).toBeNull();
   });
 
+  it('leaves another row’s editor open when an earlier save finishes', async () => {
+    let finish!: (place: Place) => void;
+    const update = vi.fn(() => new Promise<Place>((resolve) => (finish = resolve)));
+    const { store } = await loaded({ update });
+
+    store.startEdit('camelot');
+    const saving = store.save('camelot', { name: 'Camelot' });
+    store.startEdit('manufaktura');
+    finish({ ...camelot, name: 'Camelot' });
+    await saving;
+
+    expect(store.editingId()).toBe('manufaktura');
+    expect(store.entityMap()['camelot'].name).toBe('Camelot');
+  });
+
+  it('shows a failed save on the page once its editor has closed', async () => {
+    let fail!: (err: Error) => void;
+    const update = vi.fn(() => new Promise<Place>((_, reject) => (fail = reject)));
+    const { store } = await loaded({ update });
+
+    store.startEdit('camelot');
+    const saving = store.save('camelot', { address: 'nowhere' });
+    store.startEdit('manufaktura');
+    fail(new Error("Couldn't find that address"));
+    await expect(saving).rejects.toThrow();
+
+    expect(store.editingId()).toBe('manufaktura');
+    expect(store.actionError()).toBe("Couldn't find that address");
+  });
+
   it('keeps the editor open when the save fails', async () => {
     const update = vi.fn().mockRejectedValue(new Error("Couldn't find that address"));
     const { store } = await loaded({ update });
@@ -132,5 +162,6 @@ describe('PlacesStore', () => {
       "Couldn't find that address",
     );
     expect(store.editingId()).toBe('camelot');
+    expect(store.actionError()).toBeNull();
   });
 });

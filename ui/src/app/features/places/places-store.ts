@@ -134,9 +134,18 @@ export const PlacesStore = signalStore(
         patchState(store, { editingId: id, confirmingDeleteId: null, actionError: null }),
       cancelEdit: (): void => patchState(store, { editingId: null }),
       // Rejects with the API's message (e.g. an address the geocoder can't find) for the form.
+      // Another row may have opened its editor meanwhile: only close this row's, and if this
+      // row's form is gone, show the failure on the page instead.
       save: async (id: string, patch: PlacePatch): Promise<void> => {
-        const saved = await places.update(id, patch);
-        patchState(store, setEntity(saved), { editingId: null });
+        try {
+          const saved = await places.update(id, patch);
+          patchState(store, setEntity(saved), ({ editingId }) => ({
+            editingId: editingId === id ? null : editingId,
+          }));
+        } catch (err) {
+          if (store.editingId() !== id) failAction(err);
+          throw err;
+        }
       },
     };
   }),

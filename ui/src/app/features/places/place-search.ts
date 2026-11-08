@@ -7,7 +7,8 @@ export type VisitedFilter = (typeof VisitedFilter)[keyof typeof VisitedFilter];
 export type SearchablePlace = { place: Place; key: string };
 
 // Case- and diacritic-insensitive: "krakow" matches "Kraków", "lodz" matches "Łódź".
-const fold = (text: string): string => deburr(text).toLocaleLowerCase();
+// Plain `toLowerCase`: the locale-aware one turns "I" into dotless "ı" in a Turkish browser.
+const fold = (text: string): string => deburr(text).toLowerCase();
 
 // Built once per load, so each keystroke only folds the query.
 export const toSearchable = (place: Place): SearchablePlace => ({
