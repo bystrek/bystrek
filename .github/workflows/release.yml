@@ -1,0 +1,130 @@
+# Publish the next CalVer release (YYYY.M.N) of the api and ui images from main.
+#
+# The only workflow that pushes images to GHCR. homelab deploys a release by
+# pinning its version tag (bystrek/homelab#91). Versions are immutable: a
+# version that exists as a git tag or an image tag is never published again.
+name: Release
+
+on:
+  workflow_dispatch:
+
+# Two runs would compute the same version; queue them instead.
+concurrency:
+  group: release
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Work out the next version
+        id: version
+        run: |
+          # Month without a leading zero keeps tags valid semver.
+          year=$(date -u +%Y)
+          month=$(date -u +%-m)
+
+          last=$(git tag --list | grep -E '^[0-9]{4}\.[0-9]{1,2}\.[0-9]+$' |
+            sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1 || true)
+
+          if [ -n "$last" ]; then
+            IFS=. read -r last_year last_month last_n <<<"$last"
+            if [ "$last_year" -eq "$year" ] && [ "$last_month" -eq "$month" ]; then
+              version="$year.$month.$((last_n + 1))"
+            else
+              version="$year.$month.1"
+            fi
+            if [ "$(git rev-list --count "$last..HEAD")" -eq 0 ]; then
+              echo "::error::No new commits on main since $last; nothing to release."
+              exit 1
+            fi
+          else
+            version="$year.$month.1"
+          fi
+
+          echo "Releasing $version (last: ${last:-none})"
+          echo "version=$version" >>"$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Refuse a version already in GHCR
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          for image in api ui; do
+            if docker manifest inspect "ghcr.io/$OWNER/$image:$VERSION" >/dev/null 2>&1; then
+              echo "::error::ghcr.io/$OWNER/$image:$VERSION already exists."
+              exit 1
+            fi
+          done
+
+      # Pushing the tag claims the version: the push fails if it already
+      # exists. A later failure leaves a gap in N, never an overwrite.
+      - name: Tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$VERSION" -m "Release $VERSION"
+          git push origin "refs/tags/$VERSION"
+
+  build:
+    needs: version
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image: [api, ui]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.version }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Adds OCI labels (version, revision, created) so an image says which
+      # build it is.
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
+          tags: type=raw,value=${{ needs.version.outputs.version }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.image }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  # Last, so the newest GitHub release always has both images published;
+  # homelab resolves `bystrek_version: latest` from it.
+  github-release:
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$VERSION" --generate-notes

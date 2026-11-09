@@ -14,7 +14,7 @@ The app runs on the home server. See [Issues](https://github.com/bystrek/bystrek
 - `ui/` (Angular, zoneless) at `bystrek.dev`: login, profile, and settings.
 - `api/` (NestJS + Drizzle + Bun) at `api.bystrek.dev`: `better-auth`-backed login/invite/ban, and calendar event reads over CalDAV (Infomaniak kCalendar, iCloud) from a local Postgres copy that one PROPFIND checks against the server before every read. `GET /calendar/sync` reports the first download, and reads return 409 until it finishes. `POST /calendar/ask` answers one read-only question about the calendar through a hosted model on an OpenAI-compatible API, Scaleway Generative APIs in production (`LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY`); it returns a structured event, a `list` of events (with `count` answered as text), an `availability` answer (`busy` plus the overlapping `conflicts`, decided by the server from the listed events), a text answer, or `cant_do` for write requests. `/places` holds points of interest shared by all users, with a per-user visited mark; addresses are geocoded through a Nominatim-compatible API (`GEOCODER_URL`) and coordinates are always resolved server-side from the chosen OpenStreetMap object. `POST /places/draft` turns one free-text prompt into a draft through the same hosted model and geocodes it: `ready` (one match), `needs_input` (missing name or address, or an address the geocoder doesn't know), `needs_choice` (several matches), `duplicate` (already on the list), `cant_do` for anything but adding a place, or `text` with a fallback message when the model's reply can't be used; the client confirms a draft with `POST /places`.
 - Auth: email/password via `better-auth`, invite-gated (admin creates the row, no public signup), bearer tokens, admin plugin for invite/list/ban.
-- Deploy pipeline: GitHub Actions builds `api`/`ui` images to GHCR. A reviewed `homelab` change pins the new image digests, and Flux rolls them out when the owner cuts a `homelab` release tag.
+- Deploy pipeline: CI tests and builds `api`/`ui` on every PR and merge without pushing. A manual **Release** workflow publishes both images to GHCR under one CalVer version; `homelab` pins that version tag, and Flux rolls it out when the owner cuts a `homelab` release tag. See [Releasing](#releasing).
 
 **Not built yet:**
 - The daily digest for the calendar vertical slice.
@@ -28,10 +28,20 @@ Cloudflare Tunnel → Caddy → `ui` (Angular: login, profile, settings); `api.b
 - **TLS**: Cloudflare terminates TLS at the tunnel edge.
 - **Domain**: `bystrek.dev` is a non-identifying domain.
 
+## Releasing
+
+Images reach GHCR only through the **Release** workflow (`.github/workflows/release.yml`), run by hand from the Actions tab:
+
+1. Merge PRs to `main`.
+2. Run **Release** in this repo. It tags `main` with the next version, builds and pushes `ghcr.io/bystrek/api` and `ghcr.io/bystrek/ui` with that tag, then creates a GitHub release with generated notes.
+3. Run **Release** in `homelab` with `bystrek_version: latest` (or an older version to roll back) to pin it and deploy.
+
+Versions are `YYYY.M.N`: month without a leading zero (valid semver), N from 1 and reset each month (`2026.11.1`, `2026.11.2`, `2026.12.1`). API and UI share the version. Versions are immutable: a run fails if the tag already exists in git or GHCR, or if `main` has no commits since the last release, and runs are queued so two can't claim the same version. A run that fails after tagging leaves a gap in N; rerun the workflow for a new version.
+
 ## Repo layout
 
 ```
-.github/       CI workflows (builds api/ and ui/ images to GHCR)
+.github/       CI (tests + image builds) and the Release workflow (publishes images to GHCR)
 api/           NestJS + Drizzle + Bun backend — Postgres, auth, calendar
 ui/            Angular frontend — login, profile, settings
 scripts/       dev.sh — one-command local start (Postgres, migrate, seed, api, ui)

@@ -1,4 +1,6 @@
-name: build and publish
+# Tests and builds api and ui on every PR and merge to main. Images are built
+# as a check only; release.yml is the only workflow that pushes them.
+name: ci
 
 on:
   push:
@@ -82,27 +84,15 @@ jobs:
     needs: [changes, test-api]
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
     steps:
       - uses: actions/checkout@v4
 
       - uses: docker/setup-buildx-action@v3
 
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
       - uses: docker/build-push-action@v6
         with:
           context: ./api
-          push: ${{ github.event_name == 'push' }}
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/api:latest
-            ghcr.io/${{ github.repository_owner }}/api:${{ github.sha }}
+          push: false
 
   test-ui:
     needs: changes
@@ -138,24 +128,12 @@ jobs:
     needs: [changes, test-ui]
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
     steps:
       - uses: actions/checkout@v4
 
       - uses: docker/setup-buildx-action@v3
 
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
       - uses: docker/build-push-action@v6
         with:
           context: ./ui
-          push: ${{ github.event_name == 'push' }}
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/ui:latest
-            ghcr.io/${{ github.repository_owner }}/ui:${{ github.sha }}
+          push: false

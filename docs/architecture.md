@@ -74,10 +74,11 @@ Key management: `.env` on the home server, alongside other secrets.
 
 ## Deployment (decided)
 
-- CI (GitHub Actions) builds each service's Docker image and pushes it to GHCR.
-- Deploying means pinning the new image digests in `bystrek/homelab` (`clusters/home/apps/bystrek/{api,ui}/`) through a reviewed PR. Flux rolls them out to k3s when the owner cuts a `homelab` release tag.
+- CI (GitHub Actions) builds each service's Docker image as a check on every PR and merge, without pushing.
+- A manual Release workflow publishes both images to GHCR under one immutable CalVer tag (`YYYY.M.N`), matching the git tag and GitHub release.
+- Deploying means pinning that version tag in `bystrek/homelab` (`clusters/home/apps/bystrek/{api,ui}/kustomization.yaml`). Flux rolls it out to k3s when the owner cuts a `homelab` release tag.
 - Migrations run automatically at container boot (entrypoint runs `drizzle-kit migrate`, then starts the app). Safe here specifically because it's a single instance, no rolling/concurrent deploys.
-- No rollback tooling.
+- Rollback: pin an older version in `homelab`.
 
 ## Testing (decided)
 
