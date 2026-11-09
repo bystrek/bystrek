@@ -53,5 +53,5 @@ This repository contains the application code for bystrek:
 
 - API port: `3000`
 - Database: PostgreSQL 16
-- API image pipeline: GHCR build; deployed by pinning its digest in `homelab`
-- UI image pipeline: GHCR build; deployed by pinning its digest in `homelab`
+- API image pipeline: published to GHCR only by the manual Release workflow, tagged with an immutable CalVer version (`YYYY.M.N`); deployed by pinning that tag in `homelab`
+- UI image pipeline: same as API, same version per release
