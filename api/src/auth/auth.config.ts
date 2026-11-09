@@ -48,9 +48,10 @@ export function createAuth(db: PostgresJsDatabase<typeof schema>) {
     },
     session: {
       // Removing someone in Pocket ID only blocks new sign-ins, so a session
-      // they already have runs out within a week.
+      // must end on its own: 7 days after the Pocket ID sign-in that made it,
+      // never extended by use.
       expiresIn: 60 * 60 * 24 * 7,
-      updateAge: 60 * 60 * 24, // refresh if used within the last day
+      disableSessionRefresh: true,
     },
     user: {
       additionalFields: {

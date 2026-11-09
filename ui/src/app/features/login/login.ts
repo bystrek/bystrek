@@ -17,6 +17,7 @@ import { Stack } from '../../shared/stack/stack';
 const SIGN_IN_ERRORS: Record<string, string> = {
   access_denied: "Your Pocket ID account doesn't have access to bystrek.",
   invalid_token: 'That sign-in link has expired. Try again.',
+  state_mismatch: "That sign-in wasn't started in this tab. Sign in here instead.",
 };
 
 @Pipe({ name: 'signInError' })

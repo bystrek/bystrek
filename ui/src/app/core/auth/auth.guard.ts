@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
-import { AuthService } from './auth.service';
+import { AuthService, SignInStateMismatch } from './auth.service';
 
 export const authGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
@@ -20,10 +20,10 @@ export const signInCallbackGuard: CanActivateFn = async (route) => {
   let error = route.queryParamMap.get('error') ?? 'missing_token';
   if (ott) {
     try {
-      await auth.completeSignIn(ott);
+      await auth.completeSignIn(ott, route.queryParamMap.get('state'));
       return router.createUrlTree(['/']);
-    } catch {
-      error = 'invalid_token';
+    } catch (err) {
+      error = err instanceof SignInStateMismatch ? 'state_mismatch' : 'invalid_token';
     }
   }
   return router.createUrlTree(['/auth/login'], { queryParams: { error } });

@@ -54,8 +54,10 @@ test('edits first/last name and avatar, then saves via update-user', async ({ pa
     route.fulfill({ json: { status: true } });
   });
 
-  // Where Pocket ID sign-in lands, with the one-time token the API hands over.
-  await page.goto('/auth/callback?ott=fake-ott');
+  // Where Pocket ID sign-in lands, with the one-time token the API hands over
+  // and the state this tab stored when it started signing in.
+  await page.addInitScript(() => sessionStorage.setItem('bystrek_sign_in_state', 'e2e-state'));
+  await page.goto('/auth/callback?state=e2e-state&ott=fake-ott');
 
   await expect(page).toHaveURL('/agenda');
 
