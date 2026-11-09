@@ -15,8 +15,6 @@ import {
 import { OsmType } from '../geo/geocoder';
 import { PlaceCategory } from '../places/place-category';
 
-export const userStatus = pgEnum('user_status', ['invited', 'active']);
-
 export const users = pgTable(
   'users',
   {
@@ -30,15 +28,11 @@ export const users = pgTable(
     firstName: text('first_name'),
     lastName: text('last_name'),
     emailVerified: boolean('email_verified').notNull().default(false),
-    status: userStatus('status').notNull().default('invited'),
     // No settings UI yet — set from sensible defaults, editable later.
     timezone: text('timezone').notNull().default('Europe/Warsaw'),
     locale: text('locale').notNull().default('en-PL'),
-    // better-auth admin plugin
+    // Follows the user's Pocket ID groups; see auth/pocket-id.ts.
     role: text('role').notNull().default('user'),
-    banned: boolean('banned').notNull().default(false),
-    banReason: text('ban_reason'),
-    banExpires: timestamp('ban_expires', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
@@ -61,9 +55,6 @@ export const sessions = pgTable(
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     ipAddress: text('ip_address'),
     userAgent: text('user_agent'),
-    // better-auth admin plugin (session impersonation) — unused, kept so
-    // the admin plugin's schema expectations are met from the start.
-    impersonatedBy: text('impersonated_by'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()

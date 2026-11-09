@@ -17,11 +17,9 @@
     "test": "bun test src",
     "test:watch": "bun test src --watch",
     "test:cov": "bun test src --coverage",
-    "test:integration": "bun test test/integration",
+    "test:integration": "bun test --preload ./test/integration/support/preload.ts test/integration",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "bun run scripts/seed.ts",
-    "db:seed:local": "bun run scripts/seed-local.ts",
     "eval:calendar-ask": "bun run eval/calendar-ask.eval.ts",
     "eval:places-draft": "bun run eval/places-draft.eval.ts",
     "eval:caldav-parity": "bun run eval/caldav-parity.ts"
@@ -35,6 +33,7 @@
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
     "ical.js": "^2.2.1",
+    "jose": "^6.2.9",
     "lru-cache": "^11.5.2",
     "nestjs-zod": "5.5.0",
     "p-queue": "^10.0.0",
@@ -45,7 +44,6 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@better-auth/core": "1.7.1",
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",
     "@nestjs/cli": "^11.0.0",

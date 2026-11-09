@@ -48,43 +48,9 @@ input[type='file'] {
 }
 
 #profile,
-.calendar-actions,
-#invite {
+.calendar-actions {
   display: flex;
   flex-direction: column;
   gap: 10px;
   align-items: stretch;
-}
-
-#invite {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: var(--border-width) solid var(--color-border);
-}
-
-#users ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-#users li {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-size: 22px;
-}
-
-.badge {
-  font-family: var(--font-text);
-  font-size: 18px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 2px 8px;
-  border: 1px solid var(--color-border);
-  color: var(--color-ink-muted);
 }

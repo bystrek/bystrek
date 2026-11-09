@@ -29,7 +29,7 @@ import { users } from '../src/db/schema';
 
 const { values: args } = parseArgs({
   options: {
-    email: { type: 'string', default: process.env.SEED_OWNER_EMAIL },
+    email: { type: 'string' },
     months: { type: 'string', default: '12' },
     tz: { type: 'string', default: 'Europe/Warsaw' },
   },
@@ -38,7 +38,7 @@ const TZ = args.tz!;
 assertValidTimeZone(TZ);
 const MONTHS = Number(args.months);
 if (!Number.isInteger(MONTHS) || MONTHS < 1) throw new Error('--months must be a positive integer');
-if (!args.email) throw new Error('pass --email or set SEED_OWNER_EMAIL');
+if (!args.email) throw new Error('pass --email');
 
 // Same identity as an occurrence the UI would show: which event, when, and what it says.
 function key(event: ParsedEvent): string {

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Local dev: Postgres + migrate + seed owner + api + ui. Needs api/.env (see api/.env.example),
+# Local dev: Postgres + migrate + api + ui. Needs api/.env (see api/.env.example),
 # including the LLM_* settings for the hosted model.
 set -euo pipefail
 
@@ -29,8 +29,6 @@ docker info >/dev/null 2>&1 || fail "docker daemon not running — start Docker 
 
 # A shell-exported DATABASE_URL would override api/.env, so drop it.
 unset DATABASE_URL
-# Skips RESEND_API_KEY; the local owner is seeded with a password, not an email link.
-export BYSTREK_LOCAL_DEV=1
 export HOST="${HOST:-127.0.0.1}"
 # Angular CLI would otherwise prompt for analytics, which fails in a background job.
 export NG_CLI_ANALYTICS=false
@@ -46,8 +44,8 @@ done
 docker compose -f docker-compose.dev.yml exec -T postgres pg_isready -U bystrek >/dev/null 2>&1 \
   || fail "Postgres didn't become ready in time"
 
-echo "==> Migrating and seeding local owner"
-(cd api && bun run db:migrate && bun run db:seed:local)
+echo "==> Migrating"
+(cd api && bun run db:migrate)
 
 pids=()
 kill_tree() {

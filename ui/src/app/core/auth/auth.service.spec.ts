@@ -48,23 +48,31 @@ describe('AuthService', () => {
     });
   });
 
-  it('signIn stores the bearer token from the set-auth-token response header', async () => {
-    const pending = service.signIn('me@example.com', 'password');
+  it('completeSignIn swaps the one-time token for a bearer token, then loads the session', async () => {
+    const pending = service.completeSignIn('one-time');
 
-    const req = httpMock.expectOne(`/api/api/auth/sign-in/email`);
-    req.flush({}, { headers: { 'set-auth-token': 'fake-token' } });
+    const verifyReq = httpMock.expectOne(`/api/api/auth/one-time-token/verify`);
+    expect(verifyReq.request.body).toEqual({ token: 'one-time' });
+    verifyReq.flush({}, { headers: { 'set-auth-token': 'fake-token' } });
+    await Promise.resolve();
+
+    httpMock.expectOne(`/api/api/auth/get-session`).flush({
+      user: { id: '1', name: 'Me', role: 'user', firstName: null, lastName: null, image: null },
+    });
     await pending;
 
     expect(localStorage.getItem('bystrek_token')).toBe('fake-token');
+    expect(service.isAuthenticated()).toBe(true);
   });
 
-  it('signIn throws when no set-auth-token header is present', async () => {
-    const pending = service.signIn('me@example.com', 'password');
+  it('completeSignIn throws when the one-time token is rejected', async () => {
+    const pending = service.completeSignIn('used');
 
-    const req = httpMock.expectOne(`/api/api/auth/sign-in/email`);
-    req.flush({});
+    httpMock
+      .expectOne(`/api/api/auth/one-time-token/verify`)
+      .flush({ message: 'Invalid token' }, { status: 400, statusText: 'Bad Request' });
 
-    await expect(pending).rejects.toThrow('no session token was returned');
+    await expect(pending).rejects.toThrow('Invalid token');
     expect(localStorage.getItem('bystrek_token')).toBeNull();
   });
 

@@ -1,36 +1,9 @@
 import { describe, expect, it } from 'bun:test';
-import { Test } from '@nestjs/testing';
-import { toNodeHandler } from 'better-auth/node';
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import express from 'express';
 import request from 'supertest';
-import { AUTH } from '../../src/auth/auth.provider';
-import type { Auth } from '../../src/auth/auth.config';
-import { AppModule } from '../../src/app.module';
-import { DRIZZLE } from '../../src/db/drizzle.provider';
-import type * as schema from '../../src/db/schema';
+import { createApp } from './support/app';
 import { signUpTestUser } from './support/auth';
 import { withRollback } from './support/rollback';
 import { testDb } from './support/test-db';
-
-type Tx = Parameters<Parameters<PostgresJsDatabase<typeof schema>['transaction']>[0]>[0];
-
-// better-auth needs the raw request body, so /api/auth is mounted the same
-// way main.ts mounts it (ahead of Nest's own JSON body parser).
-async function createApp(tx: Tx) {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-    .overrideProvider(DRIZZLE)
-    .useValue(tx)
-    .compile();
-
-  const app = moduleRef.createNestApplication({ bodyParser: false });
-  const auth = app.get<Auth>(AUTH);
-  app.use('/api/auth', toNodeHandler(auth));
-  app.use(express.json());
-  await app.init();
-  return app;
-}
-
 describe('profile fields via better-auth (integration)', () => {
   it('round-trips firstName/lastName/image through update-user and get-session', async () => {
     await withRollback(testDb, async (tx) => {

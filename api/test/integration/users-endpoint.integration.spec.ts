@@ -33,7 +33,6 @@ describe('GET /users (integration)', () => {
       await tx.insert(users).values({
         email: 'member@example.com',
         name: 'Test Member',
-        status: 'active',
       });
 
       const { token } = await signUpTestUser(tx, {
@@ -54,9 +53,7 @@ describe('GET /users (integration)', () => {
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(200);
-      expect(res.body).toContainEqual(
-        expect.objectContaining({ name: 'Test Member', status: 'active' }),
-      );
+      expect(res.body).toContainEqual(expect.objectContaining({ name: 'Test Member' }));
 
       await app.close();
     });

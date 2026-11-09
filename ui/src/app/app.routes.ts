@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, guestGuard } from './core/auth/auth.guard';
+import { authGuard, guestGuard, signInCallbackGuard } from './core/auth/auth.guard';
 import { calendarReadyGuard } from './core/calendar/calendar-ready.guard';
 
 export const routes: Routes = [
@@ -11,11 +11,8 @@ export const routes: Routes = [
         canActivate: [guestGuard],
         loadComponent: () => import('./features/login/login').then((m) => m.Login),
       },
-      {
-        path: 'reset-password',
-        loadComponent: () =>
-          import('./features/reset-password/reset-password').then((m) => m.ResetPassword),
-      },
+      // Never renders: the guard always redirects.
+      { path: 'callback', canActivate: [signInCallbackGuard], children: [] },
     ],
   },
   {
