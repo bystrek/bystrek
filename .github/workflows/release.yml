@@ -29,11 +29,15 @@ jobs:
 
       - name: Work out the next version
         id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           # Month without a leading zero keeps tags valid semver.
           year=$(date -u +%Y)
           month=$(date -u +%-m)
 
+          # N continues from the newest tag, including tags of failed runs,
+          # so a version is never reused.
           last=$(git tag --list | grep -E '^[0-9]{4}\.[0-9]{1,2}\.[0-9]+$' |
             sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1 || true)
 
@@ -44,15 +48,20 @@ jobs:
             else
               version="$year.$month.1"
             fi
-            if [ "$(git rev-list --count "$last..HEAD")" -eq 0 ]; then
-              echo "::error::No new commits on main since $last; nothing to release."
-              exit 1
-            fi
           else
             version="$year.$month.1"
           fi
 
-          echo "Releasing $version (last: ${last:-none})"
+          # Compare against the newest GitHub release, created only once both
+          # images are pushed, so a run that failed after tagging can be rerun
+          # on the same commit.
+          released=$(gh release view --json tagName -q .tagName 2>/dev/null || true)
+          if [ -n "$released" ] && [ "$(git rev-list --count "$released..HEAD")" -eq 0 ]; then
+            echo "::error::No new commits on main since release $released; nothing to release."
+            exit 1
+          fi
+
+          echo "Releasing $version (last tag: ${last:-none}, last release: ${released:-none})"
           echo "version=$version" >>"$GITHUB_OUTPUT"
 
       - uses: docker/login-action@v3
