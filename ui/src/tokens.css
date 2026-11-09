@@ -62,7 +62,7 @@
   --motion-fast: 80ms;
 
   /* Transitional aliases for screens that are not restyled yet (login,
-     settings, reset-password, layout). Remove once they are migrated. */
+     settings, layout). Remove once they are migrated. */
   --border-width: var(--border-w-heavy);
   --font-text: var(--font-ui);
 }

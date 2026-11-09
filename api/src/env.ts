@@ -17,11 +17,24 @@ export const CORS_ORIGINS = (process.env.CORS_ORIGINS ?? 'https://bystrek.dev')
 // a glob for better-auth's trustedOrigins.
 export const LOCALHOST_ORIGIN = /^http:\/\/localhost(:\d+)?$/;
 export const LOCALHOST_ORIGIN_PATTERN = 'http://localhost:*';
-export const RESEND_API_KEY =
-  process.env.BYSTREK_LOCAL_DEV === '1' ? process.env.RESEND_API_KEY : required('RESEND_API_KEY');
 export const AUTH_SECRET = required('AUTH_SECRET');
-export const UI_URL = process.env.UI_URL ?? 'http://localhost:5173';
+// The UI's origin: sign-in hands the session back only to it (or to localhost).
+export const UI_URL = process.env.UI_URL ?? 'http://localhost:4200';
 export const API_URL = process.env.API_URL ?? 'http://localhost:3000';
+// Pocket ID (OIDC) is the only way in: whoever its `bystrek` client allows can sign in.
+function oidcIssuer(): string {
+  const raw = process.env.OIDC_ISSUER ?? 'https://auth.bystrek.dev';
+  if (!URL.canParse(raw)) {
+    throw new Error('OIDC_ISSUER must be an absolute URL');
+  }
+  // Discovery lives at `${OIDC_ISSUER}/.well-known/openid-configuration`.
+  return raw.replace(/\/+$/, '');
+}
+export const OIDC_ISSUER = oidcIssuer();
+export const OIDC_CLIENT_ID = required('OIDC_CLIENT_ID');
+export const OIDC_CLIENT_SECRET = required('OIDC_CLIENT_SECRET');
+// Members of this Pocket ID group get `role: 'admin'`; everyone else gets `user`.
+export const OIDC_ADMIN_GROUP = process.env.OIDC_ADMIN_GROUP ?? 'bystrek-admins';
 // Any OpenAI-compatible chat completions API, e.g. https://api.scaleway.ai/<project-id>/v1.
 export const LLM_BASE_URL = required('LLM_BASE_URL');
 export const LLM_MODEL = required('LLM_MODEL');

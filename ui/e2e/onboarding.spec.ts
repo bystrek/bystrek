@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 type Progress = { status: string; fetched: number; total: number | null; error: string | null };
 
 async function signIn(page: Page) {
-  await page.route('**/api/auth/sign-in/email', (route) =>
+  await page.route('**/api/auth/one-time-token/verify', (route) =>
     route.fulfill({
       status: 200,
       headers: { 'set-auth-token': 'fake-token' },
@@ -22,11 +22,10 @@ async function signIn(page: Page) {
   );
   await page.route(/\/calendar\/events\?/, (route) => route.fulfill({ json: { events: [] } }));
 
-  await page.goto('/auth/login');
-  await page.waitForLoadState('networkidle');
-  await page.getByPlaceholder('Email').fill('me@example.com');
-  await page.getByPlaceholder('Password').fill('correct horse battery staple');
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  // Where Pocket ID sign-in lands, with the one-time token the API hands over
+  // and the state this tab stored when it started signing in.
+  await page.addInitScript(() => sessionStorage.setItem('bystrek_sign_in_state', 'e2e-state'));
+  await page.goto('/auth/callback?state=e2e-state&ott=fake-ott');
 }
 
 // Serves GET /calendar/sync from a queue: each poll takes the next answer, the last one repeats.

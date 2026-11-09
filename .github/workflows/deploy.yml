@@ -55,10 +55,11 @@ jobs:
     env:
       DATABASE_URL: postgres://bystrek:bystrek@localhost:5432/bystrek
       CORS_ORIGINS: http://localhost:4200
-      # Throwaway values — tests stub sendResetPassword rather than hitting
-      # Resend, this only needs to satisfy env.ts's required() check.
+      # Throwaway values, only to satisfy env.ts's required() checks. Tests
+      # talk to a fake Pocket ID (test/integration/support/fake-pocket-id.ts).
       AUTH_SECRET: ci-only-throwaway-secret-not-used-for-anything-real
-      RESEND_API_KEY: ci-only-throwaway-not-a-real-key
+      OIDC_CLIENT_ID: ci-only-client
+      OIDC_CLIENT_SECRET: ci-only-throwaway-not-a-real-secret
       # Throwaway, but must decode to 32 bytes (AES-256) for env.ts's check.
       ENCRYPTION_KEY: q8Uj3wsNN67RSs76SMLKQ/OIW6vE8Fmm7suUEmBlaaM=
       # Throwaway; tests stub fetch, nothing calls the model.

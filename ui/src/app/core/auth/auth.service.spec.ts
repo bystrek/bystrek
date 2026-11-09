@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { APP_CONFIG } from '../config/app-config';
-import { AuthService } from './auth.service';
+import { AuthService, SignInStateMismatch } from './auth.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -10,6 +10,7 @@ describe('AuthService', () => {
 
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
     TestBed.configureTestingModule({
       providers: [
         { provide: APP_CONFIG, useValue: { apiUrl: '/api' } },
@@ -48,23 +49,43 @@ describe('AuthService', () => {
     });
   });
 
-  it('signIn stores the bearer token from the set-auth-token response header', async () => {
-    const pending = service.signIn('me@example.com', 'password');
+  it('completeSignIn swaps the one-time token for a bearer token, then loads the session', async () => {
+    sessionStorage.setItem('bystrek_sign_in_state', 'state-1');
+    const pending = service.completeSignIn('one-time', 'state-1');
 
-    const req = httpMock.expectOne(`/api/api/auth/sign-in/email`);
-    req.flush({}, { headers: { 'set-auth-token': 'fake-token' } });
+    const verifyReq = httpMock.expectOne(`/api/api/auth/one-time-token/verify`);
+    expect(verifyReq.request.body).toEqual({ token: 'one-time' });
+    verifyReq.flush({}, { headers: { 'set-auth-token': 'fake-token' } });
+    await Promise.resolve();
+
+    httpMock.expectOne(`/api/api/auth/get-session`).flush({
+      user: { id: '1', name: 'Me', role: 'user', firstName: null, lastName: null, image: null },
+    });
     await pending;
 
     expect(localStorage.getItem('bystrek_token')).toBe('fake-token');
+    expect(service.isAuthenticated()).toBe(true);
   });
 
-  it('signIn throws when no set-auth-token header is present', async () => {
-    const pending = service.signIn('me@example.com', 'password');
+  it('completeSignIn refuses a callback this tab did not start, without redeeming the token', async () => {
+    sessionStorage.setItem('bystrek_sign_in_state', 'mine');
 
-    const req = httpMock.expectOne(`/api/api/auth/sign-in/email`);
-    req.flush({});
+    await expect(service.completeSignIn('forwarded', 'someone-else')).rejects.toThrow(
+      SignInStateMismatch,
+    );
+    httpMock.expectNone(`/api/api/auth/one-time-token/verify`);
+    expect(sessionStorage.getItem('bystrek_sign_in_state')).toBeNull();
+  });
 
-    await expect(pending).rejects.toThrow('no session token was returned');
+  it('completeSignIn throws when the one-time token is rejected', async () => {
+    sessionStorage.setItem('bystrek_sign_in_state', 'state-1');
+    const pending = service.completeSignIn('used', 'state-1');
+
+    httpMock
+      .expectOne(`/api/api/auth/one-time-token/verify`)
+      .flush({ message: 'Invalid token' }, { status: 400, statusText: 'Bad Request' });
+
+    await expect(pending).rejects.toThrow('Invalid token');
     expect(localStorage.getItem('bystrek_token')).toBeNull();
   });
 

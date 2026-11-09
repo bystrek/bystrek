@@ -19,7 +19,7 @@ const camelot = {
 };
 
 async function signIn(page: Page) {
-  await page.route('**/api/auth/sign-in/email', (route) =>
+  await page.route('**/api/auth/one-time-token/verify', (route) =>
     route.fulfill({
       status: 200,
       headers: { 'set-auth-token': 'fake-token' },
@@ -44,11 +44,10 @@ async function signIn(page: Page) {
     route.fulfill({ json: { status: 'ready', fetched: 0, total: 0, error: null } }),
   );
 
-  await page.goto('/auth/login');
-  await page.waitForLoadState('networkidle');
-  await page.getByPlaceholder('Email').fill('me@example.com');
-  await page.getByPlaceholder('Password').fill('correct horse battery staple');
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  // Where Pocket ID sign-in lands, with the one-time token the API hands over
+  // and the state this tab stored when it started signing in.
+  await page.addInitScript(() => sessionStorage.setItem('bystrek_sign_in_state', 'e2e-state'));
+  await page.goto('/auth/callback?state=e2e-state&ott=fake-ott');
   await expect(page).toHaveURL('/agenda');
 }
 

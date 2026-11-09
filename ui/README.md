@@ -1,6 +1,6 @@
 # ui
 
-Angular (zoneless, standalone, esbuild/Vite builder) frontend for bystrek — login, push notifications, user admin, password reset. CSR-only, no SSR.
+Angular (zoneless, standalone, esbuild/Vite builder) frontend for bystrek — Pocket ID sign-in, agenda, places, settings. CSR-only, no SSR.
 
 ## Developing
 
@@ -23,6 +23,10 @@ bun run start:remote   # proxy.remote.conf.json: /api → https://api.bystrek.de
 ```
 
 The API accepts any `http://localhost:*` origin, so no CORS setup is needed on either side. This hits production data — sign in with your real account and be deliberate.
+
+## Signing in
+
+Sign-in goes through Pocket ID; there are no passwords. **Sign in with Pocket ID** navigates to `${apiUrl}/auth/sign-in?to=<origin>/auth/callback`. The API moves the browser to its own origin, then to Pocket ID, and after the OAuth callback redirects back to `/auth/callback?ott=<one-time token>` (or `?error=<code>`). The callback route swaps the token for a bearer token at `POST /api/auth/one-time-token/verify` and stores it in `localStorage`; errors land on the login page. With `start:remote`, the callback runs on the production API and hands the session back to localhost.
 
 ## Building
 

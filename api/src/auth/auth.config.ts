@@ -1,10 +1,11 @@
 import { APIError, betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { admin, bearer } from 'better-auth/plugins';
+import { bearer, oneTimeToken } from 'better-auth/plugins';
+import { eq } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { API_URL, AUTH_SECRET, CORS_ORIGINS, LOCALHOST_ORIGIN_PATTERN } from '../env';
-import type * as schema from '../db/schema';
-import { sendEmail } from './resend';
+import * as schema from '../db/schema';
+import { POCKET_ID, Role, pocketId, roleFromIdToken } from './pocket-id';
 
 export type Auth = ReturnType<typeof createAuth>;
 
@@ -16,6 +17,21 @@ export type Auth = ReturnType<typeof createAuth>;
 const MAX_IMAGE_BASE64_LENGTH = 280_000;
 
 export function createAuth(db: PostgresJsDatabase<typeof schema>) {
+  // Every Pocket ID sign-in stores a fresh ID token on the account (create on
+  // the first sign-in or link, update after that), so the role follows the
+  // user's Pocket ID groups from one sign-in to the next.
+  const syncRole = async (account: {
+    providerId: string;
+    userId: string;
+    idToken?: string | null;
+  }) => {
+    if (account.providerId !== POCKET_ID || !account.idToken) return;
+    await db
+      .update(schema.users)
+      .set({ role: roleFromIdToken(account.idToken) })
+      .where(eq(schema.users.id, account.userId));
+  };
+
   return betterAuth({
     secret: AUTH_SECRET,
     baseURL: API_URL,
@@ -25,26 +41,24 @@ export function createAuth(db: PostgresJsDatabase<typeof schema>) {
     advanced: {
       database: { generateId: false },
     },
-    emailAndPassword: {
-      enabled: true,
-      disableSignUp: true,
-      revokeSessionsOnPasswordReset: true,
-      sendResetPassword: async ({ user, url }) => {
-        await sendEmail(
-          user.email,
-          'Reset your bystrek password',
-          `<p>Click below to set a new password.</p><p><a href="${url}">${url}</a></p><p>This link expires in an hour.</p>`,
-        );
-      },
+    emailAndPassword: { enabled: false },
+    account: {
+      // An existing user's first Pocket ID sign-in attaches to their row by email.
+      accountLinking: { enabled: true, trustedProviders: [POCKET_ID] },
     },
     session: {
-      expiresIn: 60 * 60 * 24 * 90, // 90 days
-      updateAge: 60 * 60 * 24, // refresh if used within the last day
+      // Removing someone in Pocket ID only blocks new sign-ins, so a session
+      // must end on its own: 7 days after the Pocket ID sign-in that made it,
+      // never extended by use.
+      expiresIn: 60 * 60 * 24 * 7,
+      disableSessionRefresh: true,
     },
     user: {
       additionalFields: {
         firstName: { type: 'string', required: false, input: true },
         lastName: { type: 'string', required: false, input: true },
+        // Set from Pocket ID groups only (`syncRole`), never by the client.
+        role: { type: 'string', required: false, input: false, defaultValue: Role.User },
       },
     },
     databaseHooks: {
@@ -59,7 +73,17 @@ export function createAuth(db: PostgresJsDatabase<typeof schema>) {
           },
         },
       },
+      account: {
+        create: { after: syncRole },
+        update: { after: syncRole },
+      },
     },
-    plugins: [admin(), bearer()],
+    plugins: [
+      pocketId(),
+      bearer(),
+      // Hands the session from the OAuth callback to the UI (see SignInController).
+      // Tokens are minted only server-side, single-use, and expire in 3 minutes.
+      oneTimeToken({ disableClientRequest: true, storeToken: 'hashed' }),
+    ],
   });
 }
