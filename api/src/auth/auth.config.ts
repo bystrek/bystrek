@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { API_URL, AUTH_SECRET, CORS_ORIGINS, LOCALHOST_ORIGIN_PATTERN } from '../env';
 import * as schema from '../db/schema';
+import { apiTokens } from './api-tokens';
 import { POCKET_ID, Role, pocketId, roleFromIdToken } from './pocket-id';
 
 export type Auth = ReturnType<typeof createAuth>;
@@ -84,6 +85,7 @@ export function createAuth(db: PostgresJsDatabase<typeof schema>) {
       // Hands the session from the OAuth callback to the UI (see SignInController).
       // Tokens are minted only server-side, single-use, and expire in 3 minutes.
       oneTimeToken({ disableClientRequest: true, storeToken: 'hashed' }),
+      apiTokens(),
     ],
   });
 }
