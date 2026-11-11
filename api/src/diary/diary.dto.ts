@@ -6,8 +6,10 @@ import { parseOffsetIso } from '../calendar/zoned-time';
 // depends on the server's time zone.
 const instant = z.iso.datetime({ offset: true }).transform(parseOffsetIso);
 
-const eventText = z.string().trim().min(1).max(1000);
-const categoryName = z.string().trim().min(1).max(50);
+// Shared with the draft parser, so a draft always fits what POST /diary/notes accepts.
+export const eventText = z.string().trim().min(1).max(1000);
+export const categoryName = z.string().trim().min(1).max(50);
+export const categoryDescription = z.string().trim().max(500);
 // Lowercased so it compares equal to the ids Postgres returns.
 const categoryId = z.uuid().toLowerCase().nullable().optional();
 
@@ -39,7 +41,7 @@ const NoteEvent = z
 
 const NewCategory = z.object({
   name: categoryName,
-  description: z.string().trim().max(500).nullable().optional(),
+  description: categoryDescription.nullable().optional(),
 });
 
 // A confirmed note: the raw text as typed, and what it was turned into.
@@ -95,6 +97,12 @@ export class DiaryEventPatchDto extends createZodDto(
     endsAt: instant.nullable().optional(),
     categoryId,
   }),
+) {}
+
+// The note as typed and when; the draft is resolved against `capturedAt` in the user's time zone.
+export const MAX_DRAFT_TEXT_LENGTH = 2000;
+export class DiaryDraftDto extends createZodDto(
+  z.object({ text: z.string().trim().min(1).max(MAX_DRAFT_TEXT_LENGTH), capturedAt: instant }),
 ) {}
 
 // Half-open: events overlapping [from, to).

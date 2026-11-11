@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it, mock } from 'bun:test';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { eq } from 'drizzle-orm';
@@ -10,14 +10,29 @@ import { DiaryEventSource } from '../../src/diary/diary-event-source';
 import type { DiaryCategory } from '../../src/diary/diary-categories.service';
 import type { DiaryEvent } from '../../src/diary/diary-events.service';
 import type { DiaryNote } from '../../src/diary/diary-notes.service';
+import { LLM_CLIENT, LlmError, type LlmClient } from '../../src/llm/llm.client';
 import { signUpTestUser } from './support/auth';
 import { withRollback } from './support/rollback';
 import { testDb } from './support/test-db';
 
+// A model that answers every draft with `reply`, or fails when it's an Error.
+function fakeLlm() {
+  const state: { reply: string | Error } = { reply: '{"events":[]}' };
+  const llm = {
+    generateJson: mock(() =>
+      state.reply instanceof Error ? Promise.reject(state.reply) : Promise.resolve(state.reply),
+    ),
+  } satisfies LlmClient;
+  return Object.assign(state, llm);
+}
+
 async function setUp(db: Db) {
+  const llm = fakeLlm();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DRIZZLE)
     .useValue(db)
+    .overrideProvider(LLM_CLIENT)
+    .useValue(llm)
     .compile();
   const app: INestApplication = moduleRef.createNestApplication();
   await app.init();
@@ -34,7 +49,7 @@ async function setUp(db: Db) {
       delete: (path: string) => http().delete(path).set(auth),
     };
   };
-  return { app, as };
+  return { app, llm, as };
 }
 
 const DAY = { from: '2026-11-11T00:00:00+01:00', to: '2026-11-12T00:00:00+01:00' };
@@ -326,6 +341,105 @@ describe('/diary (integration)', () => {
         (await me.patch(`/diary/events/${mine.id}`, { categoryId: theirs.category!.id })).status,
       ).toBe(422);
       expect((await other.get('/diary/events', DAY)).body).toContainEqual(theirs);
+
+      await app.close();
+    });
+  });
+});
+
+describe('/diary/draft (integration)', () => {
+  const draftReply = JSON.stringify({
+    events: [
+      {
+        text: 'Took 5 g of creatine.',
+        occurredAt: '2026-11-11T08:00',
+        endsAt: null,
+        category: 'Supplement',
+        description: null,
+      },
+      {
+        text: 'Slept badly, woke up 3 times.',
+        occurredAt: '2026-11-10T23:00',
+        endsAt: '2026-11-11T07:00',
+        category: 'sleep',
+        description: 'How I slept',
+      },
+    ],
+  });
+
+  it('drafts a note that saves as confirmed, without storing anything first', async () => {
+    await withRollback(testDb, async (tx) => {
+      const { app, llm, as } = await setUp(tx);
+      const me = await as('me@example.com');
+      await me.post('/diary/notes', creatineNote);
+      const [supplement] = (await me.get('/diary/categories')).body as DiaryCategory[];
+      llm.reply = draftReply;
+      const capturedAt = '2026-11-11T08:30:00+01:00';
+      const rawText = 'creatine 5g, slept like crap 23-7 woke up 3x';
+
+      const drafted = await me.post('/diary/draft', { text: rawText, capturedAt });
+
+      expect(drafted.status).toBe(200);
+      expect(drafted.body).toEqual({
+        kind: 'draft',
+        events: [
+          {
+            text: 'Took 5 g of creatine.',
+            occurredAt: '2026-11-11T07:00:00.000Z',
+            endsAt: null,
+            categoryId: supplement.id,
+            extractorVersion: expect.stringMatching(/^diary-draft@[0-9a-f]{8}\//) as string,
+          },
+          {
+            text: 'Slept badly, woke up 3 times.',
+            occurredAt: '2026-11-10T22:00:00.000Z',
+            endsAt: '2026-11-11T06:00:00.000Z',
+            categoryId: null,
+            newCategory: 'sleep',
+            extractorVersion: expect.any(String) as string,
+          },
+        ],
+        newCategories: [{ name: 'sleep', description: 'How I slept' }],
+      });
+      expect(await tx.select().from(diaryNotes)).toHaveLength(1);
+
+      const { kind, ...draft } = drafted.body as { kind: string };
+      const saved = await me.post('/diary/notes', { rawText, capturedAt, ...draft });
+      expect(saved.status).toBe(201);
+      expect((saved.body as DiaryNote).events.map((event) => event.category?.name)).toEqual([
+        'sleep',
+        'supplement',
+      ]);
+
+      await app.close();
+    });
+  });
+
+  it('400s on blank text or a capture time without an offset, without calling the model', async () => {
+    await withRollback(testDb, async (tx) => {
+      const { app, llm, as } = await setUp(tx);
+      const me = await as('me@example.com');
+
+      const capturedAt = '2026-11-11T08:30:00+01:00';
+      expect((await me.post('/diary/draft', { text: '  ', capturedAt })).status).toBe(400);
+      expect(
+        (await me.post('/diary/draft', { text: 'ran 5k', capturedAt: '2026-11-11T08:30' })).status,
+      ).toBe(400);
+      expect(llm.generateJson).not.toHaveBeenCalled();
+
+      await app.close();
+    });
+  });
+
+  it('401s without a session token and 503s when the model is down', async () => {
+    await withRollback(testDb, async (tx) => {
+      const { app, llm, as } = await setUp(tx);
+      const me = await as('me@example.com');
+      const body = { text: 'ran 5k', capturedAt: '2026-11-11T08:30:00+01:00' };
+
+      expect((await request(app.getHttpServer()).post('/diary/draft').send(body)).status).toBe(401);
+      llm.reply = new LlmError('down');
+      expect((await me.post('/diary/draft', body)).status).toBe(503);
 
       await app.close();
     });
