@@ -1,5 +1,5 @@
 {
-  "id": "2c704f79-ad75-4df3-87a7-4cc64db1b9a8",
+  "id": "0a9e897a-2d62-410b-97c3-710fce610f93",
   "prevId": "e9aaeb2f-86b5-4676-aa9f-244494406a02",
   "version": "7",
   "dialect": "postgresql",
@@ -453,8 +453,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.categories": {
-      "name": "categories",
+    "public.diary_categories": {
+      "name": "diary_categories",
       "schema": "",
       "columns": {
         "id": {
@@ -490,8 +490,8 @@
         }
       },
       "indexes": {
-        "categories_user_id_name_unique": {
-          "name": "categories_user_id_name_unique",
+        "diary_categories_user_id_name_unique": {
+          "name": "diary_categories_user_id_name_unique",
           "columns": [
             {
               "expression": "user_id",
@@ -513,9 +513,9 @@
         }
       },
       "foreignKeys": {
-        "categories_user_id_users_id_fk": {
-          "name": "categories_user_id_users_id_fk",
-          "tableFrom": "categories",
+        "diary_categories_user_id_users_id_fk": {
+          "name": "diary_categories_user_id_users_id_fk",
+          "tableFrom": "diary_categories",
           "tableTo": "users",
           "columnsFrom": [
             "user_id"
@@ -526,10 +526,10 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "categories_parent_id_categories_id_fk": {
-          "name": "categories_parent_id_categories_id_fk",
-          "tableFrom": "categories",
-          "tableTo": "categories",
+        "diary_categories_parent_id_diary_categories_id_fk": {
+          "name": "diary_categories_parent_id_diary_categories_id_fk",
+          "tableFrom": "diary_categories",
+          "tableTo": "diary_categories",
           "columnsFrom": [
             "parent_id"
           ],
@@ -546,8 +546,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.events": {
-      "name": "events",
+    "public.diary_events": {
+      "name": "diary_events",
       "schema": "",
       "columns": {
         "id": {
@@ -595,7 +595,7 @@
         },
         "source": {
           "name": "source",
-          "type": "event_source",
+          "type": "diary_event_source",
           "primaryKey": false,
           "notNull": true
         },
@@ -627,8 +627,8 @@
         }
       },
       "indexes": {
-        "events_user_id_source_external_id_unique": {
-          "name": "events_user_id_source_external_id_unique",
+        "diary_events_user_id_source_external_id_unique": {
+          "name": "diary_events_user_id_source_external_id_unique",
           "columns": [
             {
               "expression": "user_id",
@@ -654,8 +654,8 @@
           "method": "btree",
           "with": {}
         },
-        "events_user_id_occurred_at_idx": {
-          "name": "events_user_id_occurred_at_idx",
+        "diary_events_user_id_occurred_at_idx": {
+          "name": "diary_events_user_id_occurred_at_idx",
           "columns": [
             {
               "expression": "user_id",
@@ -675,8 +675,8 @@
           "method": "btree",
           "with": {}
         },
-        "events_note_id_idx": {
-          "name": "events_note_id_idx",
+        "diary_events_note_id_idx": {
+          "name": "diary_events_note_id_idx",
           "columns": [
             {
               "expression": "note_id",
@@ -690,8 +690,8 @@
           "method": "btree",
           "with": {}
         },
-        "events_category_id_idx": {
-          "name": "events_category_id_idx",
+        "diary_events_category_id_idx": {
+          "name": "diary_events_category_id_idx",
           "columns": [
             {
               "expression": "category_id",
@@ -707,9 +707,9 @@
         }
       },
       "foreignKeys": {
-        "events_user_id_users_id_fk": {
-          "name": "events_user_id_users_id_fk",
-          "tableFrom": "events",
+        "diary_events_user_id_users_id_fk": {
+          "name": "diary_events_user_id_users_id_fk",
+          "tableFrom": "diary_events",
           "tableTo": "users",
           "columnsFrom": [
             "user_id"
@@ -720,10 +720,10 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "events_note_id_notes_id_fk": {
-          "name": "events_note_id_notes_id_fk",
-          "tableFrom": "events",
-          "tableTo": "notes",
+        "diary_events_note_id_diary_notes_id_fk": {
+          "name": "diary_events_note_id_diary_notes_id_fk",
+          "tableFrom": "diary_events",
+          "tableTo": "diary_notes",
           "columnsFrom": [
             "note_id"
           ],
@@ -733,10 +733,10 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "events_category_id_categories_id_fk": {
-          "name": "events_category_id_categories_id_fk",
-          "tableFrom": "events",
-          "tableTo": "categories",
+        "diary_events_category_id_diary_categories_id_fk": {
+          "name": "diary_events_category_id_diary_categories_id_fk",
+          "tableFrom": "diary_events",
+          "tableTo": "diary_categories",
           "columnsFrom": [
             "category_id"
           ],
@@ -751,15 +751,15 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "events_span_order": {
-          "name": "events_span_order",
-          "value": "\"events\".\"ends_at\" is null or \"events\".\"ends_at\" >= \"events\".\"occurred_at\""
+        "diary_events_span_order": {
+          "name": "diary_events_span_order",
+          "value": "\"diary_events\".\"ends_at\" is null or \"diary_events\".\"ends_at\" >= \"diary_events\".\"occurred_at\""
         }
       },
       "isRLSEnabled": false
     },
-    "public.notes": {
-      "name": "notes",
+    "public.diary_notes": {
+      "name": "diary_notes",
       "schema": "",
       "columns": {
         "id": {
@@ -789,8 +789,8 @@
         }
       },
       "indexes": {
-        "notes_user_id_idx": {
-          "name": "notes_user_id_idx",
+        "diary_notes_user_id_idx": {
+          "name": "diary_notes_user_id_idx",
           "columns": [
             {
               "expression": "user_id",
@@ -806,9 +806,9 @@
         }
       },
       "foreignKeys": {
-        "notes_user_id_users_id_fk": {
-          "name": "notes_user_id_users_id_fk",
-          "tableFrom": "notes",
+        "diary_notes_user_id_users_id_fk": {
+          "name": "diary_notes_user_id_users_id_fk",
+          "tableFrom": "diary_notes",
           "tableTo": "users",
           "columnsFrom": [
             "user_id"
@@ -1342,8 +1342,8 @@
         "error"
       ]
     },
-    "public.event_source": {
-      "name": "event_source",
+    "public.diary_event_source": {
+      "name": "diary_event_source",
       "schema": "public",
       "values": [
         "manual",

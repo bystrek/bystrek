@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { EventPatchDto, EventRangeDto, NewNoteDto } from './log.dto';
+import { DiaryEventPatchDto, DiaryEventRangeDto, NewDiaryNoteDto } from './diary.dto';
 
 const CATEGORY_ID = '0b9a1e1c-5b7e-4a39-9c1a-3d6f0e2b8c11';
 
@@ -25,8 +25,8 @@ const note = (overrides: object = {}) => ({
 const issues = (result: { success: boolean; error?: { issues: { path: PropertyKey[] }[] } }) =>
   result.error?.issues.map((issue) => issue.path.join('.')) ?? [];
 
-describe('NewNoteDto', () => {
-  const parse = (input: object) => NewNoteDto.schema.safeParse(input);
+describe('NewDiaryNoteDto', () => {
+  const parse = (input: object) => NewDiaryNoteDto.schema.safeParse(input);
 
   it('accepts a note and turns instants into dates', () => {
     const result = parse(note());
@@ -91,8 +91,8 @@ describe('NewNoteDto', () => {
   });
 });
 
-describe('EventPatchDto', () => {
-  const parse = (input: object) => EventPatchDto.schema.safeParse(input);
+describe('DiaryEventPatchDto', () => {
+  const parse = (input: object) => DiaryEventPatchDto.schema.safeParse(input);
 
   it('accepts clearing the end and the category', () => {
     expect(parse({ endsAt: null, categoryId: null }).data).toEqual({
@@ -108,8 +108,8 @@ describe('EventPatchDto', () => {
   });
 });
 
-describe('EventRangeDto', () => {
-  const parse = (input: object) => EventRangeDto.schema.safeParse(input);
+describe('DiaryEventRangeDto', () => {
+  const parse = (input: object) => DiaryEventRangeDto.schema.safeParse(input);
 
   it('accepts a range', () => {
     expect(

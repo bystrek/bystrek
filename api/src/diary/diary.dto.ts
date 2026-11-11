@@ -41,7 +41,7 @@ const NewCategory = z.object({
 });
 
 // A confirmed note: the raw text as typed, and what it was turned into.
-export class NewNoteDto extends createZodDto(
+export class NewDiaryNoteDto extends createZodDto(
   z
     .object({
       rawText: z.string().trim().min(1).max(5000),
@@ -82,7 +82,7 @@ export class NewNoteDto extends createZodDto(
 ) {}
 
 // Only what the user may edit. A changed span is checked against the stored event.
-export class EventPatchDto extends createZodDto(
+export class DiaryEventPatchDto extends createZodDto(
   z.object({
     text: eventText.optional(),
     occurredAt: instant.optional(),
@@ -92,7 +92,7 @@ export class EventPatchDto extends createZodDto(
 ) {}
 
 // Half-open: events overlapping [from, to).
-export class EventRangeDto extends createZodDto(
+export class DiaryEventRangeDto extends createZodDto(
   z
     .object({ from: instant, to: instant })
     .refine((range) => range.to > range.from, { message: 'to must be after from', path: ['to'] }),

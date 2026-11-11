@@ -16,24 +16,28 @@ import {
 import type { Request } from 'express';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { AuthGuard } from '../auth/auth.guard';
-import { LogErrorsFilter } from './log-errors.filter';
-import { LogEventsService } from './log-events.service';
-import { EventPatchDto, EventRangeDto } from './log.dto';
+import { DiaryErrorsFilter } from './diary-errors.filter';
+import { DiaryEventsService } from './diary-events.service';
+import { DiaryEventPatchDto, DiaryEventRangeDto } from './diary.dto';
 
-@Controller('log/events')
+@Controller('diary/events')
 @UseGuards(AuthGuard)
 @UsePipes(ZodValidationPipe)
-@UseFilters(LogErrorsFilter)
-export class LogEventsController {
-  constructor(private readonly events: LogEventsService) {}
+@UseFilters(DiaryErrorsFilter)
+export class DiaryEventsController {
+  constructor(private readonly events: DiaryEventsService) {}
 
   @Get()
-  list(@Query() range: EventRangeDto, @Req() req: Request) {
+  list(@Query() range: DiaryEventRangeDto, @Req() req: Request) {
     return this.events.list(req.session!.user.id, range);
   }
 
   @Patch(':id')
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() body: EventPatchDto, @Req() req: Request) {
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: DiaryEventPatchDto,
+    @Req() req: Request,
+  ) {
     return this.events.update(req.session!.user.id, id, body);
   }
 

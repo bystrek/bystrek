@@ -1,12 +1,12 @@
 import { Controller, Get, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthGuard } from '../auth/auth.guard';
-import { LogCategoriesService } from './log-categories.service';
+import { DiaryCategoriesService } from './diary-categories.service';
 
-@Controller('log/categories')
+@Controller('diary/categories')
 @UseGuards(AuthGuard)
-export class LogCategoriesController {
-  constructor(private readonly categories: LogCategoriesService) {}
+export class DiaryCategoriesController {
+  constructor(private readonly categories: DiaryCategoriesService) {}
 
   @Get()
   list(@Req() req: Request) {

@@ -1,16 +1,16 @@
-// Also for another user's event: the log is private, so it doesn't exist for them.
-export class EventNotFoundError extends Error {
+// Also for another user's event: the diary is private, so it doesn't exist for them.
+export class DiaryEventNotFoundError extends Error {
   constructor(id: string) {
     super(`Event ${id} not found`);
-    this.name = 'EventNotFoundError';
+    this.name = 'DiaryEventNotFoundError';
   }
 }
 
 // A category id that isn't one of the user's own.
-export class UnknownCategoryError extends Error {
+export class UnknownDiaryCategoryError extends Error {
   constructor(id: string) {
     super(`Category ${id} not found`);
-    this.name = 'UnknownCategoryError';
+    this.name = 'UnknownDiaryCategoryError';
   }
 }
 

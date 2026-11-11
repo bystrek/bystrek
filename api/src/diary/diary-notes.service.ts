@@ -1,34 +1,38 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { type Db, DRIZZLE } from '../db/drizzle.provider';
-import { notes } from '../db/schema';
-import { EventSource } from './event-source';
-import { LogCategoriesService } from './log-categories.service';
-import { type LogEvent, LogEventsService } from './log-events.service';
-import type { NewNoteDto } from './log.dto';
+import { diaryNotes } from '../db/schema';
+import { DiaryEventSource } from './diary-event-source';
+import { DiaryCategoriesService } from './diary-categories.service';
+import { type DiaryEvent, DiaryEventsService } from './diary-events.service';
+import type { NewDiaryNoteDto } from './diary.dto';
 
-export interface Note {
+export interface DiaryNote {
   id: string;
   rawText: string;
   capturedAt: Date;
-  events: LogEvent[];
+  events: DiaryEvent[];
 }
 
 // Saving a confirmed note: the note, its new categories and its events, all or nothing.
 // The note is stored as typed and never changed afterwards.
 @Injectable()
-export class LogNotesService {
+export class DiaryNotesService {
   constructor(
     @Inject(DRIZZLE) private readonly db: Db,
-    private readonly categories: LogCategoriesService,
-    private readonly events: LogEventsService,
+    private readonly categories: DiaryCategoriesService,
+    private readonly events: DiaryEventsService,
   ) {}
 
-  create(userId: string, input: NewNoteDto): Promise<Note> {
+  create(userId: string, input: NewDiaryNoteDto): Promise<DiaryNote> {
     return this.db.transaction(async (tx) => {
       const [note] = await tx
-        .insert(notes)
+        .insert(diaryNotes)
         .values({ userId, rawText: input.rawText, capturedAt: input.capturedAt })
-        .returning({ id: notes.id, rawText: notes.rawText, capturedAt: notes.capturedAt });
+        .returning({
+          id: diaryNotes.id,
+          rawText: diaryNotes.rawText,
+          capturedAt: diaryNotes.capturedAt,
+        });
 
       const created = await this.categories.create(userId, input.newCategories, tx);
       await this.categories.assertOwned(
@@ -46,7 +50,7 @@ export class LogNotesService {
           categoryId: event.newCategory
             ? created.get(event.newCategory)!
             : (event.categoryId ?? null),
-          source: EventSource.Manual,
+          source: DiaryEventSource.Manual,
           noteId: note.id,
           extractorVersion: event.extractorVersion ?? null,
         })),
