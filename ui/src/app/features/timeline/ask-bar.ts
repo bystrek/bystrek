@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, model, output } from '@angular/core';
 import { Temporal } from '@js-temporal/polyfill';
 import { Button } from '../../shared/button/button';
 import { Chip } from '../../shared/chip/chip';
@@ -10,7 +10,7 @@ import { AskBarStore, AskPhase } from './ask-bar-store';
 
 export const SUGGESTIONS = ['next meeting'];
 
-// The timeline's command bar. A question clears the input once it is sent.
+// The timeline bar in ask mode. A question clears the input once it is sent.
 @Component({
   selector: 'app-ask-bar',
   imports: [
@@ -33,11 +33,12 @@ export class AskBar {
   readonly jump = output<Temporal.PlainDate>();
 
   readonly suggestions = SUGGESTIONS;
-  protected readonly question = signal('');
+  // Shared with log mode, so switching modes keeps what was typed.
+  readonly text = model('');
 
   ask(text: string): void {
     this.store.ask(text);
-    this.question.set('');
+    this.text.set('');
   }
 
   useSuggestion(text: string): void {

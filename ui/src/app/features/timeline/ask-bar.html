@@ -6,7 +6,7 @@
   [maxLength]="500"
   [busy]="store.busy()"
   [asked]="store.asked()"
-  [(text)]="question"
+  [(text)]="text"
   (submitted)="ask($event)"
   (stopped)="store.stop()"
 >

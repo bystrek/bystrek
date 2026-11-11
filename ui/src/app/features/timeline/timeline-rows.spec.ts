@@ -8,6 +8,7 @@ import {
   TimelineDay,
   TimelineRowKind,
   buildTimelineRows,
+  loggedDay,
 } from './timeline-rows';
 
 const event = (uid: string, start: string, end: string, summary = uid): CalendarEvent => ({
@@ -198,5 +199,27 @@ describe('timeline rows', () => {
     expect(
       titles(buildTimelineRows([], [lastNight], on('2025-10-21', '2025-10-21T10:00Z'))),
     ).toEqual([]);
+  });
+});
+
+describe('loggedDay', () => {
+  const tz = 'Europe/Warsaw';
+  const day = (occurredAt: string, endsAt: string | null) =>
+    loggedDay({ occurredAt, endsAt }, tz).toString();
+
+  it('is the day a point happened on in the account timezone', () => {
+    expect(day('2026-11-10T23:30:00Z', null)).toBe('2026-11-11');
+  });
+
+  it('is the day a span ends on', () => {
+    expect(day('2026-11-10T22:00:00Z', '2026-11-11T06:00:00Z')).toBe('2026-11-11');
+  });
+
+  it('is the day before for a span ending at midnight', () => {
+    expect(day('2026-11-10T20:00:00Z', '2026-11-10T23:00:00Z')).toBe('2026-11-10');
+  });
+
+  it('is the day of a zero-length span at midnight, like a point', () => {
+    expect(day('2026-11-10T23:00:00Z', '2026-11-10T23:00:00Z')).toBe('2026-11-11');
   });
 });

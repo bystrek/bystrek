@@ -1,0 +1,23 @@
+@switch (mode()) {
+  @case (BarMode.ASK) {
+    <app-ask-bar [(text)]="text" (jump)="jump.emit($event)" />
+  }
+  @case (BarMode.LOG) {
+    <app-log-bar [(text)]="text" />
+  }
+}
+
+<div class="modes" role="radiogroup" aria-label="Bar mode">
+  @for (m of modes; track m) {
+    <button
+      type="button"
+      role="radio"
+      class="mode"
+      [attr.aria-checked]="mode() === m"
+      [disabled]="askStore.busy() || logStore.busy() || logStore.saving()"
+      (click)="mode.set(m)"
+    >
+      {{ m }}
+    </button>
+  }
+</div>

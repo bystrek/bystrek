@@ -1,0 +1,94 @@
+:host {
+  display: block;
+}
+
+.draft {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.events {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.event {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.line input {
+  flex: 1;
+  width: 0;
+  min-width: 0;
+}
+
+.details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.details > * {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+input,
+select {
+  box-sizing: border-box;
+  min-height: var(--tap);
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-heavy);
+  border-radius: 0;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  /* 16px+ avoids iOS Safari auto-zoom on focus. */
+  font: 400 var(--text-md) / 1.4 var(--font-mono);
+}
+
+.new-categories {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.new-categories legend {
+  padding: 0;
+  margin-bottom: var(--space-2);
+  font: 700 var(--text-xs) / 1.2 var(--font-mono);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.field-error,
+.save-error {
+  margin: 0;
+  font: 700 var(--text-sm) / 1.4 var(--font-mono);
+}
+
+.message {
+  margin: 0;
+  font-size: var(--text-md);
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}

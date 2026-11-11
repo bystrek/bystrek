@@ -33,3 +33,16 @@ export function minutesUntil(iso: string, now: Temporal.Instant): number {
   const until = now.until(Temporal.Instant.from(iso));
   return Math.max(0, until.round({ largestUnit: 'minute', smallestUnit: 'minute' }).minutes);
 }
+
+// The value of an <input type="datetime-local">: the instant's wall clock in the account timezone.
+export function toLocalDateTime(iso: string, timeZone: string): string {
+  return Temporal.Instant.from(iso)
+    .toZonedDateTimeISO(timeZone)
+    .toPlainDateTime()
+    .toString({ smallestUnit: 'minute' });
+}
+
+// Back from a datetime-local value; a wall-clock time a DST change skips moves forward.
+export function fromLocalDateTime(local: string, timeZone: string): string {
+  return Temporal.PlainDateTime.from(local).toZonedDateTime(timeZone).toInstant().toString();
+}

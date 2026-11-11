@@ -1,0 +1,123 @@
+<app-command-bar
+  label="Log to your diary"
+  placeholder="log what happened…"
+  [submitLabel]="store.confirmable() && text() === store.asked() ? 'Log it' : 'Draft log'"
+  thinkingLabel="Reading your note"
+  clearable
+  [maxLength]="maxLength"
+  [busy]="store.busy()"
+  [locked]="store.saving()"
+  [asked]="store.asked()"
+  [(text)]="text"
+  (submitted)="send($event)"
+  (stopped)="store.stop()"
+  (cleared)="cancel()"
+>
+  @if (store.response(); as r) {
+    <ng-container ngProjectAs="[commandBarResult]">
+      @if (r.kind === 'draft') {
+        <app-command-result label="Log" closeLabel="Close" (closed)="store.dismiss()">
+          <form class="draft" [formRoot]="draftForm" aria-label="What to log">
+            <ul class="events">
+              @for (event of draftForm.events; track event; let i = $index) {
+                <li class="event">
+                  <div class="line">
+                    <input
+                      class="text"
+                      type="text"
+                      aria-label="What happened"
+                      [formField]="event.text"
+                    />
+                    <button
+                      type="button"
+                      appButton
+                      shape="icon"
+                      aria-label="Remove event"
+                      [disabled]="store.saving()"
+                      (click)="removeEvent(i)"
+                    >
+                      <app-icon name="x" />
+                    </button>
+                  </div>
+                  <div class="details">
+                    <input type="datetime-local" aria-label="When" [formField]="event.occurredAt" />
+                    @if (event.span().value()) {
+                      <input type="datetime-local" aria-label="Until" [formField]="event.endsAt" />
+                    }
+                    <select aria-label="Category" [formField]="event.category">
+                      <option value="">No category</option>
+                      @for (c of store.categories(); track c.id) {
+                        <option [value]="c.id">{{ c.name }}</option>
+                      }
+                      @for (c of draftForm.newCategories; track c) {
+                        <option [value]="c.key().value()">{{ c.name().value() }} (new)</option>
+                      }
+                    </select>
+                  </div>
+                  @for (field of [event.text, event.occurredAt, event.endsAt]; track $index) {
+                    @for (error of field().errors(); track error.kind) {
+                      <p class="field-error">{{ error.message }}</p>
+                    }
+                  }
+                </li>
+              }
+            </ul>
+            @for (error of draftForm.events().errors(); track error.kind) {
+              <p class="field-error">{{ error.message }}</p>
+            }
+
+            @if (draftForm.newCategories.length) {
+              <fieldset class="new-categories">
+                <legend>New categories</legend>
+                @for (c of draftForm.newCategories; track c) {
+                  <div class="line">
+                    <input type="text" aria-label="Category name" [formField]="c.name" />
+                    <button
+                      type="button"
+                      appButton
+                      shape="icon"
+                      [attr.aria-label]="'Remove category ' + c.name().value()"
+                      [disabled]="store.saving()"
+                      (click)="removeCategory(c.key().value())"
+                    >
+                      <app-icon name="x" />
+                    </button>
+                  </div>
+                  @for (error of c.name().errors(); track error.kind) {
+                    <p class="field-error">{{ error.message }}</p>
+                  }
+                }
+              </fieldset>
+            }
+
+            @if (store.saveError(); as message) {
+              <p class="save-error" role="alert">{{ message }}</p>
+            }
+            <div class="actions">
+              <button type="submit" appButton variant="inverse" [disabled]="store.saving()">
+                {{ store.saving() ? 'Logging…' : 'Log it ↵' }}
+              </button>
+              <button type="button" appButton [disabled]="store.saving()" (click)="cancel()">
+                Cancel
+              </button>
+            </div>
+          </form>
+        </app-command-result>
+      } @else {
+        <app-command-result label="Nothing to log" closeLabel="Close" (closed)="store.dismiss()">
+          <p class="message">{{ r.text }}</p>
+        </app-command-result>
+      }
+    </ng-container>
+  } @else if (store.error(); as message) {
+    <app-command-result
+      ngProjectAs="[commandBarResult]"
+      tone="danger"
+      label="Error"
+      closeLabel="Close"
+      (closed)="store.dismiss()"
+    >
+      <p class="message">{{ message }}</p>
+    </app-command-result>
+  }
+</app-command-bar>
