@@ -29,6 +29,13 @@
       "when": 1794256860571,
       "tag": "0003_pocket_id",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794407160479,
+      "tag": "0004_log",
+      "breakpoints": true
     }
   ]
 }
