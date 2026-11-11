@@ -172,7 +172,7 @@ app-alert p {
   font-size: var(--text-xs);
 }
 
-/* Docked to the bottom of the viewport like the agenda's bar; at the end of the page when
+/* Docked to the bottom of the viewport like the timeline's bar; at the end of the page when
    the list is short. The page-coloured backdrop hides the rows scrolling under it. */
 .command {
   position: sticky;

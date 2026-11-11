@@ -12,7 +12,7 @@
       @if (auth.session()?.user?.name; as name) {
         <p class="who">{{ name }}</p>
       }
-      <a routerLink="/agenda" routerLinkActive="active" (click)="menu.hidePopover()">Agenda</a>
+      <a routerLink="/timeline" routerLinkActive="active" (click)="menu.hidePopover()">Timeline</a>
       <a routerLink="/places" routerLinkActive="active" (click)="menu.hidePopover()">Places</a>
       <a routerLink="/settings" routerLinkActive="active" (click)="menu.hidePopover()">Settings</a>
       <button type="button" class="sign-out" (click)="menu.hidePopover(); signOut()">

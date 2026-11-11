@@ -1,6 +1,6 @@
 import { Pipe, PipeTransform } from '@angular/core';
 import { Temporal } from '@js-temporal/polyfill';
-import { clockTime, formatDuration, minutesUntil, toWeekdayAndDate } from './agenda-format';
+import { clockTime, formatDuration, minutesUntil, toWeekdayAndDate } from './timeline-format';
 
 @Pipe({ name: 'weekdayAndDate' })
 export class WeekdayAndDatePipe implements PipeTransform {

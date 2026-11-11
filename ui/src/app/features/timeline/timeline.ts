@@ -1,16 +1,16 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { AgendaStore } from './agenda-store';
+import { TimelineStore } from './timeline-store';
 import { Button } from '../../shared/button/button';
 import { Icon } from '../../shared/icon/icon';
 import { Progress } from '../../shared/progress/progress';
 import { Tag } from '../../shared/tag/tag';
 import { AskBar } from './ask-bar';
 import { AskBarStore } from './ask-bar-store';
-import { AgendaRow, AgendaRowKind, EventStatus } from './agenda-rows';
-import { DurationPipe, MinutesUntilPipe, WeekdayAndDatePipe } from './agenda-pipes';
+import { TimelineRow, TimelineRowKind, EventStatus } from './timeline-rows';
+import { DurationPipe, MinutesUntilPipe, WeekdayAndDatePipe } from './timeline-pipes';
 
 @Component({
-  selector: 'app-agenda',
+  selector: 'app-timeline',
   imports: [
     AskBar,
     Button,
@@ -21,18 +21,18 @@ import { DurationPipe, MinutesUntilPipe, WeekdayAndDatePipe } from './agenda-pip
     Tag,
     WeekdayAndDatePipe,
   ],
-  providers: [AgendaStore, AskBarStore],
-  templateUrl: './agenda.html',
-  styleUrl: './agenda.css',
+  providers: [TimelineStore, AskBarStore],
+  templateUrl: './timeline.html',
+  styleUrl: './timeline.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class Agenda {
-  protected readonly store = inject(AgendaStore);
+export class Timeline {
+  protected readonly store = inject(TimelineStore);
   protected readonly askStore = inject(AskBarStore);
   protected readonly EventStatus = EventStatus;
-  protected readonly AgendaRowKind = AgendaRowKind;
+  protected readonly TimelineRowKind = TimelineRowKind;
 
-  trackRow(row: AgendaRow): string {
+  trackRow(row: TimelineRow): string {
     return row.key;
   }
 }

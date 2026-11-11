@@ -1,6 +1,6 @@
-<main class="agenda" [class.muted]="askStore.busy()">
+<main class="timeline" [class.muted]="askStore.busy()">
   <header class="head">
-    <h1>Agenda</h1>
+    <h1>Timeline</h1>
   </header>
 
   <div class="day-nav">
@@ -33,7 +33,7 @@
 
     <ol class="list">
       @for (row of store.rows(); track trackRow(row)) {
-        @if (row.kind === AgendaRowKind.GAP) {
+        @if (row.kind === TimelineRowKind.GAP) {
           <li class="gap">·· free {{ row.minutes | duration }} ··</li>
         } @else {
           <li class="event" [attr.data-status]="row.status">

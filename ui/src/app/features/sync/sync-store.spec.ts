@@ -39,7 +39,7 @@ describe('SyncStore', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  it('polls until ready, then opens the agenda and stops', async () => {
+  it('polls until ready, then opens the timeline and stops', async () => {
     const { store, progressFn, navigateByUrl } = setup([
       progress(SyncStatus.PENDING),
       progress(SyncStatus.SYNCING, 50, 105),
@@ -52,7 +52,7 @@ describe('SyncStore', () => {
     expect(store.progress()?.fetched).toBe(50);
 
     await tick();
-    expect(navigateByUrl).toHaveBeenCalledWith('/agenda');
+    expect(navigateByUrl).toHaveBeenCalledWith('/timeline');
 
     await tick();
     await tick();

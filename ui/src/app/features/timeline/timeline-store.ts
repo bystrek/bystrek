@@ -18,11 +18,11 @@ import {
   CalendarNotReadyError,
   CalendarService,
 } from '../../core/calendar/calendar.service';
-import { buildAgendaRows } from './agenda-rows';
+import { buildTimelineRows } from './timeline-rows';
 
 type DayResult = { events: CalendarEvent[] } | { error: string };
 
-type AgendaState = {
+type TimelineState = {
   timezone: string;
   selectedDay: Temporal.PlainDate;
   events: CalendarEvent[];
@@ -33,14 +33,14 @@ type AgendaState = {
 // Browser zone until the account timezone loads; "today" is refined once it does.
 const browserZone = Temporal.Now.timeZoneId();
 
-export const AgendaStore = signalStore(
+export const TimelineStore = signalStore(
   // Clock, not state: ticks every minute so "Next · in X min" labels stay current.
   withProps(() => ({
     now: toSignal(timer(0, 60_000).pipe(map(() => Temporal.Now.instant())), {
       initialValue: Temporal.Now.instant(),
     }),
   })),
-  withState<AgendaState>({
+  withState<TimelineState>({
     timezone: browserZone,
     selectedDay: Temporal.Now.plainDateISO(browserZone),
     events: [],
@@ -53,7 +53,7 @@ export const AgendaStore = signalStore(
     );
     const eventCount = computed(() => events().length);
     return {
-      rows: computed(() => buildAgendaRows(events(), now())),
+      rows: computed(() => buildTimelineRows(events(), now())),
       isToday,
       subtitle: computed(() => {
         const count = eventCount();

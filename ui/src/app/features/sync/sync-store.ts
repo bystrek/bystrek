@@ -21,7 +21,7 @@ type SyncState = {
 const isDone = (progress: SyncProgress | null): boolean =>
   progress?.status === SyncStatus.READY || progress?.status === SyncStatus.ERROR;
 
-// Polls the first download until it is ready (then opens the agenda) or fails.
+// Polls the first download until it is ready (then opens the timeline) or fails.
 export const SyncStore = signalStore(
   withState<SyncState>({ progress: null, requestError: null, retrying: false }),
   withMethods((store) => {
@@ -40,7 +40,7 @@ export const SyncStore = signalStore(
                 return;
               }
               patchState(store, { progress, requestError: null });
-              if (progress.status === SyncStatus.READY) void router.navigateByUrl('/agenda');
+              if (progress.status === SyncStatus.READY) void router.navigateByUrl('/timeline');
             }),
             takeWhile((progress) => progress !== null && !isDone(progress)),
             catchError((err: unknown) => {

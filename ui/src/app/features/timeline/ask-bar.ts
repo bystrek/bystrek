@@ -5,12 +5,12 @@ import { Chip } from '../../shared/chip/chip';
 import { CommandBar } from '../../shared/command-bar/command-bar';
 import { CommandResult } from '../../shared/command-bar/command-result';
 import { Icon } from '../../shared/icon/icon';
-import { ClockTimePipe, DurationPipe, WeekdayAndDatePipe } from './agenda-pipes';
+import { ClockTimePipe, DurationPipe, WeekdayAndDatePipe } from './timeline-pipes';
 import { AskBarStore, AskPhase } from './ask-bar-store';
 
 export const SUGGESTIONS = ['next meeting'];
 
-// The agenda's command bar. A question clears the input once it is sent.
+// The timeline's command bar. A question clears the input once it is sent.
 @Component({
   selector: 'app-ask-bar',
   imports: [

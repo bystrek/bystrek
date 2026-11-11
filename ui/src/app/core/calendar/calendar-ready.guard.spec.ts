@@ -23,7 +23,7 @@ const url = (result: boolean | UrlTree) =>
   result instanceof UrlTree ? TestBed.inject(Router).serializeUrl(result) : result;
 
 describe('calendarReadyGuard', () => {
-  it('lets the agenda open once the first download is done', async () => {
+  it('lets the timeline open once the first download is done', async () => {
     expect(url(await run(async () => progress(SyncStatus.READY)))).toBe(true);
   });
 
