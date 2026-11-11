@@ -1,4 +1,4 @@
-<main class="timeline" [class.muted]="askStore.busy()">
+<main class="timeline" [class.muted]="askStore.busy() || logStore.busy()">
   <header class="head">
     <h1>Timeline</h1>
   </header>
@@ -62,5 +62,5 @@
     }
   </div>
 
-  <app-ask-bar (jump)="store.jumpToDay($event)" />
+  <app-timeline-bar (jump)="store.jumpToDay($event)" />
 </main>
