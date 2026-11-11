@@ -101,6 +101,7 @@ describe('LogBarStore', () => {
           occurredAt: '2026-11-11T08:30',
           endsAt: '',
           span: false,
+          drafted: { occurredAt: '2026-11-11T07:30:00.000Z', endsAt: null },
           category: supplement.id,
           extractorVersion: VERSION,
         },
@@ -109,6 +110,7 @@ describe('LogBarStore', () => {
           occurredAt: '2026-11-11T08:31',
           endsAt: '',
           span: false,
+          drafted: { occurredAt: '2026-11-11T07:31:00.000Z', endsAt: null },
           category: 'new:0',
           extractorVersion: VERSION,
         },
@@ -138,7 +140,7 @@ describe('LogBarStore', () => {
       events: [
         {
           text: 'Took 5 g creatine',
-          occurredAt: '2026-11-11T07:30:00Z',
+          occurredAt: '2026-11-11T07:30:00.000Z',
           endsAt: null,
           categoryId: supplement.id,
           extractorVersion: VERSION,
@@ -250,6 +252,37 @@ describe('LogBarStore', () => {
     expect(store.confirmable()).toBe(true);
     expect(store.edits().events.map((e) => e.text)).toEqual(['Put the dishwasher on']);
     expect(timeline.jumpToDay).not.toHaveBeenCalled();
+  });
+
+  it('sends an untouched time as drafted, even in a repeated DST hour', async () => {
+    // 01:30Z on 25 Oct is the second 02:30 in Warsaw; rebuilt from "02:30" it would be 00:30Z.
+    const repeated = '2026-10-25T01:30:42.000Z';
+    const { store, diary } = setup({
+      draft: () => of({ ...draft, events: [{ ...draft.events[0], occurredAt: repeated }] }),
+    });
+    store.submit(NOTE);
+    await settle();
+
+    await store.save();
+
+    expect(diary.createNote.mock.calls[0][0].events[0].occurredAt).toBe(repeated);
+  });
+
+  it('keeps the card while a save is in flight, so a failure still shows', async () => {
+    let fail!: (err: Error) => void;
+    const { store } = setup({
+      createNote: () => new Promise((_, reject) => (fail = reject)),
+    });
+    store.submit(NOTE);
+    await settle();
+
+    const saving = store.save();
+    store.dismiss();
+    fail(new Error("Couldn't log that. Try again."));
+    await saving;
+
+    expect(store.confirmable()).toBe(true);
+    expect(store.saveError()).toBe("Couldn't log that. Try again.");
   });
 
   it('drops the in-flight draft when stopped', () => {

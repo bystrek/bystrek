@@ -14,7 +14,7 @@ import { CommandBar } from '../../shared/command-bar/command-bar';
 import { CommandResult } from '../../shared/command-bar/command-result';
 import { Icon } from '../../shared/icon/icon';
 import { LogBarStore } from './log-bar-store';
-import { withoutCategory, withoutEvent } from './log-draft';
+import { isUsedCategory, withoutCategory, withoutEvent } from './log-draft';
 
 const nameKey = (name: string) => name.trim().toLowerCase();
 
@@ -47,13 +47,22 @@ export class LogBar {
             : null,
         );
       });
+      // A proposed category no event is in isn't saved, so its name can't block the save.
       applyEach(path.newCategories, (category) => {
-        required(category.name, { message: 'Name the category.' });
-        validate(category.name, ({ value, valueOf }) =>
-          valueOf(path.newCategories).filter((c) => nameKey(c.name) === nameKey(value())).length > 1
+        required(category.name, {
+          message: 'Name the category.',
+          when: ({ valueOf }) => isUsedCategory(valueOf(category.key), valueOf(path.events)),
+        });
+        validate(category.name, ({ value, valueOf }) => {
+          const events = valueOf(path.events);
+          if (!isUsedCategory(valueOf(category.key), events)) return null;
+          const clashes = valueOf(path.newCategories).filter(
+            (c) => isUsedCategory(c.key, events) && nameKey(c.name) === nameKey(value()),
+          );
+          return clashes.length > 1
             ? { kind: 'duplicate', message: 'Two categories have this name.' }
-            : null,
-        );
+            : null;
+        });
       });
     },
     {

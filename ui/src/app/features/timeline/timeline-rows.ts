@@ -108,14 +108,20 @@ function endingBy(dayEnd: Temporal.Instant) {
 }
 
 // The day a logged event shows on, by the same rule: the day its end falls on, where a span
-// ending at midnight ends the day before.
+// ending at midnight ends the day before. A zero-length span is a point.
 export function loggedDay(
   event: Pick<DiaryEvent, 'occurredAt' | 'endsAt'>,
   timeZone: string,
 ): Temporal.PlainDate {
   const end = Temporal.Instant.from(event.endsAt ?? event.occurredAt).toZonedDateTimeISO(timeZone);
   const day = end.toPlainDate();
-  const endsAtMidnight = event.endsAt !== null && end.equals(end.startOfDay());
+  const endsAtMidnight =
+    event.endsAt !== null &&
+    Temporal.Instant.compare(
+      Temporal.Instant.from(event.endsAt),
+      Temporal.Instant.from(event.occurredAt),
+    ) > 0 &&
+    end.equals(end.startOfDay());
   return endsAtMidnight ? day.subtract({ days: 1 }) : day;
 }
 

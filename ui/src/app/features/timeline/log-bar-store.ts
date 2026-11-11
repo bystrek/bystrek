@@ -142,8 +142,12 @@ export const LogBarStore = signalStore(
         stops.next();
         patchState(store, { phase: LogPhase.IDLE });
       },
-      // Hides the card but keeps the note in the bar for another try.
-      dismiss: (): void => patchState(store, { phase: LogPhase.IDLE, response: null, error: null }),
+      // Hides the card but keeps the note in the bar for another try. Not while saving: a failed
+      // save shows its error and the edits on the card.
+      dismiss: (): void => {
+        if (store.saving()) return;
+        patchState(store, { phase: LogPhase.IDLE, response: null, error: null });
+      },
       cancel: reset,
 
       // Saves the edited draft and moves the timeline to the day it landed on. True once saved.

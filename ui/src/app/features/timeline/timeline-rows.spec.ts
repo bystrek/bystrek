@@ -218,4 +218,8 @@ describe('loggedDay', () => {
   it('is the day before for a span ending at midnight', () => {
     expect(day('2026-11-10T20:00:00Z', '2026-11-10T23:00:00Z')).toBe('2026-11-10');
   });
+
+  it('is the day of a zero-length span at midnight, like a point', () => {
+    expect(day('2026-11-10T23:00:00Z', '2026-11-10T23:00:00Z')).toBe('2026-11-11');
+  });
 });

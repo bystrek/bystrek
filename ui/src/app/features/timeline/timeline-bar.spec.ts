@@ -28,9 +28,9 @@ const draft: DiaryDraftResponse = {
   newCategories: [],
 };
 
-const render = async () => {
+const render = async (response: DiaryDraftResponse = draft) => {
   const diary = {
-    draft: vi.fn(() => of(draft)),
+    draft: vi.fn(() => of(response)),
     listCategories: vi.fn(async () => []),
     createNote: vi.fn(async (note: NewDiaryNote) =>
       note.events.map((event, i) => ({
@@ -138,6 +138,29 @@ describe('TimelineBar', () => {
 
     expect(ui.diary.draft).toHaveBeenCalledTimes(2);
     expect(ui.diary.createNote).not.toHaveBeenCalled();
+  });
+
+  it('ignores a blank proposed category once no event is in it', async () => {
+    const ui = await render({
+      ...draft,
+      events: [{ ...draft.events[0], newCategory: 'chores' }],
+      newCategories: [{ name: 'chores', description: null }],
+    });
+    await ui.mode('log');
+    await ui.type(NOTE);
+    await ui.enter();
+
+    const name = ui.el.querySelector<HTMLInputElement>('[aria-label="Category name"]')!;
+    name.value = '';
+    name.dispatchEvent(new Event('input'));
+    const category = ui.el.querySelector<HTMLSelectElement>('[aria-label="Category"]')!;
+    category.value = '';
+    category.dispatchEvent(new Event('input'));
+    await ui.enter();
+
+    expect(ui.diary.createNote).toHaveBeenCalledWith(
+      expect.objectContaining({ newCategories: [] }),
+    );
   });
 
   it('does not log an event left blank', async () => {

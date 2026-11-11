@@ -10,6 +10,9 @@ export type LogDraftEvent = {
   endsAt: string;
   // Drafted as a span: the card shows its end.
   span: boolean;
+  // The drafted instants: a time left as drafted is sent as is, not rebuilt from the minute-only
+  // local value, which drops seconds and can't tell a repeated DST hour apart.
+  drafted: { occurredAt: string; endsAt: string | null };
   category: string;
   extractorVersion: string | null;
 };
@@ -36,6 +39,7 @@ export function toLogDraftForm(draft: DiaryDraft, timeZone: string): LogDraftFor
       occurredAt: toLocalDateTime(event.occurredAt, timeZone),
       endsAt: event.endsAt === null ? '' : toLocalDateTime(event.endsAt, timeZone),
       span: event.endsAt !== null,
+      drafted: { occurredAt: event.occurredAt, endsAt: event.endsAt },
       category: event.newCategory
         ? (keyOf.get(event.newCategory) ?? NO_CATEGORY)
         : (event.categoryId ?? NO_CATEGORY),
@@ -45,10 +49,22 @@ export function toLogDraftForm(draft: DiaryDraft, timeZone: string): LogDraftFor
   };
 }
 
+export const isUsedCategory = (key: string, events: LogDraftEvent[]): boolean =>
+  events.some((event) => event.category === key);
+
+// Back to an instant, unless the local value is still the drafted one.
+function toInstant(local: string, drafted: string | null, timeZone: string): string {
+  return drafted !== null && local === toLocalDateTime(drafted, timeZone)
+    ? drafted
+    : fromLocalDateTime(local, timeZone);
+}
+
 // Proposed categories no event is in any more are dropped: the API creates only used ones.
 const withUsedCategories = (form: LogDraftForm): LogDraftForm => {
-  const used = new Set(form.events.map((event) => event.category));
-  return { ...form, newCategories: form.newCategories.filter(({ key }) => used.has(key)) };
+  return {
+    ...form,
+    newCategories: form.newCategories.filter(({ key }) => isUsedCategory(key, form.events)),
+  };
 };
 
 export function withoutEvent(form: LogDraftForm, index: number): LogDraftForm {
@@ -74,8 +90,8 @@ export function toNewNote(form: LogDraftForm, source: NoteSource): NewDiaryNote 
     const newCategory = nameOf.get(event.category);
     return {
       text: event.text,
-      occurredAt: fromLocalDateTime(event.occurredAt, source.timeZone),
-      endsAt: event.endsAt ? fromLocalDateTime(event.endsAt, source.timeZone) : null,
+      occurredAt: toInstant(event.occurredAt, event.drafted.occurredAt, source.timeZone),
+      endsAt: event.endsAt ? toInstant(event.endsAt, event.drafted.endsAt, source.timeZone) : null,
       categoryId: newCategory || event.category === NO_CATEGORY ? null : event.category,
       ...(newCategory ? { newCategory } : {}),
       extractorVersion: event.extractorVersion,
