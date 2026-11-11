@@ -36,6 +36,13 @@
       "when": 1794410676673,
       "tag": "0004_diary",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794417035324,
+      "tag": "0005_api_tokens",
+      "breakpoints": true
     }
   ]
 }

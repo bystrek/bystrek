@@ -120,6 +120,48 @@ export const verifications = pgTable(
   (table) => [index('verifications_identifier_idx').on(table.identifier)],
 );
 
+// Personal API tokens: better-auth's api-key plugin model (see
+// auth/api-tokens.ts), so every field it reads or writes is here, including
+// the rate-limit and refill ones bystrek leaves unused. `key` is a SHA-256
+// hash; the token itself is shown once, at creation.
+export const apiTokens = pgTable(
+  'api_tokens',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    configId: text('config_id').notNull().default('default'),
+    // The owning user; the plugin's generic name for it.
+    referenceId: uuid('reference_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name'),
+    start: text('start'),
+    prefix: text('prefix'),
+    key: text('key').notNull(),
+    enabled: boolean('enabled').notNull().default(true),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    lastRequest: timestamp('last_request', { withTimezone: true }),
+    requestCount: integer('request_count').notNull().default(0),
+    rateLimitEnabled: boolean('rate_limit_enabled').notNull().default(true),
+    rateLimitTimeWindow: integer('rate_limit_time_window'),
+    rateLimitMax: integer('rate_limit_max'),
+    remaining: integer('remaining'),
+    refillInterval: integer('refill_interval'),
+    refillAmount: integer('refill_amount'),
+    lastRefillAt: timestamp('last_refill_at', { withTimezone: true }),
+    permissions: text('permissions'),
+    metadata: text('metadata'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex('api_tokens_key_unique').on(table.key),
+    index('api_tokens_reference_id_idx').on(table.referenceId),
+  ],
+);
+
 // Shared across domain tables: a record is visible to every user or just its
 // owner. Defined once here so every future domain table reuses it.
 export const visibility = pgEnum('visibility', ['private', 'shared']);
