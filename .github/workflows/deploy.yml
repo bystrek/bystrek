@@ -12,27 +12,33 @@ on:
 jobs:
   # Required status checks must run (even as a no-op) or GitHub leaves them
   # pending forever on doc-only PRs. This job always runs; the rest skip
-  # their real work via `needs.changes.outputs.code` — a skipped conclusion
-  # still satisfies a required check, unlike a job that never ran at all.
+  # their real work via `needs.changes.outputs.api` / `.ui` — a skipped
+  # conclusion still satisfies a required check, unlike a job that never ran
+  # at all. API-only PRs skip the ui jobs and vice versa.
   changes:
     runs-on: ubuntu-latest
     outputs:
-      code: ${{ steps.filter.outputs.code }}
+      api: ${{ steps.filter.outputs.api }}
+      ui: ${{ steps.filter.outputs.ui }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
         id: filter
         with:
           filters: |
-            code:
-              - "api/**"
-              - "ui/**"
+            shared: &shared
               - ".prettierrc"
               - ".github/workflows/deploy.yml"
+            api:
+              - *shared
+              - "api/**"
+            ui:
+              - *shared
+              - "ui/**"
 
   test-api:
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.api == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -83,7 +89,7 @@ jobs:
 
   build-api:
     needs: [changes, test-api]
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.api == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -97,7 +103,7 @@ jobs:
 
   test-ui:
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.ui == 'true'
     runs-on: ubuntu-latest
     # Ships WebKit plus its system libraries, so no apt-get on every run.
     # Tag must match the locked `playwright` version in ui/bun.lock, or
@@ -127,7 +133,7 @@ jobs:
 
   build-ui:
     needs: [changes, test-ui]
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.ui == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
