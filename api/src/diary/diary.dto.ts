@@ -8,6 +8,8 @@ const instant = z.iso.datetime({ offset: true }).transform(parseOffsetIso);
 
 const eventText = z.string().trim().min(1).max(1000);
 const categoryName = z.string().trim().min(1).max(50);
+// Lowercased so it compares equal to the ids Postgres returns.
+const categoryId = z.uuid().toLowerCase().nullable().optional();
 
 // A span ends no earlier than it starts; a point has no end.
 export const isValidSpan = (occurredAt: Date, endsAt: Date | null | undefined) =>
@@ -21,7 +23,7 @@ const NoteEvent = z
     text: eventText,
     occurredAt: instant,
     endsAt: instant.nullable().optional(),
-    categoryId: z.uuid().nullable().optional(),
+    categoryId,
     newCategory: categoryName.optional(),
     // Which draft prompt produced the event (#163); absent for events the user wrote.
     extractorVersion: z.string().trim().min(1).max(100).nullable().optional(),
@@ -44,7 +46,11 @@ const NewCategory = z.object({
 export class NewDiaryNoteDto extends createZodDto(
   z
     .object({
-      rawText: z.string().trim().min(1).max(5000),
+      // Stored exactly as typed, whitespace included.
+      rawText: z
+        .string()
+        .max(5000)
+        .refine((text) => text.trim() !== '', 'rawText must not be blank'),
       capturedAt: instant,
       events: z.array(NoteEvent).min(1).max(50),
       newCategories: z.array(NewCategory).max(50).default([]),
@@ -87,7 +93,7 @@ export class DiaryEventPatchDto extends createZodDto(
     text: eventText.optional(),
     occurredAt: instant.optional(),
     endsAt: instant.nullable().optional(),
-    categoryId: z.uuid().nullable().optional(),
+    categoryId,
   }),
 ) {}
 

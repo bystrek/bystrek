@@ -116,7 +116,7 @@ describe('/diary (integration)', () => {
     });
   });
 
-  it('files events under an existing category', async () => {
+  it('files events under an existing category, whatever the case of its id', async () => {
     await withRollback(testDb, async (tx) => {
       const { app, as } = await setUp(tx);
       const me = await as('me@example.com');
@@ -129,7 +129,7 @@ describe('/diary (integration)', () => {
           {
             text: 'Took vitamin D',
             occurredAt: '2026-11-11T09:00:00+01:00',
-            categoryId: supplement.id,
+            categoryId: supplement.id.toUpperCase(),
           },
         ],
       });

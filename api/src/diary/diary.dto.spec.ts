@@ -32,7 +32,7 @@ describe('NewDiaryNoteDto', () => {
     const result = parse(note());
 
     expect(result.success).toBe(true);
-    expect(result.data!.rawText).toBe('took 5g creatine and put the dishwasher on');
+    expect(result.data!.rawText).toBe('  took 5g creatine and put the dishwasher on ');
     expect(result.data!.capturedAt).toEqual(new Date('2026-11-11T07:30:00Z'));
     expect(result.data!.events[0].occurredAt).toEqual(new Date('2026-11-11T07:00:00Z'));
   });
@@ -41,6 +41,15 @@ describe('NewDiaryNoteDto', () => {
     const result = parse(note({ newCategories: undefined, events: [note().events[1]] }));
 
     expect(result.data!.newCategories).toEqual([]);
+  });
+
+  it('rejects a blank note', () => {
+    expect(issues(parse(note({ rawText: ' \n ' })))).toEqual(['rawText']);
+  });
+
+  it('lowercases a category id', () => {
+    const events = [{ ...note().events[1], categoryId: CATEGORY_ID.toUpperCase() }];
+    expect(parse(note({ events, newCategories: [] })).data!.events[0].categoryId).toBe(CATEGORY_ID);
   });
 
   it('rejects an instant without an offset', () => {
@@ -93,6 +102,12 @@ describe('NewDiaryNoteDto', () => {
 
 describe('DiaryEventPatchDto', () => {
   const parse = (input: object) => DiaryEventPatchDto.schema.safeParse(input);
+
+  it('lowercases a category id', () => {
+    expect(parse({ categoryId: CATEGORY_ID.toUpperCase() }).data).toEqual({
+      categoryId: CATEGORY_ID,
+    });
+  });
 
   it('accepts clearing the end and the category', () => {
     expect(parse({ endsAt: null, categoryId: null }).data).toEqual({
