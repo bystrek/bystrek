@@ -1,6 +1,7 @@
 import type { DiaryCategory } from './diary-categories.service';
 import type { ModelEvent } from './diary-draft.parse';
-import { localTimeToDate } from './diary-draft.time';
+import { fromEpochMs } from '../calendar/zoned-time';
+import { intoPast, localTimeToDate } from './diary-draft.time';
 import { isValidSpan } from './diary.dto';
 
 // One event on the confirm card, shaped like an event of POST /diary/notes: its category is
@@ -34,7 +35,8 @@ export interface DraftContext {
 const key = (name: string) => name.trim().toLowerCase();
 
 // Resolves what the model wrote against the user's clock and categories. A missing or
-// unreadable time is when the note was captured; an end before the start is dropped. A
+// unreadable time is when the note was captured, a time in the future moves into the past
+// (see intoPast), and an end before the start is dropped. A
 // category name the user already has, in any case, is that category; any other name is
 // proposed once, with the first description given for it.
 export function buildDraft(events: ModelEvent[], context: DraftContext): DiaryDraft {
@@ -43,8 +45,13 @@ export function buildDraft(events: ModelEvent[], context: DraftContext): DiaryDr
   const proposed = new Map<string, DraftCategory>();
 
   const draftEvents = events.map((event): DraftEvent => {
-    const occurredAt = toDate(event.occurredAt, timeZone) ?? capturedAt;
-    const endsAt = toDate(event.endsAt, timeZone) ?? null;
+    const written = toDate(event.occurredAt, timeZone) ?? capturedAt;
+    const occurredAt = intoPast(written, capturedAt, timeZone);
+    // The end moves with the start, so a span keeps its length.
+    const end = toDate(event.endsAt, timeZone);
+    const endsAt = end
+      ? fromEpochMs(end.getTime() + occurredAt.getTime() - written.getTime())
+      : null;
     const base = {
       text: event.text,
       occurredAt,

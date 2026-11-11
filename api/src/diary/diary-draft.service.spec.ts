@@ -106,6 +106,21 @@ describe('DiaryDraftService', () => {
     });
   });
 
+  it('moves a time the model put in the future into the past, with its end', async () => {
+    const { draft } = setUp(
+      reply(event({ occurredAt: '2026-11-10T09:00', endsAt: '2026-11-10T10:00' })),
+    );
+
+    expect(await draft()).toMatchObject({
+      events: [
+        {
+          occurredAt: new Date('2026-11-09T20:00:00Z'),
+          endsAt: new Date('2026-11-09T21:00:00Z'),
+        },
+      ],
+    });
+  });
+
   it('matches an existing category regardless of case', async () => {
     const { draft } = setUp(reply(event({ category: ' Supplement ' })));
 

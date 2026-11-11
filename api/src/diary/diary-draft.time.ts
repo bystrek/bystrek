@@ -24,3 +24,23 @@ export function localTimeToDate(value: string, timeZone: string): Date | undefin
     return undefined;
   }
 }
+
+// A few minutes ahead is clock skew between the device and the server, not a misread time.
+const SKEW_MS = 5 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Everything in a diary has already happened, but models read "at 7" typed at 06:30 as 07:00
+// today. A time up to a day after `capturedAt` moves to the latest past time it can mean: a
+// morning hour may be a 12-hour clock reading, so 07:00 becomes 19:00 the day before; any
+// other hour becomes the same hour the day before. Wall-clock arithmetic, so a DST change in
+// between keeps the hour. Anything further ahead is left for the user to correct.
+export function intoPast(date: Date, capturedAt: Date, timeZone: string): Date {
+  const ahead = date.getTime() - capturedAt.getTime();
+  if (ahead <= SKEW_MS || ahead > DAY_MS) return date;
+  const local = zonedDateTime(date, timeZone).toPlainDateTime();
+  const at = (time: Temporal.PlainDateTime) =>
+    fromEpochMs(time.toZonedDateTime(timeZone).epochMilliseconds);
+  const dayBefore = local.subtract({ days: 1 });
+  const evening = at(dayBefore.add({ hours: 12 }));
+  return local.hour < 12 && evening <= capturedAt ? evening : at(dayBefore);
+}

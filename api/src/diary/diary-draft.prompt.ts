@@ -16,10 +16,10 @@ Fields of an event:
 text - the event rewritten as clear, correct sentences in the same language as the note, with typos and shorthand fixed. Never translate: an English note gives English text, a Polish note Polish text. Keep every detail: amounts and units, names of things, who was there, where, how it went, how it looked or felt (consistency, mood, pain, quality), in the note's own words where they are vague ("kinda meh" stays "kinda meh"). Rewrite, never summarize: never drop, soften or add a detail. Leave out when it happened; that goes in occurredAt.
 occurredAt - when it happened, as local date and time, worked out from Now. Everything in the note has already happened, so a time is the latest such time at or before Now: at 08:30 "at 7" is 07:00 today, at 06:00 it is 19:00 yesterday. Without a clock time: "this morning" 08:00, "at noon" or "for lunch" 12:00, "this afternoon" 15:00, "this evening" 19:00, "last night" 22:00 yesterday, "yesterday" alone 12:00 yesterday. With no time at all, use Now.
 endsAt - when it ended, for something that lasted ("slept from 23 to 7", "a 2 hour walk"). null for a moment or when the note gives no end.
-category - exactly one per event, for the kind of thing it is. Use the user's category that fits, spelled exactly as listed, even when the note says it differently ("supplements", "suplementy" -> "supplement"). Only when none of them fits, a new short lowercase singular name for the kind of thing ("sleep", "meal", "exercise"). People and places are never categories; they stay in text. null only when no category makes sense.
+category - exactly one per event, for the kind of thing that happened, never for a detail of it: a run that hurt my knee is exercise, not a symptom. Use the user's category that fits, spelled exactly as listed, even when the note says it differently ("supplements", "suplementy" -> "supplement"). Only when none of them fits, a new short lowercase singular name for the kind of thing ("sleep", "meal", "exercise"). People and places are never categories; they stay in text. null only when no category makes sense.
 description - for a new category only, one short sentence saying what belongs in it, in the note's language. null for a category from the list or a null category.
 
-One note often holds several events: "did laundry and took creatine" is two. Make one event per separate thing that happened, in the order they happened. Never merge two things into one event, and never split one thing into several: how something went or felt belongs to it ("ran 5k, legs felt heavy" is one event).
+One note often holds several events: "did laundry and took creatine" is two. Make one event per separate thing that happened, in the order they happened. Never merge two things into one event, and never split one thing into several: how something went or felt belongs to it ("ran 5k, legs felt heavy" is one event, and so is "zupa w barze, za słona").
 
 Example:
 Now: Tuesday 2026-11-10 06:40
@@ -33,8 +33,8 @@ Example:
 Now: Saturday 2026-11-14 09:10
 Categories:
 - supplement: Supplements I take
-Note: spałam od 23 do 7, budziłam się 2 razy, rano ból głowy
-A: {"events":[{"text":"Spałam, budziłam się 2 razy.","occurredAt":"2026-11-13T23:00","endsAt":"2026-11-14T07:00","category":"sleep","description":"Sen: kiedy i jak spałam."},{"text":"Rano bolała mnie głowa.","occurredAt":"2026-11-14T08:00","endsAt":null,"category":"symptom","description":"Objawy i dolegliwości."}]}
+Note: spałam od 23 do 7, kiepsko, budziłam się 2 razy. potem wit D
+A: {"events":[{"text":"Spałam kiepsko, budziłam się 2 razy.","occurredAt":"2026-11-13T23:00","endsAt":"2026-11-14T07:00","category":"sleep","description":"Sen: kiedy i jak spałam."},{"text":"Wzięłam witaminę D.","occurredAt":"2026-11-14T07:00","endsAt":null,"category":"supplement","description":null}]}
 
 Example:
 Now: Monday 2026-11-16 21:00

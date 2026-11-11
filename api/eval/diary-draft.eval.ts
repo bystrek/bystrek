@@ -156,6 +156,19 @@ const CASES: EvalCase[] = [
     ],
   },
   {
+    // How it went stays with the event, even with a digestion category to tempt a split.
+    id: 'en-feeling-stays',
+    text: 'had a burger for lunch, way too salty',
+    capturedAt: '2026-11-10T15:00',
+    events: [
+      {
+        details: ['burger', 'salty'],
+        between: ['2026-11-10T11:00', '2026-11-10T14:00'],
+        category: 'new',
+      },
+    ],
+  },
+  {
     id: 'en-span',
     text: 'walked the dog from 6 to 7pm',
     capturedAt: '2026-11-10T21:00',
