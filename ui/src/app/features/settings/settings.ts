@@ -5,11 +5,12 @@ import { AuthService } from '../../core/auth/auth.service';
 import { CalendarService } from '../../core/calendar/calendar.service';
 import { Button } from '../../shared/button/button';
 import { StatusBanner } from '../../shared/status-banner/status-banner';
+import { ApiTokens } from './api-tokens';
 import { downscaleImage } from './downscale-image';
 
 @Component({
   selector: 'app-settings',
-  imports: [Button, FormField, FormRoot, RouterLink, StatusBanner],
+  imports: [ApiTokens, Button, FormField, FormRoot, RouterLink, StatusBanner],
   templateUrl: './settings.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './settings.css',
