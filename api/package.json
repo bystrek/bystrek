@@ -22,6 +22,7 @@
     "db:migrate": "drizzle-kit migrate",
     "eval:calendar-ask": "bun run eval/calendar-ask.eval.ts",
     "eval:places-draft": "bun run eval/places-draft.eval.ts",
+    "eval:diary-draft": "bun run eval/diary-draft.eval.ts",
     "eval:caldav-parity": "bun run eval/caldav-parity.ts"
   },
   "dependencies": {
