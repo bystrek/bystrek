@@ -1,9 +1,7 @@
 import { sql } from 'drizzle-orm';
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import * as schema from '../db/schema';
+import type { Db, Tx } from '../db/drizzle.provider';
 
-export type Db = PostgresJsDatabase<typeof schema>;
-export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+export type { Db, Tx };
 
 // First key of the two-key advisory lock, so these locks can't collide with any other use.
 const CALENDAR_COPY_LOCK = 0xca1;

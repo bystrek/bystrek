@@ -1,6 +1,8 @@
 import {
+  type AnyPgColumn,
   bigint,
   boolean,
+  check,
   doublePrecision,
   index,
   integer,
@@ -12,7 +14,9 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { OsmType } from '../geo/geocoder';
+import { DiaryEventSource } from '../diary/diary-event-source';
 import { PlaceCategory } from '../places/place-category';
 
 export const users = pgTable(
@@ -252,5 +256,81 @@ export const placeVisits = pgTable(
   (table) => [
     primaryKey({ columns: [table.userId, table.placeId] }),
     index('place_visits_place_id_idx').on(table.placeId),
+  ],
+);
+
+// The diary (#160) is private: every row belongs to one user.
+
+// What the user typed, exactly as received. Never modified: events are derived from it.
+export const diaryNotes = pgTable(
+  'diary_notes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    rawText: text('raw_text').notNull(),
+    capturedAt: timestamp('captured_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [index('diary_notes_user_id_idx').on(table.userId)],
+);
+
+// A user's own categories, created as they confirm them. `parentId` is for later groupings
+// (creatine → supplement → health).
+export const diaryCategories = pgTable(
+  'diary_categories',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    description: text('description'),
+    parentId: uuid('parent_id').references((): AnyPgColumn => diaryCategories.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (table) => [uniqueIndex('diary_categories_user_id_name_unique').on(table.userId, table.name)],
+);
+
+export const diaryEventSource = pgEnum('diary_event_source', DiaryEventSource);
+
+// Something that happened: a point (`endsAt` null) or a span. Typed events come from a note;
+// imported ones have none and are upserted on (`source`, `externalId`).
+export const diaryEvents = pgTable(
+  'diary_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    noteId: uuid('note_id').references(() => diaryNotes.id, { onDelete: 'cascade' }),
+    text: text('text').notNull(),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
+    endsAt: timestamp('ends_at', { withTimezone: true }),
+    categoryId: uuid('category_id').references(() => diaryCategories.id, { onDelete: 'set null' }),
+    source: diaryEventSource('source').notNull(),
+    externalId: text('external_id'),
+    // Which draft prompt produced the event; null for imports and events the user wrote.
+    extractorVersion: text('extractor_version'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex('diary_events_user_id_source_external_id_unique').on(
+      table.userId,
+      table.source,
+      table.externalId,
+    ),
+    index('diary_events_user_id_occurred_at_idx').on(table.userId, table.occurredAt),
+    index('diary_events_note_id_idx').on(table.noteId),
+    index('diary_events_category_id_idx').on(table.categoryId),
+    check(
+      'diary_events_span_order',
+      sql`${table.endsAt} is null or ${table.endsAt} >= ${table.occurredAt}`,
+    ),
   ],
 );
