@@ -118,10 +118,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # setup-bun unzips the Bun release; the image doesn't ship unzip.
-      - run: apt-get update && apt-get install -y --no-install-recommends unzip
-
-      - uses: oven-sh/setup-bun@v2
+      # setup-bun needs unzip, which the image lacks, and installing it via
+      # apt-get ties the job to the Ubuntu mirrors. Install Bun from npm
+      # instead (the image ships Node), at the version in packageManager.
+      - run: npm install -g "$(node -p 'require("./package.json").packageManager')"
 
       - run: bun install --frozen-lockfile
 
