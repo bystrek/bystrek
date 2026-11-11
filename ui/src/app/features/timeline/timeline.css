@@ -133,6 +133,32 @@
   overflow-wrap: anywhere;
 }
 
+/* Logged events are a record of the day, not a plan: lighter than calendar events. */
+.event:not([data-source='calendar']) {
+  border: var(--border-thin);
+  background: transparent;
+  box-shadow: none;
+}
+
+.event[data-source='health'] .title {
+  color: var(--color-ink-muted);
+}
+
+.event[data-shape='point']:not([data-source='calendar']) {
+  padding-block: var(--space-1);
+}
+
+.event[data-shape='span']:not([data-source='calendar']) {
+  border-left: var(--border-w-heavy) solid var(--color-secondary);
+}
+
+.until {
+  grid-column: 2;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-ink-muted);
+}
+
 .event app-tag {
   grid-column: 2;
   justify-self: start;
