@@ -44,7 +44,7 @@ describe('intoPast', () => {
   // Tuesday 2026-11-10 06:30 in Warsaw.
   const capturedAt = new Date('2026-11-10T05:30:00Z');
   const run = (wallClock: string, at = capturedAt) =>
-    intoPast(localTimeToDate(wallClock, WARSAW)!, at, WARSAW);
+    intoPast({ start: localTimeToDate(wallClock, WARSAW)!, end: null }, at, WARSAW).start;
 
   it('reads a future morning hour as the evening before', () => {
     expect(run('2026-11-10T07:00')).toEqual(localTimeToDate('2026-11-09T19:00', WARSAW)!);
@@ -70,5 +70,18 @@ describe('intoPast', () => {
     expect(run('2026-11-10T06:00')).toEqual(localTimeToDate('2026-11-10T06:00', WARSAW)!);
     expect(run('2026-11-10T06:34')).toEqual(localTimeToDate('2026-11-10T06:34', WARSAW)!);
     expect(run('2026-11-12T07:00')).toEqual(localTimeToDate('2026-11-12T07:00', WARSAW)!);
+  });
+
+  it('moves the end by the same wall-clock amount, keeping its hour across DST', () => {
+    // At 09:00 on the day clocks went back, a 23:00-07:00 night read as tonight.
+    const morning = localTimeToDate('2026-10-25T09:00', WARSAW)!;
+    const span = {
+      start: localTimeToDate('2026-10-25T23:00', WARSAW)!,
+      end: localTimeToDate('2026-10-26T07:00', WARSAW)!,
+    };
+    expect(intoPast(span, morning, WARSAW)).toEqual({
+      start: localTimeToDate('2026-10-24T23:00', WARSAW)!,
+      end: localTimeToDate('2026-10-25T07:00', WARSAW)!,
+    });
   });
 });

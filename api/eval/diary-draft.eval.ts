@@ -56,12 +56,16 @@ function fold(text: string): string {
     .replace(/\p{M}/gu, '')
     .replace(/ł/g, 'l')
     .replace(/Ł/g, 'L')
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
 }
 
-// A detail is found when the event text contains any of its spellings, compared without case
-// or diacritics. Polish details are stems, so any inflection matches.
+// A detail is found when the event text has any of its spellings starting at a word boundary,
+// compared without case or diacritics, so a Polish stem matches any inflection. A spelling
+// that ends in a digit must end the number too: "5" never matches "50". Amounts carry their
+// unit or scale ("5 g", "10 tys"), so a changed unit or a dropped thousand fails the case.
 type Detail = string | string[];
+const GRAMS_5 = ['5 g', '5g', '5 gram'];
 
 interface ExpectedEvent {
   details: Detail[];
@@ -91,7 +95,7 @@ const CASES: EvalCase[] = [
     capturedAt: '2026-11-10T09:15',
     events: [
       { details: ['laundry'], category: 'chores' },
-      { details: ['creatine', '5'], category: 'supplement' },
+      { details: ['creatine', GRAMS_5], category: 'supplement' },
     ],
   },
   {
@@ -110,7 +114,10 @@ const CASES: EvalCase[] = [
     capturedAt: '2026-11-10T07:30',
     events: [
       {
-        details: [['bad', 'poor'], '3'],
+        details: [
+          ['bad', 'poor'],
+          ['3 times', 'three times'],
+        ],
         between: ['2026-11-09T20:00', '2026-11-10T02:00'],
         category: 'sleep',
       },
@@ -120,7 +127,13 @@ const CASES: EvalCase[] = [
     id: 'en-at-7',
     text: 'ran 5k at 7, legs felt heavy',
     capturedAt: '2026-11-10T09:00',
-    events: [{ details: ['5', 'heavy'], at: '2026-11-10T07:00', category: 'exercise' }],
+    events: [
+      {
+        details: [['5k', '5 k', '5 km', '5-k'], 'heavy'],
+        at: '2026-11-10T07:00',
+        category: 'exercise',
+      },
+    ],
   },
   {
     // At 06:30, "at 7" can only be yesterday evening.
@@ -198,7 +211,7 @@ const CASES: EvalCase[] = [
     text: 'tok creatin 5g n did dishs',
     capturedAt: '2026-11-10T08:00',
     events: [
-      { details: ['creatin', '5'], category: 'supplement' },
+      { details: ['creatin', GRAMS_5], category: 'supplement' },
       { details: ['dish'], category: 'chores' },
     ],
   },
@@ -206,7 +219,15 @@ const CASES: EvalCase[] = [
     id: 'pl-typos',
     text: 'pszeszedlem sie 10tys krokow z psem',
     capturedAt: '2026-11-10T20:00',
-    events: [{ details: ['10', ['pies', 'psem', 'psa']], category: 'exercise' }],
+    events: [
+      {
+        details: [
+          ['10 tys', '10tys', '10 000', '10000', '10,000', '10.000', 'dziesiec tys'],
+          ['pies', 'psem', 'psa'],
+        ],
+        category: 'exercise',
+      },
+    ],
   },
   {
     id: 'en-near-duplicate-category',
@@ -229,8 +250,13 @@ const CASES: EvalCase[] = [
 ];
 
 const local = (wallClock: string) => localTimeToDate(wallClock, TIME_ZONE)!;
-const hasDetail = (text: string, detail: Detail) =>
-  [detail].flat().some((spelling) => fold(text).includes(fold(spelling)));
+function hasDetail(text: string, detail: Detail): boolean {
+  return [detail].flat().some((spelling) => {
+    const escaped = fold(spelling).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const end = /\d$/.test(spelling) ? '(?!\\d)' : '';
+    return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}${end}`, 'u').test(fold(text));
+  });
+}
 const singular = (name: string) => fold(name).trim().replace(/s$/, '');
 
 function gradeEvent(expected: ExpectedEvent, event: DraftEvent): string | undefined {
