@@ -36,9 +36,17 @@
         @if (row.kind === TimelineRowKind.GAP) {
           <li class="gap">·· free {{ row.minutes | duration }} ··</li>
         } @else {
-          <li class="event" [attr.data-status]="row.status">
+          <li
+            class="event"
+            [attr.data-source]="row.source"
+            [attr.data-shape]="row.shape"
+            [attr.data-status]="row.status"
+          >
             <span class="time">{{ row.time }}</span>
             <span class="title">{{ row.title }}</span>
+            @if (row.until; as until) {
+              <span class="until">until {{ until }}</span>
+            }
             @if (row.status === EventStatus.NEXT) {
               <app-tag variant="outline" icon="clock"
                 >Next · in {{ row.start | minutesUntil: store.now() }} min</app-tag

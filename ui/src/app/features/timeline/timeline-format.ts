@@ -21,6 +21,14 @@ export function clockTime(iso: string): string {
   return Temporal.PlainTime.from(iso).toString({ smallestUnit: 'minute' });
 }
 
+// Logged events come back as UTC instants, so they're read in the account timezone.
+export function clockTimeIn(iso: string, timeZone: string): string {
+  return Temporal.Instant.from(iso)
+    .toZonedDateTimeISO(timeZone)
+    .toPlainTime()
+    .toString({ smallestUnit: 'minute' });
+}
+
 export function minutesUntil(iso: string, now: Temporal.Instant): number {
   const until = now.until(Temporal.Instant.from(iso));
   return Math.max(0, until.round({ largestUnit: 'minute', smallestUnit: 'minute' }).minutes);
