@@ -59,7 +59,11 @@ test('edits first/last name and avatar, then saves via update-user', async ({ pa
   await page.addInitScript(() => sessionStorage.setItem('bystrek_sign_in_state', 'e2e-state'));
   await page.goto('/auth/callback?state=e2e-state&ott=fake-ott');
 
-  await expect(page).toHaveURL('/agenda');
+  await expect(page).toHaveURL('/timeline');
+
+  // The old route name still lands on the timeline.
+  await page.goto('/agenda');
+  await expect(page).toHaveURL('/timeline');
 
   await page.goto('/settings');
   await expect(page).toHaveURL('/settings');

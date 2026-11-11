@@ -22,7 +22,7 @@ type AskBarState = {
   thoughtSeconds: string | null;
 };
 
-// Provided by the Agenda, so the screen can mute itself while a question is in flight.
+// Provided by the Timeline, so the screen can mute itself while a question is in flight.
 export const AskBarStore = signalStore(
   withState<AskBarState>({
     phase: AskPhase.IDLE,

@@ -48,7 +48,7 @@ async function signIn(page: Page) {
   // and the state this tab stored when it started signing in.
   await page.addInitScript(() => sessionStorage.setItem('bystrek_sign_in_state', 'e2e-state'));
   await page.goto('/auth/callback?state=e2e-state&ott=fake-ott');
-  await expect(page).toHaveURL('/agenda');
+  await expect(page).toHaveURL('/timeline');
 }
 
 test('types a place, previews it, saves it and sees it in the list', async ({ page }) => {

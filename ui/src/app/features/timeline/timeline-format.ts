@@ -8,7 +8,7 @@ export function formatDuration(minutes: number): string {
   return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
 }
 
-// en-GB gives the day-first order used in the agenda design ("FRI 24 OCT"),
+// en-GB gives the day-first order used in the timeline design ("FRI 24 OCT"),
 // regardless of the browser's default locale.
 export function toWeekdayAndDate(day: Temporal.PlainDate): string {
   return day

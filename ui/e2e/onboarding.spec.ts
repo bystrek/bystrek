@@ -71,7 +71,9 @@ async function mockCalendar(page: Page, answers: Progress[]) {
   return { saved, retries };
 }
 
-test('a new user connects iCloud and sees progress until the agenda unlocks', async ({ page }) => {
+test('a new user connects iCloud and sees progress until the timeline unlocks', async ({
+  page,
+}) => {
   const { saved } = await mockCalendar(page, [
     { status: 'syncing', fetched: 0, total: 105, error: null },
     { status: 'syncing', fetched: 50, total: 105, error: null },
@@ -79,7 +81,7 @@ test('a new user connects iCloud and sees progress until the agenda unlocks', as
   ]);
   await signIn(page);
 
-  // The agenda is locked until a calendar is connected.
+  // The timeline is locked until a calendar is connected.
   await expect(page).toHaveURL('/connect');
   await page.getByRole('button', { name: 'iCloud' }).click();
   await expect(page.getByText('App-Specific Passwords')).toBeVisible();
@@ -92,7 +94,7 @@ test('a new user connects iCloud and sees progress until the agenda unlocks', as
 
   await expect(page).toHaveURL('/sync');
   await expect(page.getByRole('progressbar')).toBeVisible();
-  await expect(page).toHaveURL('/agenda');
+  await expect(page).toHaveURL('/timeline');
   expect(saved[0]).toMatchObject({
     caldavUrl: 'https://caldav.icloud.com',
     username: 'me@icloud.com',
@@ -120,6 +122,6 @@ test('a failed sync shows an actionable error and can be retried', async ({ page
   await expect(page.getByRole('link', { name: 'Update credentials' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Try again' }).click();
-  await expect(page).toHaveURL('/agenda');
+  await expect(page).toHaveURL('/timeline');
   expect(retries).toBe(1);
 });

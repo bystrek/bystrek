@@ -20,11 +20,13 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./features/layout/layout').then((m) => m.Layout),
     children: [
-      { path: '', pathMatch: 'full', redirectTo: 'agenda' },
+      { path: '', pathMatch: 'full', redirectTo: 'timeline' },
+      // Old name: keeps bookmarks and installed PWAs working.
+      { path: 'agenda', redirectTo: 'timeline' },
       {
-        path: 'agenda',
+        path: 'timeline',
         canActivate: [calendarReadyGuard],
-        loadComponent: () => import('./features/agenda/agenda').then((m) => m.Agenda),
+        loadComponent: () => import('./features/timeline/timeline').then((m) => m.Timeline),
       },
       {
         path: 'connect',

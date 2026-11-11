@@ -4,7 +4,7 @@
 }
 
 /* Header and day nav stay put, the list scrolls, the ask bar is docked. */
-.agenda {
+.timeline {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -17,7 +17,7 @@
   transition: opacity var(--motion-fast);
 }
 
-.agenda.muted .list {
+.timeline.muted .list {
   opacity: 0.5;
 }
 

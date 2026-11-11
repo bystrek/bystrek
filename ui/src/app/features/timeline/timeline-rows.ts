@@ -1,7 +1,7 @@
 import { Temporal } from '@js-temporal/polyfill';
 import type { CalendarEvent } from '../../core/calendar/calendar.service';
 import { pipe } from '../../core/functional/pipe';
-import { clockTime } from './agenda-format';
+import { clockTime } from './timeline-format';
 
 const MIN_GAP_MINUTES = 15;
 
@@ -13,16 +13,16 @@ export const EventStatus = {
 
 export type EventStatus = (typeof EventStatus)[keyof typeof EventStatus];
 
-export const AgendaRowKind = {
+export const TimelineRowKind = {
   EVENT: 'event',
   GAP: 'gap',
 } as const;
 
-export type AgendaRowKind = (typeof AgendaRowKind)[keyof typeof AgendaRowKind];
+export type TimelineRowKind = (typeof TimelineRowKind)[keyof typeof TimelineRowKind];
 
-export type AgendaRow =
+export type TimelineRow =
   | {
-      kind: typeof AgendaRowKind.EVENT;
+      kind: typeof TimelineRowKind.EVENT;
       key: string;
       uid: string;
       start: string;
@@ -30,9 +30,9 @@ export type AgendaRow =
       title: string;
       status: EventStatus;
     }
-  | { kind: typeof AgendaRowKind.GAP; key: string; minutes: number };
+  | { kind: typeof TimelineRowKind.GAP; key: string; minutes: number };
 
-type EventRow = Extract<AgendaRow, { kind: typeof AgendaRowKind.EVENT }>;
+type EventRow = Extract<TimelineRow, { kind: typeof TimelineRowKind.EVENT }>;
 
 type Timed = { event: CalendarEvent; start: Temporal.Instant; end: Temporal.Instant };
 
@@ -64,7 +64,7 @@ function buildEventRows(timed: Timed[], now: Temporal.Instant): Slot[] {
   const nextIndex = timed.findIndex(({ start }) => Temporal.Instant.compare(start, now) >= 0);
   return timed.map(({ event, start, end }, index) => ({
     row: {
-      kind: AgendaRowKind.EVENT,
+      kind: TimelineRowKind.EVENT,
       key: `${event.uid}@${event.start}`,
       uid: event.uid,
       start: event.start,
@@ -78,7 +78,7 @@ function buildEventRows(timed: Timed[], now: Temporal.Instant): Slot[] {
 }
 
 // Measured from the latest end among earlier events, so overlaps don't produce false gaps.
-function gapBefore(earlier: Slot[], start: Temporal.Instant, key: string): AgendaRow | null {
+function gapBefore(earlier: Slot[], start: Temporal.Instant, key: string): TimelineRow | null {
   const latestEnd = earlier.reduce<Temporal.Instant | null>(
     (latest, { end }) =>
       latest === null || Temporal.Instant.compare(end, latest) > 0 ? end : latest,
@@ -87,11 +87,11 @@ function gapBefore(earlier: Slot[], start: Temporal.Instant, key: string): Agend
   if (latestEnd === null) return null;
   const minutes = Math.round(latestEnd.until(start).total({ unit: 'minutes' }));
   return minutes >= MIN_GAP_MINUTES
-    ? { kind: AgendaRowKind.GAP, key: `gap-${key}`, minutes }
+    ? { kind: TimelineRowKind.GAP, key: `gap-${key}`, minutes }
     : null;
 }
 
-function addGaps(slots: Slot[]): AgendaRow[] {
+function addGaps(slots: Slot[]): TimelineRow[] {
   return slots.flatMap((slot, index) => {
     const gap = gapBefore(slots.slice(0, index), slot.start, slot.row.key);
     return gap === null ? [slot.row] : [gap, slot.row];
@@ -99,7 +99,7 @@ function addGaps(slots: Slot[]): AgendaRow[] {
 }
 
 // Gaps are only shown between events, not before the first or after the last.
-export function buildAgendaRows(events: CalendarEvent[], now: Temporal.Instant): AgendaRow[] {
+export function buildTimelineRows(events: CalendarEvent[], now: Temporal.Instant): TimelineRow[] {
   // prettier-ignore
   return pipe(
     events,

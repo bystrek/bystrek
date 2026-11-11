@@ -1,6 +1,6 @@
 import { Temporal } from '@js-temporal/polyfill';
 import { CalendarEvent } from '../../core/calendar/calendar.service';
-import { AgendaRowKind, buildAgendaRows, EventStatus } from './agenda-rows';
+import { TimelineRowKind, buildTimelineRows, EventStatus } from './timeline-rows';
 
 const event = (uid: string, start: string, end: string, summary = uid): CalendarEvent => ({
   uid,
@@ -10,9 +10,9 @@ const event = (uid: string, start: string, end: string, summary = uid): Calendar
   startWeekday: 'THU',
 });
 
-describe('agenda rows', () => {
+describe('timeline rows', () => {
   it('gives recurring occurrences that share a UID distinct row keys', () => {
-    const rows = buildAgendaRows(
+    const rows = buildTimelineRows(
       [
         event('series', '2026-05-04T09:00:00+02:00', '2026-05-04T10:00:00+02:00'),
         event('series', '2026-05-05T09:00:00+02:00', '2026-05-05T10:00:00+02:00'),
@@ -27,7 +27,7 @@ describe('agenda rows', () => {
   const now = Temporal.Instant.from('2025-10-22T10:00:00+02:00');
 
   it('measures gaps from the latest earlier end, so an overlapping event does not shorten them', () => {
-    const rows = buildAgendaRows(
+    const rows = buildTimelineRows(
       [
         event('long', '2025-10-22T09:00:00+02:00', '2025-10-22T12:00:00+02:00'),
         event('short', '2025-10-22T09:30:00+02:00', '2025-10-22T09:45:00+02:00'),
@@ -36,13 +36,13 @@ describe('agenda rows', () => {
       now,
     );
 
-    expect(rows.filter((row) => row.kind === AgendaRowKind.GAP)).toEqual([
-      { kind: AgendaRowKind.GAP, key: 'gap-after@2025-10-22T13:00:00+02:00', minutes: 60 },
+    expect(rows.filter((row) => row.kind === TimelineRowKind.GAP)).toEqual([
+      { kind: TimelineRowKind.GAP, key: 'gap-after@2025-10-22T13:00:00+02:00', minutes: 60 },
     ]);
   });
 
   it('marks past, next and upcoming events and shows gaps only between events', () => {
-    const rows = buildAgendaRows(
+    const rows = buildTimelineRows(
       [
         event('late', '2025-10-22T14:00:00+02:00', '2025-10-22T15:00:00+02:00'),
         event('early', '2025-10-22T09:00:00+02:00', '2025-10-22T09:30:00+02:00'),
@@ -53,7 +53,7 @@ describe('agenda rows', () => {
 
     expect(rows).toEqual([
       {
-        kind: AgendaRowKind.EVENT,
+        kind: TimelineRowKind.EVENT,
         key: 'early@2025-10-22T09:00:00+02:00',
         uid: 'early',
         start: '2025-10-22T09:00:00+02:00',
@@ -62,7 +62,7 @@ describe('agenda rows', () => {
         status: EventStatus.PAST,
       },
       {
-        kind: AgendaRowKind.EVENT,
+        kind: TimelineRowKind.EVENT,
         key: 'tight@2025-10-22T09:35:00+02:00',
         uid: 'tight',
         start: '2025-10-22T09:35:00+02:00',
@@ -71,12 +71,12 @@ describe('agenda rows', () => {
         status: EventStatus.PAST,
       },
       {
-        kind: AgendaRowKind.GAP,
+        kind: TimelineRowKind.GAP,
         key: 'gap-late@2025-10-22T14:00:00+02:00',
         minutes: 255,
       },
       {
-        kind: AgendaRowKind.EVENT,
+        kind: TimelineRowKind.EVENT,
         key: 'late@2025-10-22T14:00:00+02:00',
         uid: 'late',
         start: '2025-10-22T14:00:00+02:00',

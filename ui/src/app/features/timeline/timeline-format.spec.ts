@@ -1,6 +1,6 @@
-import { clockTime, formatDuration } from './agenda-format';
+import { clockTime, formatDuration } from './timeline-format';
 
-describe('agenda format', () => {
+describe('timeline format', () => {
   it('formats durations for free gaps', () => {
     expect(formatDuration(45)).toBe('45 min');
     expect(formatDuration(120)).toBe('2h');

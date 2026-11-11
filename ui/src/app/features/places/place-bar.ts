@@ -8,7 +8,7 @@ import { OsmAttribution } from './osm-attribution';
 import { PlaceBarStore } from './place-bar-store';
 import { CategoryLabelPipe, MissingItemPipe, OsmUrlPipe, UrlHostPipe } from './place-pipes';
 
-// The /places command bar. Unlike the agenda's, the prompt stays in the input after a draft so
+// The /places command bar. Unlike the timeline's, the prompt stays in the input after a draft so
 // it can be refined, and clears only after a save or cancel.
 @Component({
   selector: 'app-place-bar',
