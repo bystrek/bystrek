@@ -32,18 +32,19 @@ export class ApiTokensService {
     }
   }
 
-  /** Returns the new token. The API never shows it again. */
+  /**
+   * Returns the new token. The API never shows it again, so this doesn't
+   * reload the list: a failed reload must not lose the token. Call `load()` after.
+   */
   async create(name: string): Promise<string> {
-    let key: string;
     try {
-      ({ key } = await firstValueFrom(
+      const { key } = await firstValueFrom(
         this.http.post<{ key: string }>(`${this.baseUrl}/create`, { name: name.trim() }),
-      ));
+      );
+      return key;
     } catch (err) {
       throw new Error(errorMessage(err, 'Could not create the token.'));
     }
-    await this.load();
-    return key;
   }
 
   async revoke(id: string): Promise<void> {

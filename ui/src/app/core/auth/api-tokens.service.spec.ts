@@ -30,16 +30,14 @@ describe('ApiTokensService', () => {
 
   afterEach(() => httpMock.verify());
 
-  it('creates a token, returns it once and reloads the list', async () => {
+  it('creates a token and returns it without waiting on a list reload', async () => {
     const created = service.create('  Health  ');
     const request = httpMock.expectOne('/api/api/auth/api-key/create');
     expect(request.request.body).toEqual({ name: 'Health' });
     request.flush({ ...token, key: 'bystrek_secret' });
-    await Promise.resolve();
-    httpMock.expectOne('/api/api/auth/api-key/list').flush({ apiKeys: [token] });
 
     expect(await created).toBe('bystrek_secret');
-    expect(service.tokens()).toEqual([token]);
+    httpMock.expectNone('/api/api/auth/api-key/list');
   });
 
   it('revokes a token by id and reloads the list', async () => {

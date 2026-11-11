@@ -42,6 +42,8 @@ export class ApiTokens implements OnInit {
             this.created.set(await this.service.create(this.model().name));
             this.copied.set(false);
             this.createForm().reset({ name: '' });
+            // The token is already on screen; a failed refresh only shows an error.
+            void this.run(() => this.service.load());
             return undefined;
           } catch (err) {
             return { kind: 'server', message: (err as Error).message };

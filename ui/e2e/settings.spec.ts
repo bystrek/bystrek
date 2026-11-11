@@ -138,3 +138,35 @@ test('creates a personal API token, shows it once, and revokes it', async ({ pag
   await expect(page.getByRole('button', { name: 'Revoke Health Auto Export' })).toHaveCount(0);
   expect(revokedId).toBe('t1');
 });
+
+test('still shows a new token when reloading the list fails', async ({ page }) => {
+  await mockSignIn(page);
+  await mockSession(page);
+  await page.route('**/calendar/credentials', (route) =>
+    route.fulfill({ json: { configured: false } }),
+  );
+  await page.route('**/calendar/sync', (route) =>
+    route.fulfill({ json: { status: 'ready', fetched: 0, total: 0, error: null } }),
+  );
+  let created = false;
+  await page.route('**/api/auth/api-key/list', (route) =>
+    created
+      ? route.fulfill({ status: 500, json: { message: 'List is down.' } })
+      : route.fulfill({ json: { apiKeys: [] } }),
+  );
+  await page.route('**/api/auth/api-key/create', (route) => {
+    created = true;
+    route.fulfill({ json: { id: 't1', key: 'bystrek_abcdSECRET' } });
+  });
+
+  await page.addInitScript(() => sessionStorage.setItem('bystrek_sign_in_state', 'e2e-state'));
+  await page.goto('/auth/callback?state=e2e-state&ott=fake-ott');
+  await expect(page).toHaveURL('/timeline');
+  await page.goto('/settings');
+
+  await page.getByPlaceholder('Token name').fill('Health Auto Export');
+  await page.getByRole('button', { name: 'Create token' }).click();
+
+  await expect(page.getByLabel('New API token')).toHaveValue('bystrek_abcdSECRET');
+  await expect(page.getByText('List is down.')).toBeVisible();
+});
