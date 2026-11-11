@@ -125,6 +125,7 @@ export const TimelineStore = signalStore(
       // Without it the browser zone stands in.
       init: async (): Promise<void> => {
         let error: string | null = null;
+        patchState(store, { loading: true });
         try {
           patchState(store, { timezone: await calendar.getTimezone() });
         } catch (err) {

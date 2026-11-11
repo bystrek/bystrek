@@ -178,6 +178,13 @@ describe('timeline rows', () => {
     expect(titles(rows)).toEqual(['first', 'note', 'nap', 'gap 180', 'second']);
   });
 
+  it('keeps a span that ends exactly at midnight on the day it ends', () => {
+    // 22:00 → 00:00 Warsaw time: it ends as the 22nd ends, so it belongs to the 22nd.
+    const evening = logged('party', '2025-10-22T20:00:00Z', '2025-10-22T22:00:00Z');
+
+    expect(titles(buildTimelineRows([], [evening], today))).toEqual(['party']);
+  });
+
   it('shows an overnight span on the day it ends, not the day it starts', () => {
     // 23:40 → 07:10 Warsaw time, overlapping both days.
     const lastNight = logged('sleep', '2025-10-21T21:40:00Z', '2025-10-22T05:10:00Z');
