@@ -23,7 +23,7 @@ describe('AskBar', () => {
     fixture.detectChanges();
     const el: HTMLElement = fixture.nativeElement;
 
-    fixture.componentInstance.useSuggestion('delete my dentist appointment');
+    fixture.componentInstance.ask('delete my dentist appointment');
     fixture.detectChanges();
 
     expect(TestBed.inject(AskBarStore).phase()).toBe(AskPhase.CANT_DO);
@@ -37,7 +37,7 @@ describe('AskBar', () => {
     const fixture = TestBed.createComponent(AskBar);
     const store = TestBed.inject(AskBarStore);
 
-    fixture.componentInstance.useSuggestion('next meeting');
+    fixture.componentInstance.ask('next meeting');
     expect(store.phase()).toBe(AskPhase.THINKING);
     store.stop();
 
@@ -51,7 +51,7 @@ describe('AskBar', () => {
     const fixture = TestBed.createComponent(AskBar);
     fixture.detectChanges();
 
-    fixture.componentInstance.useSuggestion('anything else today?');
+    fixture.componentInstance.ask('anything else today?');
     fixture.detectChanges();
 
     const thought = fixture.nativeElement.querySelector('.answer-thought')?.textContent ?? '';
@@ -85,7 +85,7 @@ describe('AskBar', () => {
     const fixture = TestBed.createComponent(AskBar);
     fixture.detectChanges();
 
-    fixture.componentInstance.useSuggestion('what events do I have on Tuesday?');
+    fixture.componentInstance.ask('what events do I have on Tuesday?');
     fixture.detectChanges();
 
     const items = fixture.nativeElement.querySelectorAll('.conflicts li');

@@ -152,6 +152,24 @@
   border-left: var(--border-w-heavy) solid var(--color-secondary);
 }
 
+.items {
+  grid-column: 2;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  color: var(--color-ink-muted);
+  overflow-wrap: anywhere;
+}
+
+.items li {
+  display: inline;
+}
+
+.items li + li::before {
+  content: ' · ';
+}
+
 .until {
   grid-column: 2;
   font-family: var(--font-mono);

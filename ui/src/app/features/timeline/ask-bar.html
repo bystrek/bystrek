@@ -73,12 +73,4 @@
       <p class="answer-text">Could not get an answer. Try again.</p>
     </app-command-result>
   }
-
-  @if (store.phase() === AskPhase.IDLE) {
-    <div class="chips">
-      @for (s of suggestions; track s) {
-        <button type="button" appChip tone="secondary" (click)="useSuggestion(s)">{{ s }}</button>
-      }
-    </div>
-  }
 </app-command-bar>
