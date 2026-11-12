@@ -1,18 +1,15 @@
 import { describe, expect, it } from 'bun:test';
 import { Controller, Get, INestApplication, Module, Req, UseGuards } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { toNodeHandler } from 'better-auth/node';
 import { eq } from 'drizzle-orm';
 import type { Request } from 'express';
-import express from 'express';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { ApiTokenGuard } from '../../src/auth/api-token.guard';
 import { AuthModule } from '../../src/auth/auth.module';
-import { AUTH } from '../../src/auth/auth.provider';
-import type { Auth } from '../../src/auth/auth.config';
 import { DRIZZLE } from '../../src/db/drizzle.provider';
 import { apiTokens } from '../../src/db/schema';
+import { configureHttp } from '../../src/http/configure-http';
 import { signUpTestUser } from './support/auth';
 import { withRollback } from './support/rollback';
 import { testDb } from './support/test-db';
@@ -38,8 +35,7 @@ async function createApp(tx: Tx): Promise<INestApplication> {
     .useValue(tx)
     .compile();
   const app = moduleRef.createNestApplication({ bodyParser: false });
-  app.use('/api/auth', toNodeHandler(app.get<Auth>(AUTH)));
-  app.use(express.json());
+  configureHttp(app);
   await app.init();
   return app;
 }

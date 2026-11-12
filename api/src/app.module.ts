@@ -4,11 +4,12 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { DiaryModule } from './diary/diary.module';
+import { HealthModule } from './health/health.module';
 import { PlacesModule } from './places/places.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
-  imports: [UsersModule, AuthModule, CalendarModule, PlacesModule, DiaryModule],
+  imports: [UsersModule, AuthModule, CalendarModule, PlacesModule, DiaryModule, HealthModule],
   controllers: [AppController],
   providers: [AppService],
 })

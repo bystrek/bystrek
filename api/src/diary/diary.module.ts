@@ -27,5 +27,6 @@ import { DiaryNotesService } from './diary-notes.service';
     DiaryCategoriesService,
     llmClientProvider,
   ],
+  exports: [DiaryEventsService, DiaryCategoriesService],
 })
 export class DiaryModule {}
