@@ -6,7 +6,7 @@ import { healthDate, healthDay } from './health-date';
 export const HealthCategory = {
   Sleep: 'Sleep',
   Workout: 'Workout',
-  Weight: 'Weight',
+  Body: 'Body',
   Medication: 'Medication',
 } as const;
 export type HealthCategory = (typeof HealthCategory)[keyof typeof HealthCategory];
@@ -104,20 +104,27 @@ export function mapSleep(data: HealthData): Mapped {
   });
 }
 
-const WeightSample = z.object({ date: healthDate, qty: z.number() });
+const MeasurementSample = z.object({ date: healthDate, qty: z.number() });
 
-export function mapWeight(data: HealthData): Mapped {
-  const weight = metric(data, 'weight_body_mass');
-  return mapEach(weight?.data, WeightSample, (sample) => ({
-    externalId: `weight_body_mass:${sample.date.toISOString()}`,
-    category: HealthCategory.Weight,
-    text: `Weight ${round(sample.qty, 1)} ${weight!.units}`,
-    occurredAt: sample.date,
-    endsAt: null,
-    quantity: sample.qty,
-    unit: weight!.units,
-  }));
+// A body measurement metric as one point per sample, keyed by its instant: "Weight 72.4 kg".
+function bodyMeasurement(name: string, label: string) {
+  return (data: HealthData): Mapped => {
+    const measured = metric(data, name);
+    return mapEach(measured?.data, MeasurementSample, (sample) => ({
+      externalId: `${name}:${sample.date.toISOString()}`,
+      category: HealthCategory.Body,
+      text: `${label} ${round(sample.qty, 1)} ${measured!.units}`,
+      occurredAt: sample.date,
+      endsAt: null,
+      quantity: sample.qty,
+      unit: measured!.units,
+    }));
+  };
 }
+
+export const mapWeight = bodyMeasurement('weight_body_mass', 'Weight');
+// Exported as a percentage (18.2), like the export's other `%` metrics.
+export const mapBodyFat = bodyMeasurement('body_fat_percentage', 'Body fat');
 
 // Without an id (version 1), a workout is keyed by its type and span.
 // Version 2 names it `activeEnergyBurned`, version 1 `activeEnergy`; either may be missing or,
@@ -179,7 +186,7 @@ export function mapMedications(data: HealthData): Mapped {
   });
 }
 
-const mappers = [mapSleep, mapWeight, mapWorkouts, mapMedications];
+const mappers = [mapSleep, mapWeight, mapBodyFat, mapWorkouts, mapMedications];
 
 // Every event the push's mapped types yield. Types without a mapper are left alone.
 export function mapHealthData(data: HealthData): Mapped {

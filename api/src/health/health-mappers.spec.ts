@@ -3,6 +3,7 @@ import { healthAutoExportSample } from '../../test/fixtures/health-auto-export.s
 import {
   HealthCategory,
   type HealthData,
+  mapBodyFat,
   mapHealthData,
   mapMedications,
   mapSleep,
@@ -99,7 +100,7 @@ describe('mapSleep', () => {
   });
 });
 
-// The recorded export has no weigh-ins, so these use the documented metric shape.
+// The recorded export has no weigh-ins, so these use the shape of the export's other metrics.
 describe('mapWeight', () => {
   const weighIns = (...data: { date: string; qty: number }[]) => ({
     metrics: [{ name: 'weight_body_mass', units: 'kg', data }],
@@ -110,7 +111,7 @@ describe('mapWeight', () => {
       events: [
         {
           externalId: 'weight_body_mass:2026-11-10T06:15:00.000Z',
-          category: HealthCategory.Weight,
+          category: HealthCategory.Body,
           text: 'Weight 72.4 kg',
           occurredAt: at('2026-11-10T06:15:00Z'),
           endsAt: null,
@@ -125,6 +126,31 @@ describe('mapWeight', () => {
   it('keys a sample by its instant, whatever offset it was written with', () => {
     const id = (date: string) => mapWeight(weighIns({ date, qty: 72 })).events[0].externalId;
     expect(id('2026-11-10 07:15:00 +0100')).toBe(id('2026-11-10 06:15:00 +0000'));
+  });
+});
+
+describe('mapBodyFat', () => {
+  it('makes a point with the percentage per sample', () => {
+    const bodyFat = {
+      metrics: [
+        {
+          name: 'body_fat_percentage',
+          units: '%',
+          data: [{ date: '2026-11-10 07:15:00 +0100', qty: 18.24 }],
+        },
+      ],
+    };
+    expect(mapBodyFat(bodyFat).events).toEqual([
+      {
+        externalId: 'body_fat_percentage:2026-11-10T06:15:00.000Z',
+        category: HealthCategory.Body,
+        text: 'Body fat 18.2 %',
+        occurredAt: at('2026-11-10T06:15:00Z'),
+        endsAt: null,
+        quantity: 18.24,
+        unit: '%',
+      },
+    ]);
   });
 });
 
