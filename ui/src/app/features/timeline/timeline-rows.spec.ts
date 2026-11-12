@@ -25,6 +25,7 @@ const logged = (
   occurredAt: string,
   endsAt: string | null = null,
   source: DiaryEventSource = DiaryEventSource.MANUAL,
+  category: DiaryEvent['category'] = null,
 ): DiaryEvent => ({
   id,
   noteId: null,
@@ -32,8 +33,13 @@ const logged = (
   occurredAt,
   endsAt,
   source,
-  category: null,
+  category,
 });
+
+const medication = { id: 'c-med', name: 'Medication' };
+const body = { id: 'c-body', name: 'Body' };
+const dose = (id: string, occurredAt: string, category: DiaryEvent['category'] = medication) =>
+  logged(id, occurredAt, null, DiaryEventSource.HEALTH, category);
 
 const on = (day: string, now: string): TimelineDay => ({
   day: Temporal.PlainDate.from(day),
@@ -97,6 +103,7 @@ describe('timeline rows', () => {
       time,
       until: null,
       title: uid,
+      items: null,
       status,
     });
 
@@ -132,6 +139,7 @@ describe('timeline rows', () => {
         time: '07:00',
         until: '07:45',
         title: 'run',
+        items: null,
         status: null,
       },
       {
@@ -143,6 +151,7 @@ describe('timeline rows', () => {
         time: '08:30',
         until: null,
         title: 'coffee',
+        items: null,
         status: null,
       },
       expect.objectContaining({ title: 'standup', status: EventStatus.PAST }),
@@ -199,6 +208,69 @@ describe('timeline rows', () => {
     expect(
       titles(buildTimelineRows([], [lastNight], on('2025-10-21', '2025-10-21T10:00Z'))),
     ).toEqual([]);
+  });
+});
+
+describe('grouped logged points', () => {
+  const at = '2025-10-22T08:15:43Z';
+  const rowsOf = (logged: DiaryEvent[]) => buildTimelineRows([], logged, today);
+
+  it('groups points with the same category at the same instant into one row titled by it', () => {
+    const rows = rowsOf([dose('Vortioxetine, 5 mg', at), dose('Trimebutine, 200 mg', at)]);
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        title: 'Medication',
+        items: ['Trimebutine, 200 mg', 'Vortioxetine, 5 mg'],
+        time: '10:15',
+        shape: RowShape.POINT,
+      }),
+    ]);
+  });
+
+  it('gives each category at the same instant its own row, ordered by category name', () => {
+    const rows = rowsOf([
+      dose('a', at),
+      dose('weight', at, body),
+      dose('b', at),
+      dose('fat', at, body),
+      dose('c', at),
+    ]);
+
+    expect(rows.map((row) => row.kind === TimelineRowKind.EVENT && [row.title, row.items])).toEqual(
+      [
+        ['Body', ['fat', 'weight']],
+        ['Medication', ['a', 'b', 'c']],
+      ],
+    );
+  });
+
+  it('keeps a lone point, points at other instants and uncategorized points as their own rows', () => {
+    const rows = rowsOf([
+      dose('alone', '2025-10-22T07:00:00Z'),
+      dose('later', '2025-10-22T07:00:01Z'),
+      logged('x', at),
+      logged('y', at),
+    ]);
+
+    expect(rows.map((row) => row.kind === TimelineRowKind.EVENT && [row.title, row.items])).toEqual(
+      [
+        ['alone', null],
+        ['later', null],
+        ['x', null],
+        ['y', null],
+      ],
+    );
+  });
+
+  it('never groups spans', () => {
+    const end = '2025-10-22T09:00:00Z';
+    const rows = rowsOf([
+      logged('walk', at, end, DiaryEventSource.HEALTH, medication),
+      logged('run', at, end, DiaryEventSource.HEALTH, medication),
+    ]);
+
+    expect(titles(rows)).toEqual(['walk', 'run']);
   });
 });
 

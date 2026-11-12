@@ -36,7 +36,8 @@ export const RowShape = {
 
 export type RowShape = (typeof RowShape)[keyof typeof RowShape];
 
-// `status` is for calendar events only; `until` is the end of a logged span.
+// `status` is for calendar events only; `until` is the end of a logged span. `items` lists the
+// logged points a row groups, when it groups more than one; the row is then titled by their category.
 export type TimelineRow =
   | {
       kind: typeof TimelineRowKind.EVENT;
@@ -47,6 +48,7 @@ export type TimelineRow =
       time: string;
       until: string | null;
       title: string;
+      items: string[] | null;
       status: EventStatus | null;
     }
   | { kind: typeof TimelineRowKind.GAP; key: string; minutes: number };
@@ -83,6 +85,7 @@ function calendarSlots(events: CalendarEvent[], now: Temporal.Instant): Slot[] {
         time: clockTime(event.start),
         until: null,
         title: event.summary,
+        items: null,
         status: null,
       },
       start: Temporal.Instant.from(event.start),
@@ -125,10 +128,27 @@ export function loggedDay(
   return endsAtMidnight ? day.subtract({ days: 1 }) : day;
 }
 
+const byCategoryName = (a: DiaryEvent[], b: DiaryEvent[]): number =>
+  (a[0].category?.name ?? '').localeCompare(b[0].category?.name ?? '');
+
+// Points logged at the same instant under the same category share a row, so a morning's doses
+// read as one. Spans and uncategorized points stay on their own. Sorted by category name so rows
+// at the same time keep their order between loads.
+function byMoment(events: DiaryEvent[]): DiaryEvent[][] {
+  const groups = Map.groupBy(events, (event) =>
+    event.endsAt === null && event.category !== null
+      ? `${event.category.id}@${Temporal.Instant.from(event.occurredAt).epochMilliseconds}`
+      : event.id,
+  );
+  return [...groups.values()].sort(byCategoryName);
+}
+
 function loggedSlots(timeZone: string) {
-  return (events: DiaryEvent[]): Slot[] =>
-    events.map((event) => {
+  return (groups: DiaryEvent[][]): Slot[] =>
+    groups.map((group) => {
+      const [event] = group;
       const start = Temporal.Instant.from(event.occurredAt);
+      const grouped = group.length > 1;
       return {
         row: {
           kind: TimelineRowKind.EVENT,
@@ -138,7 +158,8 @@ function loggedSlots(timeZone: string) {
           start: event.occurredAt,
           time: clockTimeIn(event.occurredAt, timeZone),
           until: event.endsAt === null ? null : clockTimeIn(event.endsAt, timeZone),
-          title: event.text,
+          title: grouped ? (event.category?.name ?? event.text) : event.text,
+          items: grouped ? group.map(({ text }) => text).sort((a, b) => a.localeCompare(b)) : null,
           status: null,
         },
         start,
@@ -181,6 +202,6 @@ export function buildTimelineRows(
   const dayEnd = day.add({ days: 1 }).toZonedDateTime(timeZone).toInstant();
   return interleave(
     calendarSlots(calendar, now),
-    pipe(logged, endingBy(dayEnd), loggedSlots(timeZone)),
+    pipe(logged, endingBy(dayEnd), byMoment, loggedSlots(timeZone)),
   );
 }
