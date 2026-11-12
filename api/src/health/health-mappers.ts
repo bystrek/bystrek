@@ -146,6 +146,14 @@ export function mapWorkouts(data: HealthData): Mapped {
   });
 }
 
+// ", 5 g" for a measured dose. A dose counted in units ("count": a pill, a capsule) shows only
+// when it's more than one: "Vitamin D ×2".
+function formatDose(dosage: number | undefined, units: string | undefined): string {
+  if (dosage == null) return '';
+  if (units === 'count') return dosage === 1 ? '' : ` ×${dosage}`;
+  return units ? `, ${dosage} ${units}` : `, ${dosage}`;
+}
+
 // iOS 26 Medications log. Only doses marked taken become events.
 const Dose = z.object({
   displayText: z.string().trim().min(1),
@@ -159,11 +167,10 @@ const Dose = z.object({
 export function mapMedications(data: HealthData): Mapped {
   return mapEach(data.medications, Dose, (dose) => {
     if (dose.status !== 'Taken') return null;
-    const amount = dose.dosage == null ? '' : `, ${dose.dosage} ${dose.units ?? ''}`.trimEnd();
     return {
       externalId: `medication:${dose.displayText}:${dose.start.toISOString()}`,
       category: HealthCategory.Medication,
-      text: `${dose.nickname ?? dose.displayText}${amount}`,
+      text: `${dose.nickname ?? dose.displayText}${formatDose(dose.dosage, dose.units)}`,
       occurredAt: dose.start,
       endsAt: null,
       quantity: dose.dosage ?? null,

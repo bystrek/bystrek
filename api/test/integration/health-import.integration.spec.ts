@@ -46,15 +46,16 @@ describe('POST /health/import (integration)', () => {
 
       const first = await push(healthAutoExportSample);
       expect(first.status).toBe(201);
-      expect(first.body).toEqual({ importId: expect.any(String), events: 5, skipped: 0 });
+      expect(first.body).toEqual({ importId: expect.any(String), events: 6, skipped: 0 });
 
       const stored = await events();
       expect(stored.map((event) => [event.text, event.source, event.noteId])).toEqual([
-        ['Sleep, 7 h 12 min', DiaryEventSource.Health, null],
-        ['Weight 72.4 kg', DiaryEventSource.Health, null],
-        ['Creatine, 5 g', DiaryEventSource.Health, null],
-        ['Traditional Strength Training, 313 kcal', DiaryEventSource.Health, null],
-        ['Weight 72.1 kg', DiaryEventSource.Health, null],
+        ['suplementy', DiaryEventSource.Health, null],
+        ['suplementy', DiaryEventSource.Health, null],
+        ['Outdoor Cycling, 48 kcal', DiaryEventSource.Health, null],
+        ['Traditional Strength Training, 315 kcal', DiaryEventSource.Health, null],
+        ['Sleep, 7 h 43 min', DiaryEventSource.Health, null],
+        ['Sleep, 8 h 13 min', DiaryEventSource.Health, null],
       ]);
       const categories = await tx
         .select({ id: diaryCategories.id, name: diaryCategories.name })
@@ -64,7 +65,6 @@ describe('POST /health/import (integration)', () => {
       expect(categories.map((category) => category.name)).toEqual([
         'Medication',
         'Sleep',
-        'Weight',
         'Workout',
       ]);
 
@@ -81,7 +81,7 @@ describe('POST /health/import (integration)', () => {
 
       const again = await push(healthAutoExportSample);
       expect(again.status).toBe(201);
-      expect(again.body).toEqual({ importId: expect.any(String), events: 5, skipped: 0 });
+      expect(again.body).toEqual({ importId: expect.any(String), events: 6, skipped: 0 });
 
       const after = await events();
       expect(after.map((event) => event.id)).toEqual(stored.map((event) => event.id));

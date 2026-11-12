@@ -10,22 +10,27 @@ import {
   mapWorkouts,
 } from './health-mappers';
 
+// A real, scrubbed export (see the fixture's header).
 const sample: HealthData = healthAutoExportSample.data;
 const at = (iso: string) => new Date(iso);
 
 describe('mapSleep', () => {
-  it('makes one span per night, keyed by its date', () => {
+  it('makes one span per night from the summarised export, keyed by its date', () => {
     expect(mapSleep(sample)).toEqual({
       events: [
         {
-          externalId: 'sleep_analysis:2026-11-10',
+          externalId: 'sleep_analysis:2025-11-11',
           category: HealthCategory.Sleep,
-          text: 'Sleep, 7 h 12 min',
-          occurredAt: at('2026-11-09T22:30:00Z'),
-          endsAt: at('2026-11-10T06:00:00Z'),
-          quantity: 7.2,
+          text: 'Sleep, 7 h 43 min',
+          occurredAt: at('2025-11-10T23:20:16Z'),
+          endsAt: at('2025-11-11T07:38:31Z'),
+          quantity: 7.723978107670943,
           unit: 'hr',
         },
+        expect.objectContaining({
+          externalId: 'sleep_analysis:2025-11-12',
+          text: 'Sleep, 8 h 13 min',
+        }),
       ],
       skipped: 0,
     });
@@ -94,27 +99,32 @@ describe('mapSleep', () => {
   });
 });
 
+// The recorded export has no weigh-ins, so these use the documented metric shape.
 describe('mapWeight', () => {
+  const weighIns = (...data: { date: string; qty: number }[]) => ({
+    metrics: [{ name: 'weight_body_mass', units: 'kg', data }],
+  });
+
   it('makes a point with the quantity per sample', () => {
-    expect(mapWeight(sample).events).toEqual([
-      {
-        externalId: 'weight_body_mass:2026-11-10T06:15:00.000Z',
-        category: HealthCategory.Weight,
-        text: 'Weight 72.4 kg',
-        occurredAt: at('2026-11-10T06:15:00Z'),
-        endsAt: null,
-        quantity: 72.43,
-        unit: 'kg',
-      },
-      expect.objectContaining({ text: 'Weight 72.1 kg', quantity: 72.1 }),
-    ]);
+    expect(mapWeight(weighIns({ date: '2026-11-10 07:15:00 +0100', qty: 72.43 }))).toEqual({
+      events: [
+        {
+          externalId: 'weight_body_mass:2026-11-10T06:15:00.000Z',
+          category: HealthCategory.Weight,
+          text: 'Weight 72.4 kg',
+          occurredAt: at('2026-11-10T06:15:00Z'),
+          endsAt: null,
+          quantity: 72.43,
+          unit: 'kg',
+        },
+      ],
+      skipped: 0,
+    });
   });
 
   it('keys a sample by its instant, whatever offset it was written with', () => {
-    const weight = (date: string) =>
-      mapWeight({ metrics: [{ name: 'weight_body_mass', units: 'kg', data: [{ date, qty: 72 }] }] })
-        .events[0].externalId;
-    expect(weight('2026-11-10 07:15:00 +0100')).toBe(weight('2026-11-10 06:15:00 +0000'));
+    const id = (date: string) => mapWeight(weighIns({ date, qty: 72 })).events[0].externalId;
+    expect(id('2026-11-10 07:15:00 +0100')).toBe(id('2026-11-10 06:15:00 +0000'));
   });
 });
 
@@ -123,20 +133,24 @@ describe('mapWorkouts', () => {
     expect(mapWorkouts(sample)).toEqual({
       events: [
         {
-          externalId: 'workout:550e8400-e29b-41d4-a716-446655440000',
+          externalId: 'workout:AD309928-5DE8-43D4-8394-8192428CBDF6',
           category: HealthCategory.Workout,
-          text: 'Traditional Strength Training, 313 kcal',
-          occurredAt: at('2026-11-10T17:00:00Z'),
-          endsAt: at('2026-11-10T18:05:00Z'),
-          quantity: 312.6,
+          text: 'Traditional Strength Training, 315 kcal',
+          occurredAt: at('2025-11-10T06:58:18Z'),
+          endsAt: at('2025-11-10T08:03:03Z'),
+          quantity: 314.84300000000155,
           unit: 'kcal',
         },
+        expect.objectContaining({
+          externalId: 'workout:F3211E05-B23B-459F-80C8-A24BE1BA16F6',
+          text: 'Outdoor Cycling, 48 kcal',
+        }),
       ],
       skipped: 0,
     });
   });
 
-  it('keys a version 1 workout without an id by its start and end', () => {
+  it('keys a version 1 workout without an id by its type and span', () => {
     const v1 = {
       workouts: [
         {
@@ -175,21 +189,45 @@ describe('mapWorkouts', () => {
 });
 
 describe('mapMedications', () => {
-  it('makes a point per taken dose and ignores the rest', () => {
+  it('makes a point per taken dose, with or without a dosage, and ignores the rest', () => {
     expect(mapMedications(sample)).toEqual({
       events: [
         {
-          externalId: 'medication:Creatine Monohydrate:2026-11-10T07:30:00.000Z',
+          externalId: 'medication:suplementy:2025-10-31T23:05:05.000Z',
           category: HealthCategory.Medication,
-          text: 'Creatine, 5 g',
-          occurredAt: at('2026-11-10T07:30:00Z'),
+          text: 'suplementy',
+          occurredAt: at('2025-10-31T23:05:05Z'),
           endsAt: null,
-          quantity: 5,
-          unit: 'g',
+          quantity: 1,
+          unit: 'count',
+        },
+        {
+          externalId: 'medication:suplementy:2025-11-01T23:32:36.000Z',
+          category: HealthCategory.Medication,
+          text: 'suplementy',
+          occurredAt: at('2025-11-01T23:32:36Z'),
+          endsAt: null,
+          quantity: null,
+          unit: null,
         },
       ],
       skipped: 0,
     });
+  });
+
+  it('shows a measured dose with its unit and a counted one only above one', () => {
+    const dose = (dosage: number, units: string, nickname?: string) => ({
+      displayText: 'Creatine Monohydrate',
+      nickname,
+      start: '2026-11-10 08:30:00 +0100',
+      status: 'Taken',
+      dosage,
+      units,
+    });
+    const texts = mapMedications({
+      medications: [dose(5, 'g', 'Creatine'), dose(2, 'count')],
+    }).events.map((event) => event.text);
+    expect(texts).toEqual(['Creatine, 5 g', 'Creatine Monohydrate ×2']);
   });
 });
 
@@ -198,9 +236,10 @@ describe('mapHealthData', () => {
     const { events, skipped } = mapHealthData(sample);
     expect(events.map((event) => event.category)).toEqual([
       HealthCategory.Sleep,
-      HealthCategory.Weight,
-      HealthCategory.Weight,
+      HealthCategory.Sleep,
       HealthCategory.Workout,
+      HealthCategory.Workout,
+      HealthCategory.Medication,
       HealthCategory.Medication,
     ]);
     expect(skipped).toBe(0);
