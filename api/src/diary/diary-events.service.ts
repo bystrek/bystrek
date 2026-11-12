@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, gt, gte, inArray, lt, or } from 'drizzle-orm';
+import { and, asc, eq, gt, gte, inArray, lt, or, sql } from 'drizzle-orm';
 import { type Db, DRIZZLE, type Tx } from '../db/drizzle.provider';
 import { diaryCategories, diaryEvents } from '../db/schema';
 import type { DiaryEventSource } from './diary-event-source';
@@ -27,6 +27,20 @@ export interface NewDiaryEvent {
   noteId: string | null;
   extractorVersion: string | null;
 }
+
+// An event from an import, identified within its source by `externalId`.
+export interface ImportedDiaryEvent {
+  externalId: string;
+  text: string;
+  occurredAt: Date;
+  endsAt: Date | null;
+  categoryId: string | null;
+  quantity: number | null;
+  unit: string | null;
+}
+
+// Rows per insert, well under Postgres's 65535 bind parameters for a backfill of years.
+const UPSERT_CHUNK = 1000;
 
 // The user's own diaryEvents. Another user's event answers as not found.
 @Injectable()
@@ -67,6 +81,35 @@ export class DiaryEventsService {
         ),
       )
       .orderBy(asc(diaryEvents.occurredAt), asc(diaryEvents.id));
+  }
+
+  // Inserts imported events, or updates the ones `source` already sent under the same
+  // `externalId`. An update keeps the event's category, which the user may have changed.
+  // A later row with the same `externalId` wins. Returns how many rows were written.
+  async upsertImported(
+    userId: string,
+    source: DiaryEventSource,
+    rows: ImportedDiaryEvent[],
+    db: Db | Tx = this.db,
+  ): Promise<number> {
+    const unique = [...new Map(rows.map((row) => [row.externalId, row])).values()];
+    for (let i = 0; i < unique.length; i += UPSERT_CHUNK) {
+      await db
+        .insert(diaryEvents)
+        .values(unique.slice(i, i + UPSERT_CHUNK).map((row) => ({ ...row, userId, source })))
+        .onConflictDoUpdate({
+          target: [diaryEvents.userId, diaryEvents.source, diaryEvents.externalId],
+          set: {
+            text: sql`excluded.text`,
+            occurredAt: sql`excluded.occurred_at`,
+            endsAt: sql`excluded.ends_at`,
+            quantity: sql`excluded.quantity`,
+            unit: sql`excluded.unit`,
+            updatedAt: sql`now()`,
+          },
+        });
+    }
+    return unique.length;
   }
 
   async update(userId: string, id: string, patch: DiaryEventPatchDto): Promise<DiaryEvent> {

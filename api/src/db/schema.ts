@@ -6,6 +6,7 @@ import {
   doublePrecision,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -353,6 +354,9 @@ export const diaryEvents = pgTable(
     categoryId: uuid('category_id').references(() => diaryCategories.id, { onDelete: 'set null' }),
     source: diaryEventSource('source').notNull(),
     externalId: text('external_id'),
+    // A measured amount, for imports that carry one: a weight, a workout's active energy, a dose.
+    quantity: doublePrecision('quantity'),
+    unit: text('unit'),
     // Which draft prompt produced the event; null for imports and events the user wrote.
     extractorVersion: text('extractor_version'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -375,4 +379,19 @@ export const diaryEvents = pgTable(
       sql`${table.endsAt} is null or ${table.endsAt} >= ${table.occurredAt}`,
     ),
   ],
+);
+
+// Health Auto Export pushes (#167), exactly as received. Never modified: `health` diary events are
+// derived from them and can be rebuilt if a mapper changes. Types without a mapper stay only here.
+export const healthImports = pgTable(
+  'health_imports',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+    payload: jsonb('payload').notNull(),
+  },
+  (table) => [index('health_imports_user_id_idx').on(table.userId)],
 );
