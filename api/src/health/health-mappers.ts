@@ -119,6 +119,7 @@ export function mapWeight(data: HealthData): Mapped {
   }));
 }
 
+// Without an id (version 1), a workout is keyed by its type and span.
 // Version 2 names it `activeEnergyBurned`, version 1 `activeEnergy`; either may be missing or,
 // in older exports, a series, which counts as missing.
 const Workout = z.object({
@@ -134,7 +135,7 @@ export function mapWorkouts(data: HealthData): Mapped {
   return mapEach(data.workouts, Workout, (workout) => {
     const energy = workout.activeEnergyBurned ?? workout.activeEnergy;
     return {
-      externalId: `workout:${workout.id ?? `${workout.start.toISOString()}/${workout.end.toISOString()}`}`,
+      externalId: `workout:${workout.id ?? `${workout.name}:${workout.start.toISOString()}/${workout.end.toISOString()}`}`,
       category: HealthCategory.Workout,
       text: energy ? `${workout.name}, ${round(energy.qty, 0)} ${energy.units}` : workout.name,
       occurredAt: workout.start,

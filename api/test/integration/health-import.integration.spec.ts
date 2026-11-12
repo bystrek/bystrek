@@ -157,6 +157,10 @@ describe('POST /health/import (integration)', () => {
 
       expect((await push(healthAutoExportSample, session)).status).toBe(401);
       expect((await push(healthAutoExportSample, 'bystrek_unknown')).status).toBe(401);
+      // Over the limit: a bad token is turned away before the body is read, a good one isn't.
+      const oversized = { data: { padding: 'x'.repeat(21 * 1024 * 1024) } };
+      expect((await push(oversized, 'bystrek_unknown')).status).toBe(401);
+      expect((await push(oversized)).status).toBe(413);
       expect((await push({ metrics: [] })).status).toBe(400);
       expect((await push({ data: { workouts: 'none' } })).status).toBe(400);
       expect(await events()).toEqual([]);

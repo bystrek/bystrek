@@ -149,12 +149,23 @@ describe('mapWorkouts', () => {
     };
     expect(mapWorkouts(v1).events).toEqual([
       expect.objectContaining({
-        externalId: 'workout:2026-11-10T06:00:00.000Z/2026-11-10T06:30:00.000Z',
+        externalId: 'workout:Running:2026-11-10T06:00:00.000Z/2026-11-10T06:30:00.000Z',
         text: 'Running',
         quantity: null,
         unit: null,
       }),
     ]);
+  });
+
+  it('keeps two version 1 workouts of different types over the same span apart', () => {
+    const span = { start: '2026-11-10 07:00:00 +0100', end: '2026-11-10 07:30:00 +0100' };
+    const ids = mapWorkouts({
+      workouts: [
+        { name: 'Running', ...span },
+        { name: 'Cycling', ...span },
+      ],
+    }).events.map((event) => event.externalId);
+    expect(new Set(ids).size).toBe(2);
   });
 
   it('counts a workout it cannot read as skipped', () => {

@@ -5,22 +5,23 @@ import { parseOffsetIso } from '../calendar/zoned-time';
 // Health Auto Export's timestamp format, `yyyy-MM-dd HH:mm:ss Z`: "2024-02-06 14:30:00 -0800".
 const HEALTH_DATE = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}) ([+-]\d{2})(\d{2})$/;
 
-// The instant a Health Auto Export timestamp denotes, or a zod issue for anything else.
-export const healthDate = z
-  .string()
-  .regex(HEALTH_DATE)
-  .transform((value, ctx) => {
-    const [, date, time, hours, minutes] = HEALTH_DATE.exec(value)!;
+// The instant a Health Auto Export timestamp denotes and the calendar day it's on as the phone
+// saw it, or a zod issue for anything else, impossible dates included.
+const healthTimestamp = z.string().transform((value, ctx) => {
+  const match = HEALTH_DATE.exec(value);
+  if (match) {
+    const [, day, time, hours, minutes] = match;
     try {
-      return parseOffsetIso(`${date}T${time}${hours}:${minutes}`);
+      return { instant: parseOffsetIso(`${day}T${time}${hours}:${minutes}`), day };
     } catch {
-      ctx.addIssue({ code: 'custom', message: `invalid date: ${value}` });
-      return z.NEVER;
+      // Falls through to the issue below.
     }
-  });
+  }
+  ctx.addIssue({ code: 'custom', message: `invalid date: ${value}` });
+  return z.NEVER;
+});
 
-// The calendar day a Health Auto Export timestamp is on, as the phone saw it: "2024-02-06".
-export const healthDay = z
-  .string()
-  .regex(HEALTH_DATE)
-  .transform((value) => HEALTH_DATE.exec(value)![1]);
+export const healthDate = healthTimestamp.transform((timestamp) => timestamp.instant);
+
+// "2024-02-06" for "2024-02-06 00:00:00 +0100", whatever the offset.
+export const healthDay = healthTimestamp.transform((timestamp) => timestamp.day);

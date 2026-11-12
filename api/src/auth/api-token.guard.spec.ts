@@ -58,6 +58,14 @@ describe('ApiTokenGuard', () => {
     expect(request.apiTokenUserId).toBe(userId);
   });
 
+  it('reuses the owner requireApiToken already verified', async () => {
+    const { request, context } = contextWith();
+    request.apiTokenUserId = userId;
+
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(request.apiTokenUserId).toBe(userId);
+  });
+
   it('rejects a revoked token', async () => {
     const { id, key } = await createToken();
     await auth.api.deleteApiKey({ body: { keyId: id }, headers: sessionHeaders });

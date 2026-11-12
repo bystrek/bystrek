@@ -8,20 +8,14 @@ import {
 import type { Request } from 'express';
 import { AUTH } from './auth.provider';
 import type { Auth } from './auth.config';
-
-declare module 'express' {
-  interface Request {
-    /** The user a personal API token belongs to, set by `ApiTokenGuard`. */
-    apiTokenUserId?: string;
-  }
-}
-
-const BEARER = /^Bearer (\S+)$/i;
+import { verifyApiToken } from './verify-api-token';
 
 /**
  * Accepts `Authorization: Bearer <personal API token>` (see api-tokens.ts) and
  * nothing else, so a route opts in to tokens by using this guard instead of
- * `AuthGuard`. `AuthGuard` never accepts a token.
+ * `AuthGuard`. `AuthGuard` never accepts a token. When `requireApiToken` already
+ * verified the token ahead of a large body, the guard reuses its result; on any
+ * other route the field is unset and the guard verifies the token itself.
  */
 @Injectable()
 export class ApiTokenGuard implements CanActivate {
@@ -29,11 +23,8 @@ export class ApiTokenGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
-    const token = BEARER.exec(request.headers.authorization ?? '')?.[1];
-    if (!token) throw new UnauthorizedException();
-    const { valid, key } = await this.auth.api.verifyApiKey({ body: { key: token } });
-    if (!valid || !key) throw new UnauthorizedException();
-    request.apiTokenUserId = key.referenceId;
+    request.apiTokenUserId ??= await verifyApiToken(this.auth, request);
+    if (!request.apiTokenUserId) throw new UnauthorizedException();
     return true;
   }
 }
