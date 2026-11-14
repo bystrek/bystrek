@@ -47,9 +47,33 @@ const doc = (text: string | undefined, indent = '  ') =>
         .map((l) => `${indent} * ${l}`.trimEnd())
         .join('\n')}\n${indent} */\n`
     : '';
-// Type names used in event types, imported from the package (globals like CustomEvent excluded).
+// TypeScript's own utility types; runtime globals like CustomEvent are caught by `in globalThis`.
+const BUILT_IN_TYPES = new Set([
+  'Partial',
+  'Required',
+  'Readonly',
+  'Record',
+  'Pick',
+  'Omit',
+  'Exclude',
+  'Extract',
+  'NonNullable',
+  'ReturnType',
+  'Parameters',
+  'Awaited',
+  'ReadonlyArray',
+  'ReadonlyMap',
+  'ReadonlySet',
+  'Uppercase',
+  'Lowercase',
+  'Capitalize',
+  'Uncapitalize',
+]);
+// Type names used in event types, imported from the package. String literals are skipped.
 const typeNames = (text: string) =>
-  [...text.matchAll(/\b[A-Z]\w*/g)].map((m) => m[0]).filter((n) => !(n in globalThis));
+  [...text.replace(/(['"`])(?:(?!\1).)*\1/g, '').matchAll(/\b[A-Z]\w*/g)]
+    .map((m) => m[0])
+    .filter((n) => !(n in globalThis) && !BUILT_IN_TYPES.has(n));
 
 export function elementsOf(manifest: Manifest): Element[] {
   return manifest.modules.flatMap((m) => m.declarations ?? []).filter((d) => d.tagName);
@@ -77,7 +101,12 @@ function check(el: Element, props: Field[], events: Event[]): void {
 
 function wrapper(el: Element): string {
   const props = (el.members ?? []).filter(
-    (f) => f.kind === 'field' && !f.privacy && !f.static && !f.readonly && !f.name.startsWith('_'),
+    (f) =>
+      f.kind === 'field' &&
+      (!f.privacy || f.privacy === 'public') &&
+      !f.static &&
+      !f.readonly &&
+      !f.name.startsWith('_'),
   );
   const events = el.events ?? [];
   check(el, props, events);
@@ -105,8 +134,6 @@ function wrapper(el: Element): string {
     if (isControl && p.name === 'name') return `${comment}  readonly name = input<string>('');`;
     if (isControl && p.name === 'errors')
       return `${comment}  readonly errors = input<readonly ValidationError.WithOptionalField[]>([]);`;
-    if (isControl && FIELD_STATE.has(p.name))
-      return `${comment}  readonly ${p.name} = input<boolean>(${p.default ?? 'false'});`;
     if (p.type?.text === 'boolean')
       return `${comment}  readonly ${p.name} = input<boolean, unknown>(${p.default ?? 'false'}, { transform: booleanAttribute });`;
     return `${comment}  readonly ${p.name} = input<${host} | undefined>(${initial});`;
@@ -135,7 +162,7 @@ function wrapper(el: Element): string {
     'Component',
     'ElementRef',
     'inject',
-    props.length > 0 && 'input',
+    /\binput[<(]/.test(source) && 'input',
     models.size > 0 && 'model',
     (events.length > 0 || isControl) && 'output',
     events.length > 0 && 'type OutputEmitterRef',
@@ -148,7 +175,7 @@ import { forwardInputs } from '../forward-inputs';
 
 ${doc(el.description, '')}@Component({
   selector: '${el.tagName}',
-  template: '<ng-content />',
+  template: '${isControl ? '' : '<ng-content />'}',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { ${host.join(', ')} },
 })

@@ -26,9 +26,49 @@ export class EkBadgeComponent {
 }
 "
 ,
+  "ek-drawer.ts": 
+"// Generated from custom-elements.json by scripts/generate.ts. Do not edit.
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  inject,
+  model,
+  output,
+  type OutputEmitterRef,
+} from '@angular/core';
+import { defineEkDrawer, type EkDrawer as Host } from '@ekierka/elements';
+import { forwardInputs } from '../forward-inputs';
+
+@Component({
+  selector: 'ek-drawer',
+  template: '<ng-content />',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '(ek-open-change)': 'open.set(element.open); emit(ekOpenChange, $event)' },
+})
+export class EkDrawerComponent {
+  protected readonly element = inject<ElementRef<Host>>(ElementRef).nativeElement;
+
+  readonly open = model<Host['open'] | undefined>(false);
+
+  readonly ekOpenChange = output<CustomEvent<boolean>>();
+
+  constructor() {
+    defineEkDrawer();
+    forwardInputs(this, this.element, ['open']);
+  }
+
+  // Host listeners only know \`Event\`; the output carries the type the element documents.
+  protected emit<T extends Event>(target: OutputEmitterRef<T>, event: Event): void {
+    target.emit(event as T);
+  }
+}
+"
+,
   "ek-switch.ts": 
 "// Generated from custom-elements.json by scripts/generate.ts. Do not edit.
 import {
+  booleanAttribute,
   ChangeDetectionStrategy,
   Component,
   ElementRef,
@@ -47,12 +87,14 @@ import { forwardInputs } from '../forward-inputs';
  */
 @Component({
   selector: 'ek-switch',
-  template: '<ng-content />',
+  template: '',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     '(ek-value-change)': 'value.set(element.value); emit(ekValueChange, $event)',
     '(ek-open-change)': 'open.set(element.open); emit(ekOpenChange, $event)',
     '(ek-pick)': 'emit(ekPick, $event)',
+    '(ek-partial)': 'emit(ekPartial, $event)',
+    '(ek-tagged)': 'emit(ekTagged, $event)',
     '(focusout)': 'touch.emit()',
   },
 })
@@ -63,13 +105,14 @@ export class EkSwitchComponent implements FormValueControl<Host['value']> {
   readonly label = input<Host['label'] | undefined>(undefined);
   readonly size = input<Host['size'] | undefined>(2);
   readonly open = model<Host['open'] | undefined>(false);
-  readonly disabled = input<boolean>(false);
-  readonly readonly = input<boolean>(false);
-  readonly invalid = input<boolean>(false);
-  readonly required = input<boolean>(false);
-  readonly touched = input<boolean>(false);
+  readonly disabled = input<boolean, unknown>(false, { transform: booleanAttribute });
+  readonly readonly = input<boolean, unknown>(false, { transform: booleanAttribute });
+  readonly invalid = input<boolean, unknown>(false, { transform: booleanAttribute });
+  readonly required = input<boolean, unknown>(false, { transform: booleanAttribute });
+  readonly touched = input<boolean, unknown>(false, { transform: booleanAttribute });
   readonly name = input<string>('');
   readonly errors = input<readonly ValidationError.WithOptionalField[]>([]);
+  readonly mode = input<Host['mode'] | undefined>('a');
 
   /**
    * The value changed.
@@ -80,6 +123,8 @@ export class EkSwitchComponent implements FormValueControl<Host['value']> {
    * An option was picked.
    */
   readonly ekPick = output<CustomEvent<PickDetail>>();
+  readonly ekPartial = output<CustomEvent<Partial<PickDetail>>>();
+  readonly ekTagged = output<CustomEvent<'Open' | 'Closed'>>();
   /** Signal forms: the user has interacted with the field. */
   readonly touch = output<void>();
 
@@ -97,6 +142,7 @@ export class EkSwitchComponent implements FormValueControl<Host['value']> {
       'touched',
       'name',
       'errors',
+      'mode',
     ]);
   }
 
@@ -110,6 +156,7 @@ export class EkSwitchComponent implements FormValueControl<Host['value']> {
   "index.ts": 
 "export { EkSwitchComponent } from './ek-switch';
 export { EkBadgeComponent } from './ek-badge';
+export { EkDrawerComponent } from './ek-drawer';
 "
 ,
 }

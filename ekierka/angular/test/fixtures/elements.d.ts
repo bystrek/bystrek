@@ -15,7 +15,12 @@ declare module '@ekierka/elements' {
     touched: boolean;
     name: string;
     errors: readonly { message?: string }[];
+    mode: string;
   }
+  export class EkDrawer extends HTMLElement {
+    open: boolean;
+  }
+  export function defineEkDrawer(): void;
   export class EkBadge extends HTMLElement {
     tone: string;
   }

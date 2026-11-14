@@ -14,6 +14,18 @@ const withElement = (patch: (el: Record<string, any>) => void): Manifest => {
 describe('generated wrappers', async () => {
   const files = await generate(manifest);
 
+  test('imports only what a wrapper uses', () => {
+    expect(files['ek-drawer.ts']).not.toMatch(/\binput,/);
+    expect(files['ek-switch.ts']).not.toMatch(/type (Partial|Open|Closed)\b/);
+    expect(files['ek-switch.ts']).toContain('readonly mode = input');
+  });
+
+  test('form controls own their markup and coerce boolean attributes', () => {
+    expect(files['ek-switch.ts']).toContain("template: ''");
+    expect(files['ek-badge.ts']).toContain("template: '<ng-content />'");
+    expect(files['ek-switch.ts']).toMatch(/readonly disabled = input<boolean, unknown>/);
+  });
+
   test('match the snapshot', async () => {
     expect(files).toMatchSnapshot();
   });

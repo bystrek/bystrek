@@ -116,6 +116,8 @@ jobs:
     timeout-minutes: 20
     env:
       CI: true
+      # Firefox refuses to start as root with the runner's HOME.
+      HOME: /root
     steps:
       - uses: actions/checkout@v4
 

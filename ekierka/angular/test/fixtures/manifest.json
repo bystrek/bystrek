@@ -11,68 +11,149 @@
           "tagName": "ek-switch",
           "description": "A form control: value plus ek-value-change.",
           "members": [
-            { "kind": "field", "name": "value", "type": { "text": "string" }, "default": "''" },
-            { "kind": "field", "name": "label", "type": { "text": "string | undefined" } },
-            { "kind": "field", "name": "size", "type": { "text": "number" }, "default": "2" },
-            { "kind": "field", "name": "open", "type": { "text": "boolean" }, "default": "false" },
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": "''"
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string | undefined"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "number"
+              },
+              "default": "2"
+            },
+            {
+              "kind": "field",
+              "name": "open",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
             {
               "kind": "field",
               "name": "disabled",
-              "type": { "text": "boolean" },
+              "type": {
+                "text": "boolean"
+              },
               "default": "false"
             },
             {
               "kind": "field",
               "name": "readonly",
-              "type": { "text": "boolean" },
+              "type": {
+                "text": "boolean"
+              },
               "default": "false"
             },
             {
               "kind": "field",
               "name": "invalid",
-              "type": { "text": "boolean" },
+              "type": {
+                "text": "boolean"
+              },
               "default": "false"
             },
             {
               "kind": "field",
               "name": "required",
-              "type": { "text": "boolean" },
+              "type": {
+                "text": "boolean"
+              },
               "default": "false"
             },
             {
               "kind": "field",
               "name": "touched",
-              "type": { "text": "boolean" },
+              "type": {
+                "text": "boolean"
+              },
               "default": "false"
             },
-            { "kind": "field", "name": "name", "type": { "text": "string" }, "default": "''" },
+            {
+              "kind": "field",
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "default": "''"
+            },
             {
               "kind": "field",
               "name": "errors",
-              "type": { "text": "readonly { message?: string }[]" }
+              "type": {
+                "text": "readonly { message?: string }[]"
+              }
             },
-            { "kind": "field", "name": "_internal", "type": { "text": "number" } },
+            {
+              "kind": "field",
+              "name": "_internal",
+              "type": {
+                "text": "number"
+              }
+            },
             {
               "kind": "field",
               "name": "tracked",
               "privacy": "private",
-              "type": { "text": "number" }
+              "type": {
+                "text": "number"
+              }
+            },
+            {
+              "kind": "field",
+              "name": "mode",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "'a'"
             }
           ],
           "events": [
             {
               "name": "ek-value-change",
-              "type": { "text": "CustomEvent<string>" },
+              "type": {
+                "text": "CustomEvent<string>"
+              },
               "description": "The value changed."
             },
             {
               "name": "ek-open-change",
-              "type": { "text": "CustomEvent<boolean>" }
+              "type": {
+                "text": "CustomEvent<boolean>"
+              }
             },
             {
               "name": "ek-pick",
-              "type": { "text": "CustomEvent<PickDetail>" },
+              "type": {
+                "text": "CustomEvent<PickDetail>"
+              },
               "description": "An option was picked."
+            },
+            {
+              "name": "ek-partial",
+              "type": {
+                "text": "CustomEvent<Partial<PickDetail>>"
+              }
+            },
+            {
+              "name": "ek-tagged",
+              "type": {
+                "text": "CustomEvent<'Open' | 'Closed'>"
+              }
             }
           ]
         },
@@ -81,7 +162,37 @@
           "name": "EkBadge",
           "tagName": "ek-badge",
           "members": [
-            { "kind": "field", "name": "tone", "type": { "text": "string" }, "default": "'info'" }
+            {
+              "kind": "field",
+              "name": "tone",
+              "type": {
+                "text": "string"
+              },
+              "default": "'info'"
+            }
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "EkDrawer",
+          "tagName": "ek-drawer",
+          "members": [
+            {
+              "kind": "field",
+              "name": "open",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            }
+          ],
+          "events": [
+            {
+              "name": "ek-open-change",
+              "type": {
+                "text": "CustomEvent<boolean>"
+              }
+            }
           ]
         }
       ]
