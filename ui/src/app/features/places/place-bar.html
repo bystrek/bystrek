@@ -21,7 +21,9 @@
           <app-command-result label="Preview" closeLabel="Close" (closed)="store.dismiss()">
             <div class="head">
               <p class="name">{{ r.draft.name }}</p>
-              <app-tag variant="outline">{{ r.draft.category | categoryLabel }}</app-tag>
+              <span class="ek-tag" data-variant="outline">{{
+                r.draft.category | categoryLabel
+              }}</span>
             </div>
             <p class="address">{{ r.draft.address }}</p>
             <p class="found">
@@ -45,15 +47,20 @@
             }
             <div class="actions">
               <button
-                appButton
+                class="ek-button"
                 type="button"
-                variant="inverse"
+                data-variant="inverse"
                 [disabled]="!store.canSave()"
                 (click)="store.save()"
               >
                 {{ store.saving() ? 'Saving…' : 'Save' }}
               </button>
-              <button appButton type="button" [disabled]="store.saving()" (click)="store.cancel()">
+              <button
+                class="ek-button"
+                type="button"
+                [disabled]="store.saving()"
+                (click)="store.cancel()"
+              >
                 Cancel
               </button>
             </div>
@@ -65,7 +72,7 @@
             <ul class="candidates">
               @for (c of r.candidates; track c.osmType + c.osmId) {
                 <li>
-                  <button appButton type="button" block (click)="store.choose(c)">
+                  <button class="ek-button" type="button" data-block (click)="store.choose(c)">
                     {{ c.displayAddress }}
                   </button>
                 </li>
@@ -91,13 +98,20 @@
               </p>
               <div class="actions">
                 @if (place.visitedByMe) {
-                  <app-tag variant="outline" icon="check">Visited</app-tag>
+                  <span class="ek-tag" data-variant="outline"
+                    ><app-icon name="check" />Visited</span
+                  >
                 } @else {
-                  <button appButton type="button" variant="inverse" (click)="store.markVisited()">
+                  <button
+                    class="ek-button"
+                    type="button"
+                    data-variant="inverse"
+                    (click)="store.markVisited()"
+                  >
                     Mark visited
                   </button>
                 }
-                <button appButton type="button" (click)="store.cancel()">Done</button>
+                <button class="ek-button" type="button" (click)="store.cancel()">Done</button>
               </div>
             }
           </app-command-result>

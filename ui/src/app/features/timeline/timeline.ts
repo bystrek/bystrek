@@ -1,9 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { TimelineStore } from './timeline-store';
-import { Button } from '../../shared/button/button';
 import { Icon } from '../../shared/icon/icon';
-import { Progress } from '../../shared/progress/progress';
-import { Tag } from '../../shared/tag/tag';
 import { AskBarStore } from './ask-bar-store';
 import { LogBarStore } from './log-bar-store';
 import { TimelineBar } from './timeline-bar';
@@ -12,16 +9,7 @@ import { DurationPipe, MinutesUntilPipe, WeekdayAndDatePipe } from './timeline-p
 
 @Component({
   selector: 'app-timeline',
-  imports: [
-    Button,
-    DurationPipe,
-    Icon,
-    MinutesUntilPipe,
-    Progress,
-    Tag,
-    TimelineBar,
-    WeekdayAndDatePipe,
-  ],
+  imports: [DurationPipe, Icon, MinutesUntilPipe, TimelineBar, WeekdayAndDatePipe],
   providers: [TimelineStore, AskBarStore, LogBarStore],
   templateUrl: './timeline.html',
   styleUrl: './timeline.css',

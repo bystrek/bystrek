@@ -1,0 +1,27 @@
+/* <p class="ek-status">: a line of status text. data-tone="error" makes it a flagged banner. */
+.ek-status {
+  margin: 20px 0;
+  font-size: 22px;
+  color: var(--color-ink-muted);
+  min-height: 1.2em;
+
+  &[data-tone='error'] {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+    color: var(--color-ink);
+    font-weight: 700;
+    background: var(--color-surface);
+    border: var(--border-heavy);
+    border-left-width: 9px;
+    border-left-color: var(--color-danger);
+
+    & .app-icon {
+      flex-shrink: 0;
+      width: 29px;
+      height: 29px;
+      color: var(--color-ink);
+    }
+  }
+}

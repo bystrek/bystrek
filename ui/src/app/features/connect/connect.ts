@@ -2,8 +2,6 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@ang
 import { FormField, FormRoot, form, required } from '@angular/forms/signals';
 import { CalendarService } from '../../core/calendar/calendar.service';
 import { Alert } from '../../shared/alert/alert';
-import { Button } from '../../shared/button/button';
-import { Card } from '../../shared/card/card';
 import {
   ConnectCredentials,
   ConnectStep,
@@ -14,7 +12,7 @@ import {
 
 @Component({
   selector: 'app-connect',
-  imports: [Alert, Button, Card, FormField, FormRoot],
+  imports: [Alert, FormField, FormRoot],
   providers: [ConnectStore],
   templateUrl: './connect.html',
   styleUrl: './connect.css',

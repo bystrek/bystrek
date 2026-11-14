@@ -19,23 +19,28 @@
     </app-alert>
   } @else {
     <p class="lead">Downloading your calendar. This usually takes a few seconds.</p>
-    <app-progress label="Calendar download" [value]="store.progress() | syncPercent" />
+    <progress
+      class="ek-progress"
+      aria-label="Calendar download"
+      [attr.value]="store.progress() | syncPercent"
+      max="100"
+    ></progress>
     <p class="count" aria-live="polite">{{ store.progress() | syncLabel }}</p>
   }
 
   @if (store.progress()?.status === SyncStatus.ERROR || store.requestError()) {
     <div class="actions">
       <button
-        appButton
+        class="ek-button"
         type="button"
-        variant="primary"
-        block
+        data-variant="primary"
+        data-block
         [disabled]="store.retrying()"
         (click)="store.retry()"
       >
         {{ store.retrying() ? 'Retrying…' : 'Try again' }}
       </button>
-      <a appButton block routerLink="/connect">Update credentials</a>
+      <a class="ek-button" data-block routerLink="/connect">Update credentials</a>
     </div>
   }
 </main>

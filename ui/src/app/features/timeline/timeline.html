@@ -5,9 +5,9 @@
 
   <div class="day-nav">
     <button
+      class="ek-button"
       type="button"
-      appButton
-      shape="icon"
+      data-shape="icon"
       aria-label="Previous day"
       (click)="store.previousDay()"
     >
@@ -17,7 +17,13 @@
       <p class="day-label">{{ store.selectedDay() | weekdayAndDate }}</p>
       <p class="day-sub">{{ store.subtitle() }}</p>
     </div>
-    <button type="button" appButton shape="icon" aria-label="Next day" (click)="store.nextDay()">
+    <button
+      class="ek-button"
+      type="button"
+      data-shape="icon"
+      aria-label="Next day"
+      (click)="store.nextDay()"
+    >
       <app-icon name="chevron-right" />
     </button>
   </div>
@@ -28,7 +34,7 @@
 
   <div class="scroll">
     @if (store.loading()) {
-      <app-progress label="Loading events" />
+      <progress class="ek-progress" aria-label="Loading events" max="100"></progress>
     }
 
     <ol class="list">
@@ -55,8 +61,9 @@
               <span class="until">until {{ until }}</span>
             }
             @if (row.status === EventStatus.NEXT) {
-              <app-tag variant="outline" icon="clock"
-                >Next · in {{ row.start | minutesUntil: store.now() }} min</app-tag
+              <span class="ek-tag" data-variant="outline"
+                ><app-icon name="clock" />Next · in
+                {{ row.start | minutesUntil: store.now() }} min</span
               >
             }
           </li>

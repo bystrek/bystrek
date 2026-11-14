@@ -43,11 +43,16 @@
   }
 
   <div class="actions">
-    <button appButton type="submit" variant="primary" [disabled]="editForm().submitting()">
+    <button
+      class="ek-button"
+      type="submit"
+      data-variant="primary"
+      [disabled]="editForm().submitting()"
+    >
       {{ editForm().submitting() ? 'Saving…' : 'Save' }}
     </button>
     <button
-      appButton
+      class="ek-button"
       type="button"
       [disabled]="editForm().submitting()"
       (click)="store.cancelEdit()"

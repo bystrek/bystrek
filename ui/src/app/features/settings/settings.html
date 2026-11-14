@@ -23,7 +23,14 @@
       </button>
     </form>
 
-    <app-status-banner [message]="status()" [error]="statusError()" />
+    @if (status()) {
+      <p class="ek-status" [attr.data-tone]="statusError() ? 'error' : null">
+        @if (statusError()) {
+          <app-icon name="warning" />
+        }
+        {{ status() }}
+      </p>
+    }
   </section>
 
   <section class="settings-section">
@@ -41,16 +48,16 @@
     }
 
     <div class="calendar-actions">
-      <a appButton block routerLink="/connect">
+      <a class="ek-button" data-block routerLink="/connect">
         {{
           calendar.credentials()?.configured ? 'Change account or calendar' : 'Connect a calendar'
         }}
       </a>
       @if (calendar.credentials()?.configured) {
         <button
-          appButton
+          class="ek-button"
           type="button"
-          block
+          data-block
           [disabled]="calendar.busy()"
           (click)="disconnectCalendar()"
         >
@@ -59,7 +66,14 @@
       }
     </div>
 
-    <app-status-banner [message]="calendarStatus()" [error]="calendarStatusError()" />
+    @if (calendarStatus()) {
+      <p class="ek-status" [attr.data-tone]="calendarStatusError() ? 'error' : null">
+        @if (calendarStatusError()) {
+          <app-icon name="warning" />
+        }
+        {{ calendarStatus() }}
+      </p>
+    }
   </section>
 
   <section class="settings-section">

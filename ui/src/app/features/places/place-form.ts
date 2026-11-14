@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, input, linkedSignal } from '@angular/core';
 import { FormField, FormRoot, form, required } from '@angular/forms/signals';
 import { Place, PlaceCategory } from '../../core/places/places.service';
-import { Button } from '../../shared/button/button';
 import { OsmAttribution } from './osm-attribution';
 import { CategoryLabelPipe } from './place-pipes';
 import { PlacesStore } from './places-store';
@@ -18,7 +17,7 @@ const toFormValue = (place: Place) => ({
 // The minimal edit form that replaces a row while it is being edited.
 @Component({
   selector: 'app-place-form',
-  imports: [Button, CategoryLabelPipe, FormField, FormRoot, OsmAttribution],
+  imports: [CategoryLabelPipe, FormField, FormRoot, OsmAttribution],
   templateUrl: './place-form.html',
   styleUrl: './place-form.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

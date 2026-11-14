@@ -6,11 +6,11 @@ import {
   input,
   output,
 } from '@angular/core';
-import { Button } from '../button/button';
-import { Card, CardTone } from '../card/card';
 import { Icon, IconName } from '../icon/icon';
 
 export type AlertTone = 'danger' | 'primary' | 'neutral';
+
+type CardTone = 'surface' | 'primary' | 'danger';
 
 const CARD_TONE: Record<AlertTone, CardTone> = {
   danger: 'danger',
@@ -26,16 +26,16 @@ const ICON: Record<AlertTone, IconName> = {
 
 @Component({
   selector: 'app-alert',
-  imports: [Button, Card, Icon],
+  imports: [Icon],
   template: `
-    <app-card [tone]="cardTone()">
+    <div class="ek-card" [attr.data-tone]="cardTone()">
       <div class="head">
         <app-icon class="icon" [name]="icon()" />
         <strong class="heading">{{ heading() }}</strong>
         @if (dismissible()) {
           <button
-            appButton
-            shape="icon"
+            class="ek-button"
+            data-shape="icon"
             type="button"
             aria-label="Dismiss"
             (click)="dismissed.emit()"
@@ -45,7 +45,7 @@ const ICON: Record<AlertTone, IconName> = {
         }
       </div>
       <div class="body"><ng-content /></div>
-    </app-card>
+    </div>
   `,
   styleUrl: './alert.css',
   host: { '[attr.role]': 'tone() === "danger" ? "alert" : "status"' },

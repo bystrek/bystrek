@@ -2,7 +2,7 @@
   display: block;
 }
 
-app-card {
+.ek-card {
   padding: var(--space-3);
   display: grid;
   gap: var(--space-2);

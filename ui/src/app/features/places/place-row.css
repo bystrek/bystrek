@@ -29,7 +29,7 @@
   overflow-wrap: anywhere;
 }
 
-.head app-tag {
+.head .ek-tag {
   flex: none;
 }
 

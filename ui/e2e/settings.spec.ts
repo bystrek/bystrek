@@ -52,7 +52,7 @@ test('edits first/last name and avatar, then saves via update-user', async ({ pa
 
   await page.locator('#profile').getByRole('button', { name: 'Save' }).click();
 
-  await expect(page.locator('.status')).toHaveText('Saved.');
+  await expect(page.locator('.ek-status')).toHaveText('Saved.');
   expect(updateBody?.['firstName']).toBe('Michał');
   expect(updateBody?.['lastName']).toBe('Bobrowicz');
   expect(updateBody?.['name']).toBe('Michał Bobrowicz');

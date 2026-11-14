@@ -1,4 +1,8 @@
+/* Unlayered CSS beats layered, so the legacy rules sit in a layer below Ekierka's. */
+@layer legacy, ekierka;
+
 @import '@ekierka/elements/tokens.css';
+@import '@ekierka/elements/ekierka.css';
 
 * {
   border-radius: 0 !important;
@@ -21,129 +25,100 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/*
+@layer legacy {
+  /*
  * Legacy element rules for screens that are not restyled yet. They are
  * scoped (with :where, so specificity stays that of a bare element) to the
  * existing containers so the new primitives are unaffected.
  */
-.auth-shell {
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  max-width: 360px;
-  margin: 0 auto;
-  padding: 24px;
-  text-align: center;
-}
+  .auth-shell {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    max-width: 360px;
+    margin: 0 auto;
+    padding: 24px;
+    text-align: center;
+  }
 
-h1,
-h2,
-h3 {
-  font-family: var(--font-ui);
-  font-weight: 700;
-}
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-ui);
+    font-weight: 700;
+  }
 
-h1 {
-  font-size: 45px;
-  letter-spacing: 0.01em;
-  margin: 0 0 8px;
-  text-transform: uppercase;
-}
+  h1 {
+    font-size: 45px;
+    letter-spacing: 0.01em;
+    margin: 0 0 8px;
+    text-transform: uppercase;
+  }
 
-:where(.auth-shell, .page, .shell) p {
-  color: var(--color-ink-muted);
-  line-height: 1.5;
-  margin: 0 0 28px;
-}
+  :where(.auth-shell, .page, .shell) p {
+    color: var(--color-ink-muted);
+    line-height: 1.5;
+    margin: 0 0 28px;
+  }
 
-:where(.auth-shell, .page, .shell) button {
-  font: inherit;
-  font-family: var(--font-ui);
-  font-size: 24px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  padding: 13px 26px;
-  border: var(--border-heavy);
-  background: var(--color-primary);
-  color: var(--color-ink);
-  cursor: pointer;
-  margin: 0 6px 12px;
-}
+  :where(.auth-shell, .page, .shell) button {
+    font: inherit;
+    font-family: var(--font-ui);
+    font-size: 24px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    padding: 13px 26px;
+    border: var(--border-heavy);
+    background: var(--color-primary);
+    color: var(--color-ink);
+    cursor: pointer;
+    margin: 0 6px 12px;
+  }
 
-:where(.auth-shell, .page, .shell) button:hover:not(:disabled) {
-  filter: brightness(0.92);
-}
+  :where(.auth-shell, .page, .shell) button:hover:not(:disabled) {
+    filter: brightness(0.92);
+  }
 
-:where(.auth-shell, .page, .shell) button:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
+  :where(.auth-shell, .page, .shell) button:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
 
-.link {
-  background: none;
-  border: none;
-  color: var(--color-ink);
-  text-decoration: underline;
-  text-transform: none;
-  font-family: var(--font-ui);
-  font-weight: 400;
-  padding: 4px;
-  margin: 0;
-  font-size: 21px;
-  display: inline-block;
-}
+  .link {
+    background: none;
+    border: none;
+    color: var(--color-ink);
+    text-decoration: underline;
+    text-transform: none;
+    font-family: var(--font-ui);
+    font-weight: 400;
+    padding: 4px;
+    margin: 0;
+    font-size: 21px;
+    display: inline-block;
+  }
 
-.link:hover:not(:disabled) {
-  filter: none;
-  opacity: 0.7;
-}
+  .link:hover:not(:disabled) {
+    filter: none;
+    opacity: 0.7;
+  }
 
-:where(.auth-shell, .page, .shell) :is(input, select) {
-  font: inherit;
-  font-family: var(--font-ui);
-  /* Keep at 16px or above: smaller sizes trip the iOS Safari
+  :where(.auth-shell, .page, .shell) :is(input, select) {
+    font: inherit;
+    font-family: var(--font-ui);
+    /* Keep at 16px or above: smaller sizes trip the iOS Safari
      auto-zoom-on-focus, and disabling it via `maximum-scale` would also
      block legitimate pinch-zoom (accessibility regression). */
-  font-size: 20px;
-  padding: 10px 14px;
-  border: var(--border-heavy);
-  background: var(--color-surface);
-  color: var(--color-ink);
-}
-
-#status,
-.status {
-  margin: 20px 0;
-  font-size: 22px;
-  color: var(--color-ink-muted);
-  min-height: 1.2em;
-}
-
-#status.error,
-.status.error {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin: 20px 0;
-  padding: 10px 12px;
-  color: var(--color-ink);
-  font-weight: 700;
-  background: var(--color-surface);
-  border: var(--border-heavy);
-  border-left-width: 9px;
-  border-left-color: var(--color-danger);
-}
-
-#status.error .app-icon,
-.status.error .app-icon {
-  flex-shrink: 0;
-  width: 29px;
-  height: 29px;
-  color: var(--color-ink);
+    font-size: 20px;
+    padding: 10px 14px;
+    border: var(--border-heavy);
+    background: var(--color-surface);
+    color: var(--color-ink);
+  }
 }
 
 .app-icon {

@@ -1,0 +1,44 @@
+/*
+ * <div class="ek-stack">. data-direction="horizontal" (wraps). data-align: start | center | end.
+ * data-gap: 1 | 2 | 3 (default) | 4 | 6, the --space-N token.
+ */
+.ek-stack {
+  display: flex;
+  box-sizing: border-box;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
+
+  &[data-direction='horizontal'] {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  &[data-align='start'] {
+    align-items: flex-start;
+  }
+
+  &[data-align='center'] {
+    align-items: center;
+  }
+
+  &[data-align='end'] {
+    align-items: flex-end;
+  }
+
+  &[data-gap='1'] {
+    gap: var(--space-1);
+  }
+
+  &[data-gap='2'] {
+    gap: var(--space-2);
+  }
+
+  &[data-gap='4'] {
+    gap: var(--space-4);
+  }
+
+  &[data-gap='6'] {
+    gap: var(--space-6);
+  }
+}

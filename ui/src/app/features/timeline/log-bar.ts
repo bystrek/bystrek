@@ -9,7 +9,6 @@ import {
   validate,
 } from '@angular/forms/signals';
 import { MAX_DRAFT_TEXT_LENGTH } from '../../core/diary/diary.service';
-import { Button } from '../../shared/button/button';
 import { CommandBar } from '../../shared/command-bar/command-bar';
 import { CommandResult } from '../../shared/command-bar/command-result';
 import { Icon } from '../../shared/icon/icon';
@@ -22,7 +21,7 @@ const nameKey = (name: string) => name.trim().toLowerCase();
 // Enter on the unchanged note, or anywhere in the card, logs the draft as edited.
 @Component({
   selector: 'app-log-bar',
-  imports: [Button, CommandBar, CommandResult, FormField, FormRoot, Icon],
+  imports: [CommandBar, CommandResult, FormField, FormRoot, Icon],
   templateUrl: './log-bar.html',
   styleUrl: './log-bar.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

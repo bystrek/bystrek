@@ -196,9 +196,9 @@ describe('PlaceBar', () => {
 
     await ui.click('Mark visited');
     expect(ui.placesApi.setVisited).toHaveBeenCalledWith('manufaktura', true);
-    expect(ui.el.querySelector('app-place-bar app-tag[icon="check"]')?.textContent).toContain(
-      'Visited',
-    );
+    expect(
+      ui.el.querySelector('app-place-bar .ek-tag:has(app-icon[name="check"])')?.textContent,
+    ).toContain('Visited');
     expect(ui.el.querySelector('app-place-row')?.hasAttribute('data-visited')).toBe(true);
   });
 

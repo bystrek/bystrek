@@ -7,16 +7,14 @@ import {
   output,
 } from '@angular/core';
 import { FormField, FormRoot, disabled, form, maxLength, required } from '@angular/forms/signals';
-import { Button } from '../button/button';
 import { Icon } from '../icon/icon';
-import { Progress } from '../progress/progress';
 
 // The prompt bar shared by the per-page assistants: input, thinking, stop, and slots for the
 // result (`[commandBarResult]`, above the input) and hints (`[commandBarHint]`, under it).
 // The page owns the text, so it decides whether a submit clears it.
 @Component({
   selector: 'app-command-bar',
-  imports: [Button, FormField, FormRoot, Icon, Progress],
+  imports: [FormField, FormRoot, Icon],
   templateUrl: './command-bar.html',
   styleUrl: './command-bar.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

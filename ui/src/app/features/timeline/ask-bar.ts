@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, model, output } from '@angular/core';
 import { Temporal } from '@js-temporal/polyfill';
-import { Button } from '../../shared/button/button';
 import { CommandBar } from '../../shared/command-bar/command-bar';
 import { CommandResult } from '../../shared/command-bar/command-result';
 import { Icon } from '../../shared/icon/icon';
@@ -10,15 +9,7 @@ import { AskBarStore, AskPhase } from './ask-bar-store';
 // The timeline bar in ask mode. A question clears the input once it is sent.
 @Component({
   selector: 'app-ask-bar',
-  imports: [
-    Button,
-    ClockTimePipe,
-    CommandBar,
-    CommandResult,
-    DurationPipe,
-    Icon,
-    WeekdayAndDatePipe,
-  ],
+  imports: [ClockTimePipe, CommandBar, CommandResult, DurationPipe, Icon, WeekdayAndDatePipe],
   templateUrl: './ask-bar.html',
   styleUrl: './ask-bar.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

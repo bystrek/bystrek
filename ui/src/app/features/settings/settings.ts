@@ -3,14 +3,13 @@ import { FormField, FormRoot, form, required } from '@angular/forms/signals';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { CalendarService } from '../../core/calendar/calendar.service';
-import { Button } from '../../shared/button/button';
-import { StatusBanner } from '../../shared/status-banner/status-banner';
 import { ApiTokens } from './api-tokens';
 import { downscaleImage } from './downscale-image';
+import { Icon } from '../../shared/icon/icon';
 
 @Component({
   selector: 'app-settings',
-  imports: [ApiTokens, Button, FormField, FormRoot, RouterLink, StatusBanner],
+  imports: [ApiTokens, FormField, FormRoot, RouterLink, Icon],
   templateUrl: './settings.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './settings.css',

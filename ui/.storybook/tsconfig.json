@@ -7,6 +7,11 @@
     "moduleResolution": "bundler"
   },
   "exclude": ["../src/test.ts", "../src/**/*.spec.ts"],
-  "include": ["../src/**/*.ts", "../src/**/*.stories.*", "./preview.ts"],
+  "include": [
+    "../src/**/*.ts",
+    "../src/**/*.stories.*",
+    "../../ekierka/elements/stories/*.stories.ts",
+    "./preview.ts"
+  ],
   "files": ["./typings.d.ts"]
 }

@@ -1,9 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Alert } from '../../shared/alert/alert';
-import { Button } from '../../shared/button/button';
-import { Chip } from '../../shared/chip/chip';
 import { Icon } from '../../shared/icon/icon';
-import { Progress } from '../../shared/progress/progress';
 import { OsmAttribution } from './osm-attribution';
 import { PlaceBar } from './place-bar';
 import { PlaceBarStore } from './place-bar-store';
@@ -25,7 +22,7 @@ const FILTERS: { value: VisitedFilter; label: string }[] = [
 
 @Component({
   selector: 'app-places',
-  imports: [Alert, Button, Chip, Icon, OsmAttribution, PlaceBar, PlaceEntry, PlacesMap, Progress],
+  imports: [Alert, Icon, OsmAttribution, PlaceBar, PlaceEntry, PlacesMap],
   providers: [PlacesStore, PlaceBarStore],
   templateUrl: './places.html',
   styleUrl: './places.css',

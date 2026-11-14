@@ -9,9 +9,6 @@ import {
 import { ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { Alert } from '../../shared/alert/alert';
-import { Button } from '../../shared/button/button';
-import { Card } from '../../shared/card/card';
-import { Stack } from '../../shared/stack/stack';
 
 // Error codes from Pocket ID (OAuth), better-auth's callback and the sign-in callback route.
 const SIGN_IN_ERRORS: Record<string, string> = {
@@ -29,7 +26,7 @@ export class SignInErrorPipe implements PipeTransform {
 
 @Component({
   selector: 'app-login',
-  imports: [Alert, Button, Card, Stack, SignInErrorPipe],
+  imports: [Alert, SignInErrorPipe],
   templateUrl: './login.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './login.css',

@@ -3,6 +3,7 @@ import type { StorybookConfig } from '@storybook/angular-vite';
 const config: StorybookConfig = {
   "stories": [
     "../src/**/*.mdx",
+    "../../ekierka/elements/stories/*.stories.ts",
     "../src/**/*.stories.@(js|jsx|mjs|ts|tsx)"
   ],
   "addons": [

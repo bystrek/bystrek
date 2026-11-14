@@ -27,10 +27,10 @@
                 {{ r.event.start | weekdayAndDate }} · {{ r.event.durationMinutes | duration }}
               </p>
               <button
+                class="ek-button"
                 type="button"
-                appButton
-                variant="inverse"
-                block
+                data-variant="inverse"
+                data-block
                 (click)="jumpTo(r.event.start)"
               >
                 Jump to {{ r.event.start | weekdayAndDate }} <app-icon name="arrow-right" />

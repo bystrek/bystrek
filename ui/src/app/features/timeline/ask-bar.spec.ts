@@ -27,7 +27,7 @@ describe('AskBar', () => {
     fixture.detectChanges();
 
     expect(TestBed.inject(AskBarStore).phase()).toBe(AskPhase.CANT_DO);
-    expect(el.querySelector<HTMLElement>('app-card')?.dataset['tone']).toBe('danger');
+    expect(el.querySelector<HTMLElement>('.ek-card')?.dataset['tone']).toBe('danger');
     expect(el.textContent).toContain('I can only read your calendar.');
   });
 

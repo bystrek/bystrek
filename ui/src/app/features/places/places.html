@@ -12,9 +12,9 @@
       <div class="views" role="group" aria-label="View">
         @for (view of views; track view.value) {
           <button
-            appChip
+            class="ek-chip"
             type="button"
-            [tone]="store.view() === view.value ? 'secondary' : 'surface'"
+            [attr.data-tone]="store.view() === view.value ? 'secondary' : 'surface'"
             [attr.aria-pressed]="store.view() === view.value"
             (click)="store.setView(view.value)"
           >
@@ -34,9 +34,9 @@
       <div class="filters" role="group" aria-label="Show">
         @for (filter of filters; track filter.value) {
           <button
-            appChip
+            class="ek-chip"
             type="button"
-            [tone]="store.visitedFilter() === filter.value ? 'secondary' : 'surface'"
+            [attr.data-tone]="store.visitedFilter() === filter.value ? 'secondary' : 'surface'"
             [attr.aria-pressed]="store.visitedFilter() === filter.value"
             (click)="store.setVisitedFilter(filter.value)"
           >
@@ -54,12 +54,12 @@
   </div>
 
   @if (store.loading()) {
-    <app-progress label="Loading places" />
+    <progress class="ek-progress" aria-label="Loading places" max="100"></progress>
   } @else if (store.loadError(); as message) {
     <app-alert tone="danger" heading="Couldn't load places" [dismissible]="false">
       <p>{{ message }}</p>
     </app-alert>
-    <button appButton type="button" (click)="store.load()">Try again</button>
+    <button class="ek-button" type="button" (click)="store.load()">Try again</button>
   } @else if (store.isEmpty()) {
     <p class="empty">No places yet.</p>
   } @else {
@@ -72,7 +72,7 @@
           (selected)="store.select($event)"
         />
       } @loading (minimum 200ms) {
-        <app-progress class="map" label="Loading map" />
+        <progress class="ek-progress map" aria-label="Loading map" max="100"></progress>
       } @error {
         <app-alert tone="danger" heading="Couldn't load the map" [dismissible]="false">
           <p>Check your connection and reload the page.</p>
@@ -81,9 +81,8 @@
       @if (selected) {
         <div class="sheet">
           <button
-            appButton
             type="button"
-            class="close"
+            class="ek-button close"
             aria-label="Close place"
             (click)="store.select(null)"
           >

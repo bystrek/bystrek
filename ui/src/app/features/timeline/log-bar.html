@@ -29,9 +29,9 @@
                       [formField]="event.text"
                     />
                     <button
+                      class="ek-button"
                       type="button"
-                      appButton
-                      shape="icon"
+                      data-shape="icon"
                       aria-label="Remove event"
                       [disabled]="store.saving()"
                       (click)="removeEvent(i)"
@@ -73,9 +73,9 @@
                   <div class="line">
                     <input type="text" aria-label="Category name" [formField]="c.name" />
                     <button
+                      class="ek-button"
                       type="button"
-                      appButton
-                      shape="icon"
+                      data-shape="icon"
                       [attr.aria-label]="'Remove category ' + c.name().value()"
                       [disabled]="store.saving()"
                       (click)="removeCategory(c.key().value())"
@@ -94,10 +94,20 @@
               <p class="save-error" role="alert">{{ message }}</p>
             }
             <div class="actions">
-              <button type="submit" appButton variant="inverse" [disabled]="store.saving()">
+              <button
+                class="ek-button"
+                type="submit"
+                data-variant="inverse"
+                [disabled]="store.saving()"
+              >
                 {{ store.saving() ? 'Logging…' : 'Log it ↵' }}
               </button>
-              <button type="button" appButton [disabled]="store.saving()" (click)="cancel()">
+              <button
+                class="ek-button"
+                type="button"
+                [disabled]="store.saving()"
+                (click)="cancel()"
+              >
                 Cancel
               </button>
             </div>

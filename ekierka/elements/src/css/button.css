@@ -1,0 +1,97 @@
+/*
+ * <button class="ek-button"> or <a class="ek-button">.
+ * data-variant: surface (default) | primary | inverse. data-shape="icon". data-block.
+ * Busy: aria-busy="true". Disabled: :disabled, or aria-disabled="true" on anchors (styling only;
+ * the page must not navigate). Quiet mode: an ancestor with [data-quiet] drops the shadow.
+ */
+.ek-button {
+  --_bg: var(--color-surface);
+  --_fg: var(--color-ink);
+  --_bg-hover: color-mix(in srgb, var(--color-surface), var(--color-ink) 8%);
+
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-width: var(--tap);
+  min-height: var(--tap);
+  margin: 0;
+  padding: 0 var(--space-4);
+  border: var(--border-heavy);
+  background: var(--_bg);
+  color: var(--_fg);
+  box-shadow: var(--elevation, var(--shadow-sm));
+  font: 700 var(--text-md) / 1 var(--font-ui);
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform var(--motion-fast),
+    box-shadow var(--motion-fast);
+
+  &[data-variant='primary'] {
+    --_bg: var(--color-primary);
+    --_bg-hover: color-mix(in srgb, var(--color-primary), var(--color-ink) 12%);
+  }
+
+  &[data-variant='inverse'] {
+    --_bg: var(--color-ink);
+    --_fg: var(--color-inverse-ink);
+    --_bg-hover: color-mix(in srgb, var(--color-ink), var(--color-inverse-ink) 20%);
+    box-shadow: none;
+  }
+
+  &[data-shape='icon'] {
+    width: var(--tap);
+    height: var(--tap);
+    padding: 0;
+    font-size: var(--text-lg);
+  }
+
+  &[data-block] {
+    display: flex;
+    width: 100%;
+  }
+
+  &:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-offset);
+  }
+
+  &[aria-busy='true'] {
+    cursor: progress;
+  }
+
+  &:not(:disabled, [aria-disabled='true'], [aria-busy='true']) {
+    @media (hover: hover) {
+      &:hover {
+        background: var(--_bg-hover);
+      }
+    }
+
+    &:active {
+      background: var(--_bg-hover);
+      transform: translate(var(--press-offset), var(--press-offset));
+      box-shadow: var(--elevation-press, var(--shadow-press));
+
+      &[data-variant='inverse'] {
+        box-shadow: none;
+      }
+    }
+  }
+
+  /* Disabled reads as dashed and flat, not just faded, so it works without colour. */
+  &:disabled,
+  &[aria-disabled='true'] {
+    border-style: dashed;
+    background: var(--color-bg);
+    color: var(--color-ink-subtle);
+    box-shadow: none;
+    cursor: not-allowed;
+
+    &[data-variant='inverse'] {
+      background: var(--color-ink-subtle);
+      color: var(--color-inverse-ink);
+    }
+  }
+}

@@ -1,0 +1,24 @@
+/* <div class="ek-card">. data-tone: surface (default) | primary | danger. data-weight="thin". */
+.ek-card {
+  display: block;
+  box-sizing: border-box;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border: var(--border-heavy);
+  box-shadow: var(--elevation, var(--shadow));
+
+  &[data-tone='primary'] {
+    background: var(--color-primary);
+  }
+
+  &[data-tone='danger'] {
+    background: var(--color-danger);
+  }
+
+  /* Thin cards are calm: 1px border, no shadow. */
+  &[data-weight='thin'] {
+    border: var(--border-thin);
+    box-shadow: none;
+  }
+}

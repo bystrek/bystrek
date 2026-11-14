@@ -177,7 +177,7 @@
   color: var(--color-ink-muted);
 }
 
-.event app-tag {
+.event .ek-tag {
   grid-column: 2;
   justify-self: start;
 }

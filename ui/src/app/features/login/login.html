@@ -1,15 +1,15 @@
 <main class="login">
-  <app-stack class="login-stack" gap="space-6">
+  <div class="ek-stack login-stack" data-gap="6">
     <header class="intro">
       <h1>bystrek</h1>
       <p>Sign in to reach the assistant.</p>
     </header>
 
-    <app-card>
-      <button appButton type="button" variant="primary" block (click)="signIn()">
+    <div class="ek-card">
+      <button class="ek-button" type="button" data-variant="primary" data-block (click)="signIn()">
         Sign in with Pocket ID
       </button>
-    </app-card>
+    </div>
 
     @if (error(); as code) {
       <app-alert
@@ -21,5 +21,5 @@
         {{ code | signInError }}
       </app-alert>
     }
-  </app-stack>
+  </div>
 </main>

@@ -3,8 +3,7 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@ang
 import { FormField, FormRoot, form, maxLength, required } from '@angular/forms/signals';
 import { ApiToken, ApiTokensService } from '../../core/auth/api-tokens.service';
 import { Alert } from '../../shared/alert/alert';
-import { Button } from '../../shared/button/button';
-import { StatusBanner } from '../../shared/status-banner/status-banner';
+import { Icon } from '../../shared/icon/icon';
 
 // The API's limit (better-auth's api-key plugin default).
 const MAX_NAME_LENGTH = 32;
@@ -12,7 +11,7 @@ const MAX_NAME_LENGTH = 32;
 /** Create, list and revoke personal API tokens, for apps that push data to bystrek. */
 @Component({
   selector: 'app-api-tokens',
-  imports: [Alert, Button, DatePipe, FormField, FormRoot, StatusBanner],
+  imports: [Alert, DatePipe, FormField, FormRoot, Icon],
   templateUrl: './api-tokens.html',
   styleUrl: './api-tokens.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

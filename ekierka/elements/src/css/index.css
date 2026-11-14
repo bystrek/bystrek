@@ -1,3 +1,8 @@
-/* Ekierka's CSS layer: classes and attributes on native markup. Empty until the primitives move in. */
-@layer ekierka {
-}
+/* Ekierka's CSS layer: classes and attributes on native markup. */
+@import './button.css' layer(ekierka);
+@import './chip.css' layer(ekierka);
+@import './card.css' layer(ekierka);
+@import './stack.css' layer(ekierka);
+@import './tag.css' layer(ekierka);
+@import './status.css' layer(ekierka);
+@import './progress.css' layer(ekierka);

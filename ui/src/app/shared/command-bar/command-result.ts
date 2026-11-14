@@ -1,21 +1,20 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
-import { Button } from '../button/button';
-import { Card, CardTone } from '../card/card';
 import { Icon } from '../icon/icon';
-import { Tag } from '../tag/tag';
+
+type CardTone = 'surface' | 'primary' | 'danger';
 
 // One result card in a command bar's result slot: a labelled head with a close button.
 @Component({
   selector: 'app-command-result',
-  imports: [Button, Card, Icon, Tag],
+  imports: [Icon],
   template: `
-    <app-card [tone]="tone()">
+    <div class="ek-card" [attr.data-tone]="tone()">
       <div class="head">
-        <app-tag variant="solid">{{ label() }}</app-tag>
+        <span class="ek-tag" data-variant="solid">{{ label() }}</span>
         <button
+          class="ek-button"
           type="button"
-          appButton
-          shape="icon"
+          data-shape="icon"
           [attr.aria-label]="closeLabel()"
           (click)="closed.emit()"
         >
@@ -23,7 +22,7 @@ import { Tag } from '../tag/tag';
         </button>
       </div>
       <ng-content />
-    </app-card>
+    </div>
   `,
   styleUrl: './command-result.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

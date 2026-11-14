@@ -1,6 +1,6 @@
 <div class="head">
   <h2 class="name">{{ place().name }}</h2>
-  <app-tag variant="outline">{{ place().category | categoryLabel }}</app-tag>
+  <span class="ek-tag" data-variant="outline">{{ place().category | categoryLabel }}</span>
 </div>
 
 <a
@@ -26,19 +26,23 @@
   <div class="confirm" role="group" [attr.aria-label]="'Delete ' + place().name">
     <p>Delete for everyone?</p>
     <div class="actions">
-      <button appButton type="button" variant="inverse" (click)="deleteConfirmed.emit()">
+      <button
+        class="ek-button"
+        type="button"
+        data-variant="inverse"
+        (click)="deleteConfirmed.emit()"
+      >
         Delete
       </button>
-      <button appButton type="button" (click)="deleteCancelled.emit()">Keep</button>
+      <button class="ek-button" type="button" (click)="deleteCancelled.emit()">Keep</button>
     </div>
   </div>
 } @else {
   <div class="actions">
     <button
-      appButton
       type="button"
-      class="visited"
-      [variant]="place().visitedByMe ? 'primary' : 'surface'"
+      class="ek-button visited"
+      [attr.data-variant]="place().visitedByMe ? 'primary' : 'surface'"
       [attr.aria-pressed]="place().visitedByMe"
       [disabled]="mode() === PlaceRowMode.Busy"
       (click)="visitedToggled.emit()"
@@ -49,7 +53,7 @@
       Visited
     </button>
     <button
-      appButton
+      class="ek-button"
       type="button"
       [disabled]="mode() === PlaceRowMode.Busy"
       [attr.aria-label]="'Edit ' + place().name"
@@ -58,7 +62,7 @@
       Edit
     </button>
     <button
-      appButton
+      class="ek-button"
       type="button"
       [disabled]="mode() === PlaceRowMode.Busy"
       [attr.aria-label]="'Delete ' + place().name"

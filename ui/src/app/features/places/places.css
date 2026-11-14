@@ -123,7 +123,7 @@ app-alert p {
   padding-right: var(--page-head-inset, 0);
 }
 
-:host([data-view='map']) .top :is(.search, .app-chip) {
+:host([data-view='map']) .top :is(.search, .ek-chip) {
   box-shadow: var(--shadow-sm);
 }
 

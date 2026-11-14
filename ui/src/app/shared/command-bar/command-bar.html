@@ -3,7 +3,7 @@
     @if (busy()) {
       <div class="thinking">
         <p class="asked">&gt; {{ asked() }}</p>
-        <app-progress [label]="thinkingLabel()" />
+        <progress class="ek-progress" [attr.aria-label]="thinkingLabel()" max="100"></progress>
       </div>
     }
     <ng-content select="[commandBarResult]" />
@@ -22,15 +22,21 @@
       [formField]="textForm"
     />
     @if (busy()) {
-      <button type="button" appButton shape="icon" aria-label="Stop" (click)="stopped.emit()">
+      <button
+        class="ek-button"
+        type="button"
+        data-shape="icon"
+        aria-label="Stop"
+        (click)="stopped.emit()"
+      >
         <app-icon name="stop" />
       </button>
     } @else {
       @if (clearable() && text()) {
         <button
+          class="ek-button"
           type="button"
-          appButton
-          shape="icon"
+          data-shape="icon"
           aria-label="Clear"
           [disabled]="locked()"
           (click)="cleared.emit()"
@@ -39,10 +45,10 @@
         </button>
       }
       <button
+        class="ek-button"
         type="submit"
-        appButton
-        variant="primary"
-        shape="icon"
+        data-variant="primary"
+        data-shape="icon"
         [disabled]="locked()"
         [attr.aria-label]="submitLabel()"
       >

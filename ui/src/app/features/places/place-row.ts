@@ -1,8 +1,6 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { Place } from '../../core/places/places.service';
-import { Button } from '../../shared/button/button';
 import { Icon } from '../../shared/icon/icon';
-import { Tag } from '../../shared/tag/tag';
 import { CategoryLabelPipe, OsmUrlPipe, UrlHostPipe } from './place-pipes';
 
 export const PlaceRowMode = {
@@ -18,7 +16,7 @@ export type PlaceRowMode = (typeof PlaceRowMode)[keyof typeof PlaceRowMode];
 // One saved place. Presentational: the list's store owns the mode and handles the events.
 @Component({
   selector: 'app-place-row',
-  imports: [Button, CategoryLabelPipe, Icon, OsmUrlPipe, Tag, UrlHostPipe],
+  imports: [CategoryLabelPipe, Icon, OsmUrlPipe, UrlHostPipe],
   templateUrl: './place-row.html',
   styleUrl: './place-row.css',
   host: {

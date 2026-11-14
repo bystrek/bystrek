@@ -8,7 +8,7 @@
     <p>It won't be shown again.</p>
     <div class="created">
       <input type="text" readonly [value]="token" aria-label="New API token" />
-      <button appButton type="button" (click)="copy(token)">
+      <button class="ek-button" type="button" (click)="copy(token)">
         {{ copied() ? 'Copied' : 'Copy' }}
       </button>
     </div>
@@ -32,7 +32,7 @@
           </small>
         </div>
         <button
-          appButton
+          class="ek-button"
           type="button"
           [disabled]="revoking() === token.id"
           [attr.aria-label]="'Revoke ' + token.name"
@@ -53,9 +53,14 @@
   @for (error of createForm().errors(); track error.kind) {
     <p class="field-error" role="alert">{{ error.message }}</p>
   }
-  <button appButton type="submit" block [disabled]="createForm().submitting()">
+  <button class="ek-button" type="submit" data-block [disabled]="createForm().submitting()">
     {{ createForm().submitting() ? 'Creating…' : 'Create token' }}
   </button>
 </form>
 
-<app-status-banner [message]="error()" [error]="true" />
+@if (error()) {
+  <p class="ek-status" data-tone="error">
+    <app-icon name="warning" />
+    {{ error() }}
+  </p>
+}
