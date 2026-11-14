@@ -34,7 +34,8 @@ const VALUE_EVENT = 'ek-value-change';
 // Field state that signal forms push into a control that declares a matching input.
 const FIELD_STATE = new Set(['disabled', 'readonly', 'invalid', 'required', 'touched']);
 // A default we can copy into a signal input's initial value.
-const PLAIN_LITERAL = /^(true|false|null|undefined|-?\d+(\.\d+)?|'[^'\\]*'|"[^"\\]*")$/;
+const PLAIN_LITERAL =
+  /^(true|false|null|undefined|-?\d+(\.\d+)?|'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")$/;
 
 const camel = (kebab: string) => kebab.replace(/-(\w)/g, (_, c: string) => c.toUpperCase());
 const changeEvent = (property: string) =>
@@ -97,6 +98,8 @@ function check(el: Element, props: Field[], events: Event[]): void {
   }
   const isControl = events.some((e) => e.name === VALUE_EVENT);
   if (isControl && !props.some((p) => p.name === 'value')) fail(`${VALUE_EVENT} needs a "value"`);
+  if (isControl && props.find((p) => p.name === 'value')?.default === undefined)
+    fail(`a control's "value" needs a plain literal default`);
 }
 
 function wrapper(el: Element): string {

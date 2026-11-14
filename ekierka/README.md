@@ -15,3 +15,8 @@ bystrek's design system. Design rules and the generator contract: bystrek/bystre
 ## Axe and key screens
 
 `bun run test:visual` in `ui/` runs axe on every Storybook story and compares screenshots of login, settings and not-found (`ui/e2e/visual`). The screen baselines are Linux/WebKit; regenerate them with `scripts/visual-baselines.sh`, which runs in the same Playwright container as CI. Check story looks by eye in Storybook.
+
+## Generator notes
+
+- A control's `value` needs a plain literal default; the build fails otherwise.
+- Two-way properties (`ek-<property>-change`) are Angular `model()`s, which can't coerce attributes: bind them (`[open]="true"`, `[(open)]="signal"`); a bare `<ek-drawer open>` is a template type error, not a silent `''`.

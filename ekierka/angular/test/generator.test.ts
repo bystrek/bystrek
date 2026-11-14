@@ -125,6 +125,25 @@ describe('generator conventions', () => {
     );
   });
 
+  test('a control whose value has no default fails', async () => {
+    const broken = withElement((el) => {
+      delete el['members'].find((m: { name: string }) => m.name === 'value').default;
+    });
+    await expect(generate(broken)).rejects.toThrow(/"value" needs a plain literal default/);
+  });
+
+  test('string defaults may contain escapes', async () => {
+    const ok = withElement((el) => {
+      el['members'].push({
+        kind: 'field',
+        name: 'text',
+        type: { text: 'string' },
+        default: "'Don\\'t'",
+      });
+    });
+    await expect(generate(ok)).resolves.toBeDefined();
+  });
+
   test('a tag without the ek- prefix fails', async () => {
     const broken = withElement((el) => {
       el['tagName'] = 'my-switch';
