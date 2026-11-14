@@ -11,3 +11,11 @@ api/eval/*.js.map
 api/node_modules
 api/.env
 api/dist
+
+# Ekierka / ui build output
+ekierka/*/dist
+ekierka/elements/custom-elements.json
+ekierka/angular/src/generated
+
+node_modules
+.vitest-attachments

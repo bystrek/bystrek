@@ -25,7 +25,7 @@ docker info >/dev/null 2>&1 || fail "docker daemon not running — start Docker 
 [ -f api/.env ] || fail "create api/.env from api/.env.example first"
 
 [ -d api/node_modules ] || (cd api && echo "==> Installing api deps" && bun install)
-[ -d ui/node_modules ] || (cd ui && echo "==> Installing ui deps" && bun install)
+[ -d node_modules ] || (echo "==> Installing workspace (ekierka, ui) deps" && bun install)
 
 # A shell-exported DATABASE_URL would override api/.env, so drop it.
 unset DATABASE_URL

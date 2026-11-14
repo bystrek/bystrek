@@ -1,0 +1,33 @@
+{
+  "name": "@ekierka/angular",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "bun scripts/generate.ts",
+    "build": "bun run generate",
+    "test": "bun test",
+    "format": "prettier --write \"src/*.ts\" \"scripts/**/*.ts\" \"test/**/*.ts\" \"test/**/*.json\"",
+    "format:check": "prettier --check \"src/*.ts\" \"scripts/**/*.ts\" \"test/**/*.ts\" \"test/**/*.json\""
+  },
+  "dependencies": {
+    "@ekierka/elements": "workspace:*"
+  },
+  "peerDependencies": {
+    "@angular/core": "^22.1.3",
+    "@angular/forms": "^22.1.3",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@angular/core": "^22.1.3",
+    "@angular/forms": "^22.1.3",
+    "@types/bun": "^1.3.0",
+    "prettier": "^3.8.1",
+    "tslib": "^2.3.0",
+    "typescript": "~6.0.3"
+  }
+}

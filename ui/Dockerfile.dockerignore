@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/.angular
+**/test-results
+**/playwright-report
+**/custom-elements.json
+**/src/generated
+.git
+api
+docs
+brand
+ui/e2e
