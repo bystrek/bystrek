@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 // `bun run test:visual` sets VISUAL=1: it also serves the static Storybook build and runs the
-// screenshot projects. Baselines are Linux/WebKit, so update them in the Playwright container.
+// axe and screenshot projects. The three screen baselines are Linux/WebKit: update them with scripts/visual-baselines.sh.
 const visual = !!process.env['VISUAL'];
 
 export default defineConfig({
@@ -34,8 +34,8 @@ export default defineConfig({
   projects: visual
     ? [
         {
-          name: 'visual-stories',
-          testMatch: 'visual/stories.visual.ts',
+          name: 'a11y-stories',
+          testMatch: 'visual/stories.a11y.ts',
           use: { ...devices['Desktop Safari'] },
         },
         {

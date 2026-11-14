@@ -148,9 +148,9 @@ jobs:
           bun run test
           bun run test:e2e
 
-      # Storybook screenshots and axe, plus key screens, against the baselines
-      # committed in ui/e2e/visual. Update them with scripts/visual-baselines.sh.
-      - name: Visual baselines and axe
+      # axe on every Storybook story, plus key-screen screenshots against the
+      # baselines committed in ui/e2e/visual. Update them with scripts/visual-baselines.sh.
+      - name: Axe and key-screen screenshots
         working-directory: ui
         run: bun run test:visual
 

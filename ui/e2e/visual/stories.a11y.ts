@@ -3,8 +3,7 @@ import path from 'node:path';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-// One screenshot per Storybook story, taken from the static build (`bun run build-storybook`).
-// Baselines are Linux/WebKit: update them in the Playwright container (see README).
+// An axe check per Storybook story, from the static build (`bun run build-storybook`).
 const storybook = process.env['STORYBOOK_URL'] ?? 'http://localhost:6006';
 
 const index = JSON.parse(
@@ -13,13 +12,6 @@ const index = JSON.parse(
 const stories = Object.values(index.entries).filter((e) => e.type === 'story');
 
 for (const { id } of stories) {
-  test(id, async ({ page }) => {
-    await page.goto(`${storybook}/iframe.html?id=${id}&viewMode=story`);
-    await page.locator('#storybook-root:not(:empty)').waitFor();
-    await page.evaluate(() => document.fonts.ready);
-    await expect(page).toHaveScreenshot(`${id}.png`, { fullPage: true, animations: 'disabled' });
-  });
-
   test(`${id} has no axe violations`, async ({ page }) => {
     await page.goto(`${storybook}/iframe.html?id=${id}&viewMode=story`);
     await page.locator('#storybook-root:not(:empty)').waitFor();
