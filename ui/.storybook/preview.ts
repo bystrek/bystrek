@@ -1,5 +1,5 @@
 import type { Preview } from '@storybook/angular-vite';
-import '../src/tokens.css';
+import '@ekierka/elements/tokens.css';
 import '../src/styles.css';
 
 const preview: Preview = {

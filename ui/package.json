@@ -12,7 +12,17 @@
     "format": "prettier --write \"src/**/*.{ts,html,css}\" \"e2e/**/*.ts\" \"playwright.config.ts\"",
     "format:check": "prettier --check \"src/**/*.{ts,html,css}\" \"e2e/**/*.ts\" \"playwright.config.ts\"",
     "storybook": "ng run ui:storybook",
-    "build-storybook": "ng run ui:build-storybook"
+    "build-storybook": "ng run ui:build-storybook",
+    "build:ekierka": "bun run --cwd ../ekierka/elements build && bun run --cwd ../ekierka/angular build",
+    "prestart": "bun run build:ekierka",
+    "prestart:remote": "bun run build:ekierka",
+    "prebuild": "bun run build:ekierka",
+    "pretest": "bun run build:ekierka",
+    "prestorybook": "bun run build:ekierka",
+    "prebuild-storybook": "bun run build:ekierka",
+    "pretest:e2e": "bun run build:ekierka",
+    "test:visual": "bun run build-storybook && VISUAL=1 playwright test",
+    "test:visual:update": "bun run build-storybook && VISUAL=1 playwright test --update-snapshots"
   },
   "private": true,
   "packageManager": "bun@1.4.0",
@@ -32,13 +42,15 @@
     "maplibre-gl": "6.17.0",
     "marked": "^18.0.11",
     "rxjs": "~7.8.0",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "@ekierka/elements": "workspace:*",
+    "@ekierka/angular": "workspace:*"
   },
   "devDependencies": {
     "@angular/build": "^22.1.5",
     "@angular/cli": "^22.1.5",
     "@angular/compiler-cli": "^22.1.3",
-    "@playwright/test": "^1.62.1",
+    "@playwright/test": "1.62.1",
     "@types/dompurify": "^3.2.0",
     "jsdom": "^28.0.0",
     "prettier": "^3.8.1",
@@ -52,6 +64,8 @@
     "@angular-devkit/architect": "^0.2201.3",
     "@angular-devkit/core": "^22.1.3",
     "@angular/animations": "^22.1.3",
-    "@analogjs/vite-plugin-angular": "^2.7.3"
+    "@analogjs/vite-plugin-angular": "^2.7.3",
+    "http-server": "^14.1.1",
+    "@axe-core/playwright": "^4.10.2"
   }
 }

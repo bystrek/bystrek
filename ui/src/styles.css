@@ -1,4 +1,4 @@
-@import './tokens.css';
+@import '@ekierka/elements/tokens.css';
 
 * {
   border-radius: 0 !important;

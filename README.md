@@ -9,6 +9,7 @@ A self-hosted personal data platform: calendar, notes, research, medical records
 The app runs on the home server. See [Issues](https://github.com/bystrek/bystrek/issues) (grouped by `MVP`/`Post-MVP` milestones) for the current punch list and the [wiki](https://github.com/bystrek/bystrek/wiki) for the devlog.
 
 **Working today:**
+
 - A home server behind a Cloudflare Tunnel.
 - `bystrek.dev` and `api.bystrek.dev` route through Cloudflare to Caddy on the home server.
 - `ui/` (Angular, zoneless) at `bystrek.dev`: login, profile, and settings.
@@ -17,6 +18,7 @@ The app runs on the home server. See [Issues](https://github.com/bystrek/bystrek
 - Deploy pipeline: CI tests and builds `api`/`ui` on every PR and merge without pushing. A manual **Release** workflow publishes both images to GHCR under one CalVer version; `homelab` pins that version tag, and Flux rolls it out when the owner cuts a `homelab` release tag. See [Releasing](#releasing).
 
 **Not built yet:**
+
 - The daily digest for the calendar vertical slice.
 - Notes/research/medical/nutrition/gym domains.
 
@@ -44,7 +46,8 @@ Versions are `YYYY.M.N`: month without a leading zero (valid semver), N from 1 a
 .github/       CI (tests + image builds) and the Release workflow (publishes images to GHCR)
 api/           NestJS + Drizzle + Bun backend — Postgres, auth, calendar
 ui/            Angular frontend — login, profile, settings
-scripts/       dev.sh — one-command local start (Postgres, migrate, api, ui)
+ekierka/       Design system: elements (Lit on Zag, tokens, CSS) and the generated Angular wrappers
+scripts/       dev.sh — one-command local start (Postgres, migrate, api, ui); visual-baselines.sh
 brand/         Logo, icon, and favicon assets (SVG sources + rendered exports)
 docs/          architecture.md (direction) — live punch list is in GitHub Issues
 ```
@@ -57,6 +60,8 @@ docs/          architecture.md (direction) — live punch list is in GitHub Issu
 4. Run `./scripts/dev.sh`. It starts Postgres, migrates, and starts the API and UI. Sign in at `http://localhost:4200` with your Pocket ID account; the first sign-in creates your local user. `Ctrl+C` stops the API and UI; Postgres keeps running.
 
 Add your test CalDAV account in Settings after signing in.
+
+`ui/` and `ekierka/*` are one Bun workspace: run `bun install` once at the repo root. `api/` installs on its own.
 
 Without `dev.sh`: `cd api && bun run db:migrate`, then `bun run start:dev` in `api/` and `bun run start` in `ui/`. Use `bun run start:remote` in `ui/` to proxy to the deployed API; sign-in then goes through the production Pocket ID client and hands the session back to localhost.
 

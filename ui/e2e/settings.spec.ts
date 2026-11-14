@@ -1,34 +1,8 @@
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
+import { mockSession, mockSignIn } from './support/mocks';
 
 const fixtureImage = path.join(__dirname, 'fixtures', 'avatar.png');
-
-function mockSignIn(page: import('@playwright/test').Page) {
-  return page.route('**/api/auth/one-time-token/verify', (route) =>
-    route.fulfill({
-      status: 200,
-      headers: { 'set-auth-token': 'fake-token' },
-      json: { token: 'fake-token', user: { id: '1' } },
-    }),
-  );
-}
-
-function mockSession(page: import('@playwright/test').Page) {
-  return page.route('**/api/auth/get-session', (route) =>
-    route.fulfill({
-      json: {
-        user: {
-          id: '1',
-          name: 'Michał B',
-          role: 'user',
-          firstName: 'Michał',
-          lastName: 'B',
-          image: null,
-        },
-      },
-    }),
-  );
-}
 
 test('edits first/last name and avatar, then saves via update-user', async ({ page }) => {
   await mockSignIn(page);

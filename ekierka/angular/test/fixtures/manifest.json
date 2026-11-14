@@ -1,0 +1,90 @@
+{
+  "schemaVersion": "1.0.0",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "src/fixture.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "EkSwitch",
+          "tagName": "ek-switch",
+          "description": "A form control: value plus ek-value-change.",
+          "members": [
+            { "kind": "field", "name": "value", "type": { "text": "string" }, "default": "''" },
+            { "kind": "field", "name": "label", "type": { "text": "string | undefined" } },
+            { "kind": "field", "name": "size", "type": { "text": "number" }, "default": "2" },
+            { "kind": "field", "name": "open", "type": { "text": "boolean" }, "default": "false" },
+            {
+              "kind": "field",
+              "name": "disabled",
+              "type": { "text": "boolean" },
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "readonly",
+              "type": { "text": "boolean" },
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "invalid",
+              "type": { "text": "boolean" },
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "required",
+              "type": { "text": "boolean" },
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "touched",
+              "type": { "text": "boolean" },
+              "default": "false"
+            },
+            { "kind": "field", "name": "name", "type": { "text": "string" }, "default": "''" },
+            {
+              "kind": "field",
+              "name": "errors",
+              "type": { "text": "readonly { message?: string }[]" }
+            },
+            { "kind": "field", "name": "_internal", "type": { "text": "number" } },
+            {
+              "kind": "field",
+              "name": "tracked",
+              "privacy": "private",
+              "type": { "text": "number" }
+            }
+          ],
+          "events": [
+            {
+              "name": "ek-value-change",
+              "type": { "text": "CustomEvent<string>" },
+              "description": "The value changed."
+            },
+            {
+              "name": "ek-open-change",
+              "type": { "text": "CustomEvent<boolean>" }
+            },
+            {
+              "name": "ek-pick",
+              "type": { "text": "CustomEvent<PickDetail>" },
+              "description": "An option was picked."
+            }
+          ]
+        },
+        {
+          "kind": "class",
+          "name": "EkBadge",
+          "tagName": "ek-badge",
+          "members": [
+            { "kind": "field", "name": "tone", "type": { "text": "string" }, "default": "'info'" }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -98,7 +98,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        image: [api, ui]
+        # The ui image needs the repo root as context: its workspace includes ekierka/.
+        include:
+          - image: api
+            context: ./api
+            file: api/Dockerfile
+          - image: ui
+            context: .
+            file: ui/Dockerfile
     steps:
       - uses: actions/checkout@v4
         with:
@@ -122,7 +129,8 @@ jobs:
 
       - uses: docker/build-push-action@v6
         with:
-          context: ./${{ matrix.image }}
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
