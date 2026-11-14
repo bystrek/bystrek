@@ -1,4 +1,4 @@
-@switch (mode()) {
+@switch (bar.mode().value()) {
   @case (BarMode.ASK) {
     <app-ask-bar [(text)]="text" (jump)="jump.emit($event)" />
   }
@@ -7,17 +7,4 @@
   }
 }
 
-<div class="modes" role="radiogroup" aria-label="Bar mode">
-  @for (m of modes; track m) {
-    <button
-      type="button"
-      role="radio"
-      class="mode"
-      [attr.aria-checked]="mode() === m"
-      [disabled]="askStore.busy() || logStore.busy() || logStore.saving()"
-      (click)="mode.set(m)"
-    >
-      {{ m }}
-    </button>
-  }
-</div>
+<ek-segmented-control label="Bar mode" [options]="modeOptions" [formField]="bar.mode" />

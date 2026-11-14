@@ -4,6 +4,8 @@ This repository contains the application code for bystrek:
 
 - `api/` — NestJS + Bun + Drizzle backend
 - `ui/` — Angular frontend
+- `ekierka/` — the Ekierka design system (tokens and Stencil + Zag elements in
+  `ekierka/elements`, generated Angular wrappers in `ekierka/angular`); Bun workspaces with `ui` from the root `package.json`
 - `.github/workflows/` — CI and GHCR publish/deploy automation
 
 ## Working rules

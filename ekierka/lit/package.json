@@ -1,0 +1,40 @@
+{
+  "name": "@ekierka/lit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "customElements": "custom-elements.json",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./custom-elements.json": "./custom-elements.json"
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json --emitDeclarationOnly && bun build src/index.ts --outdir dist --format esm --target browser --external lit --external \"lit/*\" && cem analyze --litelement --globs \"src/**/*.ts\" --exclude \"src/**/*.test.ts\" && bun scripts/generate-angular.ts",
+    "test": "bun run build && vitest run",
+    "format": "prettier --write \"src/**/*.ts\" \"scripts/**/*.ts\" \"*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"scripts/**/*.ts\" \"*.ts\""
+  },
+  "dependencies": {
+    "@zag-js/combobox": "1.47.0",
+    "@zag-js/core": "1.47.0",
+    "@zag-js/dialog": "1.47.0",
+    "@zag-js/vanilla": "1.47.0"
+  },
+  "devDependencies": {
+    "@custom-elements-manifest/analyzer": "^0.11.0",
+    "@ekierka/elements": "workspace:*",
+    "@vitest/browser-playwright": "^4.1.11",
+    "lit": "^3.3.3",
+    "playwright": "^1.62.1",
+    "prettier": "^3.8.1",
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.11"
+  },
+  "peerDependencies": {
+    "lit": "^3.3.3"
+  }
+}

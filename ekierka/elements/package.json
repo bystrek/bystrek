@@ -1,0 +1,39 @@
+{
+  "name": "@ekierka/elements",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tokens.css": "./src/tokens.css",
+    "./components": {
+      "types": "./dist/components/index.d.ts",
+      "import": "./dist/components/index.js"
+    },
+    "./components/*.js": {
+      "types": "./dist/components/*.d.ts",
+      "import": "./dist/components/*.js"
+    }
+  },
+  "scripts": {
+    "build": "stencil build",
+    "test": "stencil-test --prod",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"*.ts\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"*.ts\""
+  },
+  "dependencies": {
+    "@zag-js/combobox": "1.47.0",
+    "@zag-js/core": "1.47.0",
+    "@zag-js/radio-group": "1.47.0",
+    "@zag-js/types": "1.47.0",
+    "@zag-js/vanilla": "1.47.0"
+  },
+  "devDependencies": {
+    "@stencil/angular-output-target": "^1.6.0",
+    "@stencil/core": "^4.45.3",
+    "@stencil/vitest": "^1.16.2",
+    "@vitest/browser-playwright": "^4.1.11",
+    "playwright": "^1.62.1",
+    "prettier": "^3.8.1",
+    "vitest": "^4.1.11"
+  }
+}

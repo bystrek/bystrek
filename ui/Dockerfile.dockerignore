@@ -1,0 +1,12 @@
+# Build context is the repo root (ui consumes ekierka through Bun workspaces).
+**/node_modules
+**/dist
+api
+ui/.angular
+ui/e2e
+ui/test-results
+ui/playwright-report
+ui/storybook-static
+ekierka/angular/src/generated
+ekierka/lit-angular/src/generated
+ekierka/lit/custom-elements.json

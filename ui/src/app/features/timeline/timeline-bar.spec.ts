@@ -71,9 +71,13 @@ const render = async (response: DiaryDraftResponse = draft) => {
     await settle();
   };
   const mode = async (name: string) => {
-    [...el.querySelectorAll<HTMLButtonElement>('[role="radio"]')]
-      .find((b) => b.textContent?.trim() === name)!
-      .click();
+    // Stencil renders the switch on its own schedule, after Angular is stable.
+    const radio = await vi.waitFor(() => {
+      const found = el.querySelector<HTMLInputElement>(`input[type="radio"][value="${name}"]`);
+      if (!found) throw new Error(`No ${name} radio yet`);
+      return found;
+    });
+    radio.click();
     await settle();
   };
   return { el, diary, ask, field, type, enter, mode, settle };

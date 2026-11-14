@@ -1,0 +1,99 @@
+import { TestBed } from '@angular/core/testing';
+import { LitComboboxFormHarness } from './combobox-form.harness';
+
+// Spike: ekl-combobox through its generated wrapper, a native FormValueControl, bound with [formField].
+const render = async () => {
+  const fixture = TestBed.createComponent(LitComboboxFormHarness);
+  const harness = fixture.componentInstance;
+  const el: HTMLElement = fixture.nativeElement;
+  const settle = async () => {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    fixture.detectChanges();
+    await fixture.whenStable();
+  };
+  const input = await vi.waitFor(() => {
+    const found = el.querySelector<HTMLInputElement>('ekl-combobox input');
+    if (!found) throw new Error('ekl-combobox not rendered yet');
+    return found;
+  });
+  const key = async (key: string) => {
+    input.focus();
+    input.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+    await settle();
+  };
+  const options = () =>
+    [...el.querySelectorAll('[role="option"]')].map((o) => o.textContent?.trim());
+  return { harness, el, input, key, settle, options };
+};
+
+describe('ekl-combobox (Lit) with a signal form field', () => {
+  it('shows the label of the field value', async () => {
+    const { harness, input, settle } = await render();
+    harness.model.set({ category: 'work' });
+    await settle();
+    await vi.waitFor(() => expect(input.value).toBe('Work'));
+  });
+
+  // Keyboard behaviour itself is covered by ekierka/elements' browser tests.
+  it('writes the picked option to the field', async () => {
+    const { harness, el, key, settle } = await render();
+    await key('ArrowDown');
+    [...el.querySelectorAll<HTMLElement>('[role="option"]')]
+      .find((o) => o.textContent?.trim() === 'Home')!
+      .click();
+    await settle();
+    expect(harness.model().category).toBe('home');
+  });
+
+  it('follows the options while open', async () => {
+    const { harness, key, settle, options } = await render();
+    await key('ArrowDown');
+    harness.propose();
+    harness.existing.set(harness.existing().slice(1));
+    await settle();
+    await vi.waitFor(() => expect(options()).toEqual(['Home', 'Work', 'New 1 (new)']));
+  });
+
+  it('is disabled by the form rule', async () => {
+    const { harness, input, settle } = await render();
+    harness.locked.set(true);
+    await settle();
+    await vi.waitFor(() => expect(input.disabled).toBe(true));
+    harness.locked.set(false);
+    await settle();
+    await vi.waitFor(() => expect(input.disabled).toBe(false));
+  });
+
+  it('shows the required rule and its failure on the input', async () => {
+    const { harness, input, settle } = await render();
+    expect(input.getAttribute('aria-invalid')).not.toBe('true');
+    harness.mustPick.set(true);
+    await settle();
+    await vi.waitFor(() => expect(input.getAttribute('aria-invalid')).toBe('true'));
+    expect(input.required).toBe(true);
+    harness.model.set({ category: 'home' });
+    await settle();
+    await vi.waitFor(() => expect(input.getAttribute('aria-invalid')).not.toBe('true'));
+  });
+
+  it('marks the field touched when focus leaves the element', async () => {
+    const { harness, input, settle } = await render();
+    expect(harness.draft.category().touched()).toBe(false);
+    input.focus();
+    input.blur();
+    input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    await settle();
+    expect(harness.draft.category().touched()).toBe(true);
+  });
+
+  it('clears to no selection, not an empty-string value', async () => {
+    const { harness, el, input, settle } = await render();
+    harness.model.set({ category: 'work' });
+    await settle();
+    await vi.waitFor(() => expect(input.value).toBe('Work'));
+    harness.model.set({ category: null });
+    await settle();
+    const combobox = el.querySelector<HTMLElement & { value: unknown }>('ekl-combobox')!;
+    expect(combobox.value).toBeNull();
+  });
+});

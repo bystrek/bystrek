@@ -8,6 +8,6 @@ api/eval/*.js.map
 /.angular/
 .DS_Store
 
-api/node_modules
+node_modules/
 api/.env
 api/dist

@@ -1,0 +1,26 @@
+{
+  "name": "@ekierka/angular",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@ekierka/elements": "workspace:*"
+  },
+  "peerDependencies": {
+    "@angular/core": "^22.1.3",
+    "@angular/forms": "^22.1.3",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0"
+  },
+  "scripts": {
+    "format": "prettier --write \"src/*.ts\"",
+    "format:check": "prettier --check \"src/*.ts\""
+  },
+  "devDependencies": {
+    "prettier": "^3.8.1"
+  },
+  "sideEffects": false
+}
